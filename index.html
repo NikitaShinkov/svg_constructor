@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SVG-конструктор</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400&display=swap">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="app">
+
+    <aside class="sud_sidebloсk" id="sud_sidebloсk">
+        <div class="sub_list_wrap">
+            <p class="sidebar_title">Субъекты</p>
+            <div class="sub_list" id="sub_list"></div>
+        </div>
+
+        <div class="button_block">
+            <button type="button" class="upload_button" id="upload_button">
+                <span>Загрузить svg-файл...</span>
+            </button>
+            <button type="button" class="download_button" id="download_button" disabled>
+                <img src="assets/icons/downward_icon.svg" alt="" width="12" height="12">
+                <span>Скачать</span>
+            </button>
+            <button type="button" class="copy_button" id="copy_button" disabled title="Скопировать код">
+                <img src="assets/icons/content_copy.svg" alt="" width="11" height="12">
+            </button>
+        </div>
+
+        <div class="resize_handle" id="resize_handle" title="Потяните, чтобы изменить ширину"></div>
+    </aside>
+
+    <main class="svg_privew_block" id="svg_privew_block">
+        <div class="preview_stage" id="preview_stage"></div>
+    </main>
+
+</div>
+
+<div class="drop_overlay" id="drop_overlay"><span>Отпустите файл для загрузки</span></div>
+<div class="error_bar" id="error_bar" role="alert"></div>
+
+<input type="file" id="file_input" accept=".svg,image/svg+xml" hidden>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

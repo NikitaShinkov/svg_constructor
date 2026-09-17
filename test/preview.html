@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>preview check</title>
+<link rel="stylesheet" href="../css/styles.css">
+<style>
+    /* Lay several generated files out side by side for a visual check. */
+    body { overflow: auto; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 12px; height: 100vh; }
+    .cell { display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .cell > h2 { margin: 0; padding: 6px 10px; font-size: 12px; font-weight: 600; background: var(--sidebar-bg); }
+    .cell > .svg_privew_block { flex: 1; min-height: 0; }
+</style>
+</head>
+<body>
+<div class="grid" id="grid"></div>
+<script type="module">
+import { detectSubjects } from '../js/detect.js';
+import { buildSvg } from '../js/template.js';
+
+const FILES = [
+    'Object_1m1v1s_ai_draft.svg',
+    'PG_2m1v2s_S-S_figma_draft.svg',
+    'AVO_2m4v4s_R-R_ai_draft.svg',
+    'PK_3m4v7s_R-R-R_figma_draft.svg',
+    'PV_3m4v6s_R-RS-S_ai_draft.svg',
+    'CC2_6s_figma_draft.svg',
+];
+
+const grid = document.getElementById('grid');
+
+for (const name of FILES) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    const title = document.createElement('h2');
+    const box = document.createElement('div');
+    box.className = 'svg_privew_block';
+    const stage = document.createElement('div');
+    stage.className = 'preview_stage';
+    box.appendChild(stage);
+    cell.append(title, box);
+    grid.appendChild(cell);
+
+    try {
+        const text = await (await fetch(`../src_doc/files/${name}`)).text();
+        const { subjects } = detectSubjects(text);
+        stage.innerHTML = buildSvg(subjects);
+        title.textContent = `${name} — ${subjects.length} субъектов`;
+    } catch (e) {
+        title.textContent = `${name} — ОШИБКА: ${e.message}`;
+    }
+}
+document.title = 'preview ready';
+</script>
+</body>
+</html>

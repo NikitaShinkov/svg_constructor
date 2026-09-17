@@ -1,0 +1,363 @@
+/* All colours and metrics come from the Figma exports in design/. */
+:root {
+    --sidebar-bg: #11111c;
+    --preview-bg: #202035;
+    --block-bg-hover: #151521;
+    --field-bg: #24243c;
+    --border: #37375d;
+    --accent: #4c4cff;
+    --accent-hover: #6378ff;
+    --upload-hover: #1e1e41;
+    --scroll-thumb: #9393ff;
+    --scroll-track: #1d1d38;
+    --text: #ffffff;
+
+    --radius: 6px;
+    --control-h: 36px;
+    --icon-btn: 24px;
+    --sub-num-w: 29px;
+    --field-pad: 6px;
+    --line-h: 17px;
+    --sidebar-min: 360px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    height: 100%;
+    margin: 0;
+}
+
+body,
+button,
+input,
+textarea {
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: var(--line-h);
+}
+
+body {
+    background: var(--preview-bg);
+    color: var(--text);
+    overflow: hidden;
+}
+
+.app {
+    display: flex;
+    height: 100%;
+}
+
+/* ---------- left sidebar ---------- */
+
+.sud_sidebloсk {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    width: var(--sidebar-min);
+    min-width: var(--sidebar-min);
+    flex: 0 0 auto;
+    padding: 12px 12px 24px;
+    background: var(--sidebar-bg);
+}
+
+/* Full-height grab area on the right edge, so the whole border can be dragged. */
+.resize_handle {
+    position: absolute;
+    top: 0;
+    right: -3px;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 5;
+}
+
+/* The grab area stays wide; only a 1px line is drawn. */
+.resize_handle::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 2px;
+    width: 1px;
+    height: 100%;
+    background: transparent;
+}
+
+.resize_handle:hover::after,
+body.is_resizing .resize_handle::after {
+    background: var(--accent);
+}
+
+body.is_resizing {
+    cursor: col-resize;
+    user-select: none;
+}
+
+.sub_list_wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    flex: 1;
+    min-height: 0;
+}
+
+.sidebar_title {
+    margin: 0;
+    font-weight: 400;
+}
+
+.sub_list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+}
+
+.sub_list::-webkit-scrollbar { width: 4px; }
+.sub_list::-webkit-scrollbar-track { background: var(--scroll-track); }
+.sub_list::-webkit-scrollbar-thumb { background: var(--scroll-thumb); }
+.sub_list::-webkit-scrollbar-button { display: none; height: 0; width: 0; }
+.sub_list::-webkit-scrollbar-corner { background: var(--scroll-track); }
+
+/* Chrome ignores the ::-webkit-scrollbar rules as soon as scrollbar-width is
+   set, so the standard properties are kept for Firefox only. */
+@supports not selector(::-webkit-scrollbar) {
+    .sub_list {
+        scrollbar-width: thin;
+        scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+    }
+}
+
+/* ---------- subject row ---------- */
+
+.sub_block {
+    display: flex;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 6px 4px 6px 0;
+    background: none;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    cursor: pointer;
+}
+
+/* Adjacent rows share one visible rule rather than stacking two. */
+.sub_block + .sub_block { border-top: none; }
+
+.sub_block:hover,
+.sub_block:active { background: var(--block-bg-hover); }
+
+.icon_button {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--icon-btn);
+    height: var(--icon-btn);
+    padding: 0;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    opacity: 0.5;
+}
+
+.icon_button:hover { opacity: 1; }
+
+.sub_num {
+    flex: 0 0 auto;
+    width: var(--sub-num-w);
+    height: var(--icon-btn);
+    display: flex;
+    align-items: center;
+}
+
+.text_fields_block {
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.sub_block.is_open .text_fields_block { display: flex; }
+.sub_block.is_open .delete_sub_button { display: none; }
+
+/* Collapsed rows show nothing in the middle, so the delete button is pushed
+   to the far right instead of being carried there by the fields. */
+.delete_sub_button { margin-left: auto; }
+
+.text_field {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 0;
+}
+
+/* Padding matches the input's, so the label sits on the first line's baseline. */
+.field_label {
+    flex: 0 0 auto;
+    width: 16px;
+    padding-top: var(--field-pad);
+    color: var(--text);
+}
+
+.text_field textarea {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: block;
+    height: calc(var(--line-h) + var(--field-pad) * 2 + 2px);
+    min-height: calc(var(--line-h) + var(--field-pad) * 2 + 2px);
+    overflow: hidden;
+    resize: none;
+    background: var(--field-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--field-pad);
+    color: var(--text);
+    word-break: break-all;
+    cursor: text;
+}
+
+.text_field textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+/* ---------- buttons ---------- */
+
+.button_block {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.upload_button,
+.download_button,
+.copy_button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--control-h);
+    padding: 0 6px;
+    border-radius: var(--radius);
+    color: var(--text);
+    cursor: pointer;
+}
+
+/* flex-basis 0 makes the two wide buttons share the row equally, whatever their
+   labels measure. At the 360px minimum half the row is 145.5px and the upload
+   label needs 149.3px at the design's 10px padding, so these two carry 6px
+   instead - the label stays whole and the buttons stay exactly equal. */
+.upload_button {
+    flex: 1 1 0;
+    min-width: 0;
+    gap: 10px;
+    background: transparent;
+    border: 1px solid var(--accent);
+}
+
+.download_button {
+    flex: 1 1 0;
+    min-width: 0;
+    gap: 5px;
+    background: var(--accent);
+    border: 1px solid var(--accent);
+}
+
+.upload_button span,
+.download_button span {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.download_button img { flex: 0 0 auto; }
+
+.copy_button {
+    flex: 0 0 auto;
+    padding: 0 10px;
+    gap: 5px;
+    background: var(--accent);
+    border: 1px solid var(--accent);
+}
+
+.upload_button:hover { background: var(--upload-hover); }
+
+.download_button:hover:not(:disabled),
+.copy_button:hover:not(:disabled) {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+.download_button:disabled,
+.copy_button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ---------- right preview ---------- */
+
+.svg_privew_block {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--preview-bg);
+}
+
+/* The injected <svg> is scaled by CSS only; the exported markup is untouched. */
+.preview_stage {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 0;
+}
+
+.preview_stage svg {
+    width: 100%;
+    height: 100%;
+    /* preserveAspectRatio defaults to xMidYMid meet, so proportions are kept. */
+}
+
+/* ---------- drag overlay ---------- */
+
+.drop_overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(17, 17, 28, 0.85);
+    border: 2px dashed var(--accent);
+    z-index: 10;
+}
+
+.drop_overlay.is_active { display: flex; }
+
+.error_bar {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    max-width: 70vw;
+    padding: 10px 16px;
+    border-radius: var(--radius);
+    background: var(--sidebar-bg);
+    border: 1px solid #ff5c5c;
+    display: none;
+    z-index: 20;
+}
+
+.error_bar.is_visible { display: block; }

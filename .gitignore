@@ -1,0 +1,5 @@
+.chrome-e2e/
+node_modules/
+*.log
+.DS_Store
+Thumbs.db

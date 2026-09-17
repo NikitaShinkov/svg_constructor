@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>detect + build check</title>
+</head>
+<body>
+<pre id="out">running...</pre>
+<script type="module">
+import { detectSubjects } from '../js/detect.js';
+import { buildSvg } from '../js/template.js';
+
+// Each draft is compared against the reference output that was authored from it.
+//
+// CC2_6s has no matching reference (the example has 26 subjects, the draft 16),
+// so it is only reported.
+//
+// AVO is a known data discrepancy, not a detection bug: in that drawing the
+// artist's layer names run opposite to the numbering in the reference file
+// (the group named "3" holds the bottom shape, which the reference calls s0).
+// The Illustrator and Figma drafts agree with each other, so the drafts are
+// self-consistent and the reference was renumbered by hand. We therefore expect
+// the reversed order there. It is the case that motivates manual reordering
+// in the sidebar.
+const CASES = [
+    ['Object_1m1v1s', 'Object_1m1v1s.svg', {}],
+    ['PG_2m1v2s_S-S', 'PG_2m1v2s_S-S.svg', {}],
+    ['AVO_2m4v4s_R-R', 'AVO_2m4v4s_R-R.svg', { reversed: true }],
+    ['PK_3m4v7s_R-R-R', 'PK_3m4v7s_R-R-R.svg', {}],
+    ['PV_3m4v6s_R-RS-S', 'PV_3m4v6s_R-RS-S.svg', {}],
+    ['CC2_6s', null, {}],
+];
+
+// Several reference files were measured on screen rather than computed, so a
+// couple of their coordinates are off by up to 0.02 user units from the exact
+// geometric value (AVO's viewBox x is 1.40 where the true bbox gives 1.38).
+const TOL = 0.05;
+
+function frameNumbers(attrs) {
+    return ['width', 'height', 'x', 'y'].map((k) => {
+        const m = attrs.match(new RegExp(`(?:^|\\s)${k}="([^"]*)"`));
+        return m ? parseFloat(m[1]) : NaN;
+    });
+}
+
+const closeEnough = (a, b) =>
+    a.length === b.length && a.every((v, i) => Math.abs(v - b[i]) <= TOL);
+
+const lines = [];
+const log = (s) => lines.push(s);
+
+const frames = (svg) => [...svg.matchAll(/<g id="layer_s\d+_frame">\s*<rect ([^>]*)>/g)].map((m) => m[1]);
+const viewBox = (svg) => (svg.match(/viewBox="([^"]*)"/) || [])[1];
+const norm = (s) => (s || '').replace(/-0\.00/g, '0.00');
+
+let failures = 0;
+
+for (const [stem, referenceName, opts] of CASES) {
+    for (const editor of ['ai', 'figma']) {
+        const url = `../src_doc/files/${stem}_${editor}_draft.svg`;
+        let text;
+        try {
+            const r = await fetch(url);
+            if (!r.ok) throw new Error(r.status);
+            text = await r.text();
+        } catch (e) {
+            log(`SKIP  ${stem} [${editor}] - ${e.message}`);
+            continue;
+        }
+
+        let result;
+        try {
+            result = detectSubjects(text);
+        } catch (e) {
+            failures++;
+            log(`FAIL  ${stem} [${editor}] - detect threw: ${e.message}`);
+            continue;
+        }
+
+        const { subjects, strategy } = result;
+        const built = buildSvg(subjects);
+        const emptyFill = subjects.filter((s) => !s.fill).length;
+        const emptyLines = subjects.filter((s) => !s.strokeIn).length;
+
+        if (!referenceName) {
+            log(`INFO  ${stem} [${editor}] - ${subjects.length} subjects, strategy=${strategy}, viewBox=${viewBox(built)}`);
+            continue;
+        }
+
+        const ref = await (await fetch(`../src_doc/examples/${referenceName}`)).text();
+        let wantFrames = frames(ref).map(frameNumbers);
+        const gotFrames = frames(built).map(frameNumbers);
+        if (opts.reversed) wantFrames = wantFrames.slice().reverse();
+        const problems = [];
+
+        if (wantFrames.length !== gotFrames.length) {
+            problems.push(`subject count ${gotFrames.length}, reference has ${wantFrames.length}`);
+        } else {
+            for (let i = 0; i < wantFrames.length; i++) {
+                if (!closeEnough(wantFrames[i], gotFrames[i])) {
+                    problems.push(`s${i} frame\n          reference: ${wantFrames[i].join(' ')}\n          built:     ${gotFrames[i].join(' ')}`);
+                }
+            }
+        }
+
+        const vbWant = (norm(viewBox(ref)) || '').split(/\s+/).map(Number);
+        const vbGot = (norm(viewBox(built)) || '').split(/\s+/).map(Number);
+        if (!closeEnough(vbWant, vbGot)) {
+            problems.push(`viewBox\n          reference: ${viewBox(ref)}\n          built:     ${viewBox(built)}`);
+        }
+        if (emptyFill) problems.push(`${emptyFill} subject(s) with no fill`);
+        if (emptyLines) problems.push(`${emptyLines} subject(s) with no inner lines`);
+
+        const note = opts.reversed ? ', order reversed vs reference (known)' : '';
+        if (problems.length) {
+            failures++;
+            log(`FAIL  ${stem} [${editor}] - ${subjects.length} subjects, strategy=${strategy}`);
+            problems.forEach((p) => log(`        ${p}`));
+        } else {
+            log(`PASS  ${stem} [${editor}] - ${subjects.length} subjects, strategy=${strategy}${note}`);
+        }
+    }
+}
+
+log(failures ? `\n${failures} check(s) failed.` : '\nAll detection checks passed.');
+document.getElementById('out').textContent = lines.join('\n');
+document.title = failures ? 'FAIL' : 'OK';
+</script>
+</body>
+</html>

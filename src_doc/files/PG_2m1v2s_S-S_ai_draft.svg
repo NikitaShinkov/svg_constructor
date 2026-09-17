@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 354 252">
+  <!-- Generator: Adobe Illustrator 30.5.1, SVG Export Plug-In . SVG Version: 2.1.4 Build 3)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #049b4e;
+      }
+
+      .st0, .st1 {
+        stroke: #fff;
+        stroke-width: 2px;
+      }
+
+      .st1 {
+        fill: none;
+      }
+    </style>
+  </defs>
+  <g id="s1">
+    <path class="st0" d="M353,9V1h-80v8h10l15,67h-71v130h71l-15,30h-10v15h80v-15h-10l-15-30c0-20,10-32,10-32h7v17h8v-100h-8v17h-7s-10-12-10-32l15-67h10Z"/>
+    <path class="st1" d="M343,236h-60M338,108v66M345,174v-66M283,9h60M273,76v130M273,198h-46M227,84h46M227,153h46M273,129h-46M313,61c8.3,0,15,6.7,15,15v130c0,8.3-6.7,15-15,15s-15-6.7-15-15V76c0-8.3,6.7-15,15-15Z"/>
+  </g>
+  <g id="_x30_">
+    <path class="st0" d="M221,206V76h-113v-15h5v-15h5V1H48v45h5v15h5v15h-27v-15h-15v15H1v130h15v15h15v-15h17.5v30H1v15h220v-15h-47.5v-30h47.5ZM158.5,236H63.5v-30h95v30Z"/>
+    <path class="st1" d="M31,76v130M221,198H31M31,84h190M58,76h50M53,61h60M113,46h-60M31,153h190M221,129H31M48.5,236h15M63.5,206h-15M173.5,206h-15M158.5,236h15M16,206V76"/>
+  </g>
+</svg>

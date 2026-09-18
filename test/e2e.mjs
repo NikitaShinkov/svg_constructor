@@ -135,7 +135,7 @@ try {
             const label = document.querySelector('#sub_list .field_label');
             const block = document.querySelector('#sub_list .sub_block');
             const stage = document.getElementById('preview_stage');
-            const svg = document.querySelector('#preview_stage svg');
+            const svg = document.querySelector('#preview_svg svg');
             return {
                 blocks: document.querySelectorAll('#sub_list .sub_block').length,
                 labels: [...document.querySelectorAll('#sub_list .sub_num')].map(e => e.textContent).join(','),
@@ -278,7 +278,7 @@ try {
     };
 
     const nums = `[...document.querySelectorAll('#sub_list .sub_num')].map(e=>e.textContent).join(',')`;
-    const viewBox = `document.querySelector('#preview_stage svg').getAttribute('viewBox')`;
+    const viewBox = `document.querySelector('#preview_svg svg').getAttribute('viewBox')`;
 
     await step('starts with two subjects', nums, 's0,s1');
     const beforeViewBox = await session.evaluate(viewBox);
@@ -427,6 +427,373 @@ try {
             `Math.round(document.getElementById('sud_sidebloсk').getBoundingClientRect().width)`, 360);
     }
 
+    // ---- head line, sort button and subject highlights ----------------------
+
+    await session.send('Page.navigate', { url: `http://localhost:${appPort}/index.html` });
+    await waitUntil(session, `document.body.dataset.ready === 'true'`);
+    {
+        const doc = await session.send('DOM.getDocument');
+        const { nodeId } = await session.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: '#file_input' });
+        await session.send('DOM.setFileInputFiles', {
+            nodeId, files: [path.join(root, 'src_doc', 'files', 'PK_3m4v7s_R-R-R_ai_draft.svg')],
+        });
+        await waitUntil(session, `document.body.dataset.loaded === 'true'`);
+        await sleep(300);
+    }
+
+    await step('head_line carries the title and the sort button', `(() => {
+        const head = document.querySelector('.head_line');
+        const title = head.querySelector('.sidebar_title');
+        const button = document.getElementById('sort_button');
+        const icon = button.querySelector('img');
+        return {
+            inHead: !!title && !!button && button.parentElement === head,
+            titleText: title.textContent,
+            order: title.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING ? 'button after title' : 'button before title',
+            wrapGap: getComputedStyle(document.querySelector('.sub_list_wrap')).rowGap,
+            icon: icon.getAttribute('src').split('/').pop(),
+            opacity: getComputedStyle(button).opacity,
+        };
+    })()`, {
+        inHead: true,
+        titleText: 'Субъекты',
+        order: 'button after title',
+        wrapGap: '8px',
+        icon: 'sort_down_icon.svg',
+        opacity: '0.5',
+    });
+
+    // The code typed for the last subject has to come out as s0.
+    const fills = `[...document.querySelectorAll('#sub_list .sub_block')]
+        .map(b => b.querySelector('textarea').value.slice(0, 24)).join('|')`;
+    const beforeSort = await session.evaluate(fills);
+    await session.evaluate(`document.getElementById('sort_button').click()`);
+    await sleep(300);
+    const afterSort = await session.evaluate(fills);
+    if (afterSort === beforeSort.split('|').reverse().join('|') && beforeSort !== afterSort) {
+        console.log('PASS  sort reverses the subjects, last code becomes s0');
+    } else {
+        failures++;
+        console.log(`FAIL  sort reverses the subjects\n        before: ${beforeSort}\n        after:  ${afterSort}`);
+    }
+
+    await step('sort flips the arrow and the numbering stays s0..s6', `(() => {
+        return {
+            icon: document.querySelector('#sort_button img').getAttribute('src').split('/').pop(),
+            labels: [...document.querySelectorAll('#sub_list .sub_num')].map(e => e.textContent).join(','),
+            layers: !!document.querySelector('#preview_svg #layer_s6') && !document.querySelector('#preview_svg #layer_s7'),
+        };
+    })()`, { icon: 'sort_up_icon.svg', labels: 's0,s1,s2,s3,s4,s5,s6', layers: true });
+
+    await session.evaluate(`document.getElementById('sort_button').click()`);
+    await sleep(300);
+    await step('sorting again puts the order and the arrow back', `(() => ({
+        icon: document.querySelector('#sort_button img').getAttribute('src').split('/').pop(),
+        fills: ${fills},
+    }))()`, { icon: 'sort_down_icon.svg', fills: beforeSort });
+
+    await step('each subject has a tint, an outline and a hit area', `(() => {
+        const rects = (sel) => document.querySelectorAll(sel).length;
+        const outline = document.querySelector('#highlight_front .hl_outline');
+        const tint = document.querySelector('#highlight_back .hl_tint');
+        const front = document.getElementById('highlight_front');
+        const svg = document.querySelector('#preview_svg svg');
+        return {
+            tints: rects('#highlight_back .hl_tint'),
+            outlines: rects('#highlight_front .hl_outline'),
+            hits: rects('#highlight_front .hl_hit'),
+            // Same viewBox and same box as the file, so the two line up exactly.
+            sameViewBox: front.getAttribute('viewBox') === svg.getAttribute('viewBox'),
+            stroke: getComputedStyle(outline).stroke,
+            strokeWidth: outline.getAttribute('stroke-width'),
+            outlineFill: getComputedStyle(outline).fill,
+            tintFill: getComputedStyle(tint).fill,
+            tintOpacity: getComputedStyle(tint).fillOpacity,
+            tintStroke: getComputedStyle(tint).stroke,
+            layerTakesNoClicks: getComputedStyle(front).pointerEvents,
+        };
+    })()`, {
+        tints: 7,
+        outlines: 7,
+        hits: 7,
+        sameViewBox: true,
+        stroke: 'rgb(61, 181, 255)',
+        strokeWidth: '2',
+        outlineFill: 'none',
+        tintFill: 'rgb(61, 181, 255)',
+        tintOpacity: '0.1',
+        tintStroke: 'none',
+        layerTakesNoClicks: 'none',
+    });
+
+    // The frame drawn must be the one the file gives the subject.
+    await step('the rectangle covers the subject exactly', `(() => {
+        const n = 2;
+        const frame = document.querySelector('#preview_svg #layer_s' + n + '_frame rect');
+        const outline = document.querySelector('#highlight_front .hl_outline[data-index="' + n + '"]');
+        const tint = document.querySelector('#highlight_back .hl_tint[data-index="' + n + '"]');
+        const read = (el) => ['x', 'y', 'width', 'height']
+            .map(a => Math.round(parseFloat(el.getAttribute(a)) * 100) / 100).join(',');
+        return { outline: read(outline) === read(frame), tint: read(tint) === read(frame) };
+    })()`, { outline: true, tint: true });
+
+    const lit = `[...document.querySelectorAll('#highlight_front .hl_outline.is_on, #highlight_back .hl_tint.is_on')]
+        .map(r => r.dataset.index).join(',')`;
+
+    await session.evaluate(`document.querySelectorAll('#sub_list .sub_block')[3]
+        .dispatchEvent(new MouseEvent('mouseenter'))`);
+    await sleep(150);
+    await step('pointing at a row lights that subject only', lit, '3,3');
+
+    await session.evaluate(`document.querySelectorAll('#sub_list .sub_block')[3]
+        .dispatchEvent(new MouseEvent('mouseleave'))`);
+    await sleep(150);
+    await step('leaving the row puts it out', lit, '');
+
+    // Squeeze the list so that centring a row has somewhere to scroll to.
+    await session.evaluate(`(() => {
+        const l = document.getElementById('sub_list');
+        l.style.height = '120px';
+        l.style.flex = '0 0 auto';
+    })()`);
+    await sleep(150);
+
+    await step('pointing at the drawing marks the row and centres it', `(() => {
+        const hit = document.querySelector('#highlight_front .hl_hit[data-index="3"]');
+        hit.dispatchEvent(new MouseEvent('mouseenter'));
+        const list = document.getElementById('sub_list');
+        const block = document.querySelectorAll('#sub_list .sub_block')[3];
+        const lb = block.getBoundingClientRect();
+        const ll = list.getBoundingClientRect();
+        return {
+            lit: ${lit},
+            rowMarked: block.classList.contains('is_hover'),
+            scrolled: list.scrollTop > 0,
+            // Rows are fractional pixels tall, so dead centre is within a pixel.
+            centred: Math.abs((lb.top + lb.height / 2) - (ll.top + ll.height / 2)) <= 2,
+        };
+    })()`, { lit: '3,3', rowMarked: true, scrolled: true, centred: true });
+
+    await step('leaving the drawing clears the row', `(() => {
+        document.querySelector('#highlight_front .hl_hit[data-index="3"]')
+            .dispatchEvent(new MouseEvent('mouseleave'));
+        return {
+            lit: ${lit},
+            marked: document.querySelectorAll('#sub_list .sub_block.is_hover').length,
+        };
+    })()`, { lit: '', marked: 0 });
+
+    await session.evaluate(`(() => {
+        const l = document.getElementById('sub_list');
+        l.style.height = '';
+        l.style.flex = '';
+    })()`);
+
+    await step('clicking a subject in the drawing expands its row', `(() => {
+        document.querySelector('#highlight_front .hl_hit[data-index="4"]')
+            .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        return {
+            open: [...document.querySelectorAll('#sub_list .sub_block')]
+                .map((b, i) => b.classList.contains('is_open') ? i : '').filter(v => v !== '').join(','),
+            lit: ${lit},
+        };
+    })()`, { open: '4', lit: '4,4' });
+
+    await step('an expanded row keeps its rectangle without the cursor', lit, '4,4');
+
+    await step('clicking past the subjects collapses everything', `(() => {
+        document.getElementById('preview_stage').click();
+        return {
+            open: document.querySelectorAll('#sub_list .sub_block.is_open').length,
+            lit: ${lit},
+        };
+    })()`, { open: 0, lit: '' });
+
+    // ---- carrying a row to a new place --------------------------------------
+
+    await step('a row is filled #1A1A28 while the cursor is on it', `(() => {
+        const block = document.querySelectorAll('#sub_list .sub_block')[1];
+        block.classList.add('is_hover');
+        const bg = getComputedStyle(block).backgroundColor;
+        block.classList.remove('is_hover');
+        return bg;
+    })()`, 'rgb(26, 26, 40)');
+
+    {
+        const mouse = async (type, x, y) => session.send('Input.dispatchMouseEvent', {
+            type, x, y, button: 'left', buttons: type === 'mouseReleased' ? 0 : 1,
+            clickCount: 1, pointerType: 'mouse',
+        });
+        const rowGeometry = `(() => {
+            const rows = [...document.querySelectorAll('#sub_list .sub_block')];
+            const r = rows[0].getBoundingClientRect();
+            return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), h: Math.round(r.height) };
+        })()`;
+
+        const before = await session.evaluate(fills);
+        const g = await session.evaluate(rowGeometry);
+        const restingHeight = await session.evaluate(`document.getElementById('sub_list').scrollHeight`);
+
+        // Press on s0 and carry it down past three neighbours.
+        await mouse('mousePressed', g.x, g.y);
+        // Far enough past the third row's midpoint to land there, and not so far
+        // as to reach the fourth.
+        let travel = 0;
+        for (let dy = 8; dy <= g.h * 2 + 16; dy += 8) {
+            await mouse('mouseMoved', g.x, g.y + dy);
+            travel = dy;
+        }
+        const carried = await session.evaluate(`(() => {
+            const rows = [...document.querySelectorAll('#sub_list .sub_block')];
+            // The row in hand is lifted clean out of the list; its copy holds
+            // the place in the list that it would drop into.
+            const block = document.querySelector('body > .sub_block.is_dragging');
+            const ghost = document.querySelector('#sub_list .sub_block_ghost');
+            const list = document.getElementById('sub_list').getBoundingClientRect();
+            const r = block && block.getBoundingClientRect();
+            return {
+                lifted: !!block,
+                // The numbers are left alone until the drop, so the row keeps
+                // the one it was picked up with and the rest keep theirs.
+                labels: rows.map(b => b.querySelector('.sub_num').textContent).join(','),
+                // The list still holds one row per subject, the copy included.
+                rowCount: rows.length,
+                copyInGap: !!ghost && ghost.querySelector('.sub_num').textContent === 's0',
+                copyFill: ghost ? getComputedStyle(ghost).backgroundColor : '',
+                gapAt: ghost ? rows.indexOf(ghost) : -1,
+                fill: block ? getComputedStyle(block).backgroundColor : '',
+                // It rides with the cursor instead of snapping into a slot.
+                lifts: block ? getComputedStyle(block).position : '',
+                // It was grabbed at its middle, so its middle is at the cursor.
+                middle: r ? Math.round(r.top + r.height / 2) : 0,
+                // Nothing else in the list is lit while a row is in hand.
+                otherFills: [...new Set(rows.map(b => getComputedStyle(b).backgroundColor))].join(','),
+                // The gap it would drop into is marked on the rows either side.
+                marked: rows.map((b, i) => b.classList.contains('is_drop_above') ? 'above' + i
+                    : (b.classList.contains('is_drop_below') ? 'below' + i : '')).filter(Boolean).join(','),
+                markColour: (() => {
+                    const above = document.querySelector('#sub_list .is_drop_above');
+                    if (!above) return '';
+                    const s = getComputedStyle(above, '::after');
+                    return [s.backgroundColor, s.height].join(' ');
+                })(),
+                // A 2px line must not push the rows below it around.
+                contentHeight: document.getElementById('sub_list').scrollHeight,
+                insideList: r ? r.top >= list.top - 1 && r.bottom <= list.bottom + 1 : false,
+            };
+        })()`);
+        await mouse('mouseReleased', g.x, g.y + travel);
+        await sleep(300);
+
+        const after = await session.evaluate(fills);
+        const order = before.split('|');
+        const expected = [order[1], order[2], order[3], order[0], ...order.slice(4)].join('|');
+        const cursorY = g.y + travel;
+
+        const problems = [];
+        if (!carried.lifted) problems.push('the row was never picked up');
+        if (carried.labels !== 's1,s2,s3,s0,s4,s5,s6') problems.push(`numbering while carried: ${carried.labels}`);
+        if (carried.gapAt !== 3) problems.push(`the gap sat at ${carried.gapAt}, expected 3`);
+        if (carried.rowCount !== 7) problems.push(`the list holds ${carried.rowCount} rows, expected 7`);
+        if (!carried.copyInGap) problems.push('the gap holds no copy of the carried row');
+        if (carried.copyFill !== 'rgba(0, 0, 0, 0)') problems.push(`the copy is filled ${carried.copyFill}`);
+        if (carried.fill !== 'rgb(26, 26, 40)') problems.push(`carried row fill: ${carried.fill}`);
+        if (carried.otherFills !== 'rgba(0, 0, 0, 0)') problems.push(`rows in the list are lit: ${carried.otherFills}`);
+        if (carried.lifts !== 'fixed') problems.push(`the carried row is ${carried.lifts}, not lifted out`);
+        if (Math.abs(carried.middle - cursorY) > 2) problems.push(`row middle at ${carried.middle}, cursor at ${cursorY}`);
+        if (!carried.insideList) problems.push('the carried row left the list');
+        if (carried.marked !== 'above2,below4') problems.push(`drop gap marked on: ${carried.marked || 'nothing'}`);
+        if (carried.markColour !== 'rgb(147, 147, 255) 2px') problems.push(`drop line is ${carried.markColour}`);
+        if (carried.contentHeight !== restingHeight) problems.push(`the marks moved the rows: list grew from ${restingHeight} to ${carried.contentHeight}`);
+        if (after !== expected) problems.push(`order after drop: ${after}\n        expected:           ${expected}`);
+        if (problems.length) { failures++; console.log('FAIL  dragging a row reorders the list'); problems.forEach(p => console.log('        ' + p)); }
+        else console.log('PASS  the carried row follows the cursor, its neighbours move aside, the drop renumbers');
+
+        await step('the drop leaves no drag marks behind', `(() => ({
+            dragging: document.querySelectorAll('.sub_block.is_dragging, .sub_block_ghost').length,
+            dropGap: document.querySelectorAll('#sub_list .is_drop_above, #sub_list .is_drop_below').length,
+            body: document.body.classList.contains('is_row_dragging'),
+            labels: [...document.querySelectorAll('#sub_list .sub_num')].map(e => e.textContent).join(','),
+            // The rebuilt file has to follow the new order, not the old one.
+            firstLayerFill: document.querySelector('#preview_svg #layer_s0_fill').innerHTML.trim().slice(0, 24),
+        }))()`, {
+            dragging: 0,
+            dropGap: 0,
+            body: false,
+            labels: 's0,s1,s2,s3,s4,s5,s6',
+            firstLayerFill: expected.split('|')[0],
+        });
+
+        // A press that does not travel is still a click.
+        const g2 = await session.evaluate(rowGeometry);
+        await mouse('mousePressed', g2.x, g2.y);
+        await mouse('mouseReleased', g2.x, g2.y);
+        await sleep(250);
+        await step('pressing without moving still expands the row',
+            `[...document.querySelectorAll('#sub_list .sub_block')].findIndex(b => b.classList.contains('is_open'))`, 0);
+
+        // The empty part of the list belongs to no subject. The window here is
+        // too short to be sure of a gap under the last row, so the click is
+        // aimed at the list itself rather than at a point in it.
+        await step('clicking the list outside any row collapses every row', `(() => {
+            document.getElementById('sub_list').click();
+            // The cursor is still resting where the last press left it, and a
+            // hovered row is lit in its own right; take it off the rows so what
+            // is left is only what being expanded was lighting.
+            document.querySelectorAll('#sub_list .sub_block')
+                .forEach(b => b.dispatchEvent(new MouseEvent('mouseleave')));
+            return {
+                open: document.querySelectorAll('#sub_list .sub_block.is_open').length,
+                lit: ${lit},
+            };
+        })()`, { open: 0, lit: '' });
+
+        // Carrying a row off the bottom of a list too short to show it all has
+        // to bring the rest of the list up to meet it.
+        await session.evaluate(`(() => {
+            const l = document.getElementById('sub_list');
+            l.style.height = '110px';
+            l.style.flex = '0 0 auto';
+        })()`);
+        await sleep(150);
+
+        const g3 = await session.evaluate(rowGeometry);
+        const listBottom = await session.evaluate(
+            `Math.round(document.getElementById('sub_list').getBoundingClientRect().bottom)`);
+        await mouse('mousePressed', g3.x, g3.y);
+        for (let y = g3.y + 8; y <= listBottom + 30; y += 10) await mouse('mouseMoved', g3.x, y);
+        await sleep(400);   // the edge timer runs on its own once it is armed
+        const scrolled = await session.evaluate(`(() => {
+            const list = document.getElementById('sub_list');
+            const block = document.querySelector('body > .sub_block.is_dragging');
+            const r = block.getBoundingClientRect();
+            const lr = list.getBoundingClientRect();
+            return {
+                scrolled: list.scrollTop > 0,
+                stillVisible: r.top >= lr.top - 1 && r.bottom <= lr.bottom + 1,
+            };
+        })()`);
+        await mouse('mouseReleased', g3.x, listBottom + 30);
+        await sleep(300);
+
+        if (scrolled.scrolled && scrolled.stillVisible) {
+            console.log('PASS  carrying a row past the bottom scrolls the list and keeps it in view');
+        } else {
+            failures++;
+            console.log(`FAIL  carrying a row past the bottom scrolls the list\n        got: ${JSON.stringify(scrolled)}`);
+        }
+
+        await step('the row ends up last after being carried off the bottom',
+            `[...document.querySelectorAll('#sub_list .sub_block')].map(b => b.querySelector('textarea').value.slice(0, 24)).pop()`,
+            expected.split('|')[0]);
+
+        await session.evaluate(`(() => {
+            const l = document.getElementById('sub_list');
+            l.style.height = '';
+            l.style.flex = '';
+        })()`);
+    }
+
     // ---- first screen: nothing loaded yet -----------------------------------
 
     await session.send('Page.navigate', { url: `http://localhost:${appPort}/index.html` });
@@ -544,7 +911,7 @@ try {
         const cs = (id, p) => getComputedStyle(document.getElementById(id))[p];
         return {
             firstScreenGone: cs('first_screen', 'display') === 'none',
-            preview: !!document.querySelector('#preview_stage svg'),
+            preview: !!document.querySelector('#preview_svg svg'),
             upload: cs('upload_button', 'backgroundColor'),
             download: cs('download_button', 'display') !== 'none'
                 && !document.getElementById('download_button').disabled,

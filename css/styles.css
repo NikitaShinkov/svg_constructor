@@ -2,7 +2,7 @@
 :root {
     --sidebar-bg: #11111c;
     --preview-bg: #202035;
-    --block-bg-hover: #151521;
+    --block-bg-hover: #1a1a28;
     --field-bg: #24243c;
     --border: #37375d;
     --accent: #4c4cff;
@@ -11,6 +11,8 @@
     --scroll-thumb: #9393ff;
     --scroll-track: #1d1d38;
     --text: #ffffff;
+    --highlight: #3db5ff;
+    --drop-line: #9393ff;
 
     --radius: 6px;
     --control-h: 36px;
@@ -98,17 +100,29 @@ body.is_resizing {
 .sub_list_wrap {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 8px;
     flex: 1;
     min-height: 0;
 }
 
+.head_line {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: var(--icon-btn);
+}
+
 .sidebar_title {
     margin: 0;
+    flex: 1 1 auto;
+    min-width: 0;
     font-weight: 400;
 }
 
+/* position: relative makes the list the offsetParent of its rows, which is what
+   centring a row in view is measured against. */
 .sub_list {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 0;
@@ -135,6 +149,7 @@ body.is_resizing {
 /* ---------- subject row ---------- */
 
 .sub_block {
+    position: relative;
     display: flex;
     align-items: flex-start;
     gap: 2px;
@@ -149,8 +164,54 @@ body.is_resizing {
 /* Adjacent rows share one visible rule rather than stacking two. */
 .sub_block + .sub_block { border-top: none; }
 
+/* The row being carried leaves the list and is fixed to the viewport, so that
+   scrolling the list underneath does not drag it along. Its copy stays behind
+   in the list and holds the place it would drop into. */
+.sub_block.is_dragging {
+    position: fixed;
+    background: var(--block-bg-hover);
+    z-index: 6;
+    pointer-events: none;
+}
+
+/* The copy is a picture of the row, not a row: it answers to nothing. */
+.sub_block_ghost { pointer-events: none; }
+
+/* Only the row in hand is lit while it is being carried - the rows it passes
+   over are under the cursor, but they are not what the cursor is on. */
+body.is_row_dragging .sub_block:hover,
+body.is_row_dragging .sub_block:active,
+body.is_row_dragging .sub_block.is_hover { background: none; }
+
+body.is_row_dragging .sub_block.is_dragging { background: var(--block-bg-hover); }
+
+/* The gap the row would drop into, marked on the rows either side of it. Drawn
+   over the 1px rule rather than as a thicker border, so widening the line
+   cannot nudge the rows below it while the row is being carried. */
+.sub_block.is_drop_above::after,
+.sub_block.is_drop_below::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--drop-line);
+    pointer-events: none;
+}
+
+.sub_block.is_drop_above::after { bottom: -1px; }
+.sub_block.is_drop_below::after { top: -1px; }
+
+body.is_row_dragging {
+    cursor: grabbing;
+    user-select: none;
+}
+
+/* is_hover is the same state reached from the preview side, so pointing at a
+   subject in the drawing lights up its row and the other way round. */
 .sub_block:hover,
-.sub_block:active { background: var(--block-bg-hover); }
+.sub_block:active,
+.sub_block.is_hover { background: var(--block-bg-hover); }
 
 .icon_button {
     flex: 0 0 auto;
@@ -166,7 +227,8 @@ body.is_resizing {
     opacity: 0.5;
 }
 
-.icon_button:hover { opacity: 1; }
+.icon_button:hover,
+.icon_button:active { opacity: 1; }
 
 .sub_num {
     flex: 0 0 auto;
@@ -328,19 +390,61 @@ body.is_empty .upload_button:hover {
 
 /* The injected <svg> is scaled by CSS only; the exported markup is untouched. */
 .preview_stage {
+    position: relative;
     width: 100%;
     height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     min-width: 0;
     min-height: 0;
+}
+
+.preview_svg,
+.highlight_layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
 }
 
 .preview_stage svg {
     width: 100%;
     height: 100%;
-    /* preserveAspectRatio defaults to xMidYMid meet, so proportions are kept. */
+    /* preserveAspectRatio defaults to xMidYMid meet, so proportions are kept.
+       The highlight layers carry the same viewBox and the same box, so the two
+       coordinate systems land on top of each other exactly. */
+}
+
+/* ---------- subject highlight ---------- */
+
+/* Only the hit areas take the pointer; everything else in the layer is paint. */
+.highlight_layer { pointer-events: none; }
+
+.highlight_layer .hl_tint,
+.highlight_layer .hl_outline {
+    visibility: hidden;
+}
+
+.highlight_layer .hl_tint.is_on,
+.highlight_layer .hl_outline.is_on {
+    visibility: visible;
+}
+
+.hl_tint {
+    fill: var(--highlight);
+    fill-opacity: 0.1;
+    stroke: none;
+}
+
+.hl_outline {
+    fill: none;
+    stroke: var(--highlight);
+}
+
+/* Invisible, but it is what the cursor actually meets in the drawing. */
+.hl_hit {
+    fill: transparent;
+    stroke: none;
+    pointer-events: all;
+    cursor: pointer;
 }
 
 /* ---------- drag-and-drop frame: empty state and drag overlay ---------- */

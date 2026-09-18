@@ -1,7 +1,7 @@
 // Wiring: upload -> detect -> build -> preview / subject list / download.
 
 import { detectSubjects, parseGeometryFragment } from './detect.js';
-import { buildSvg } from './template.js';
+import { buildSvg, computeLayout } from './template.js';
 
 const el = (id) => document.getElementById(id);
 
@@ -9,7 +9,11 @@ const ui = {
     sidebar: el('sud_sidebloсk'),
     resizeHandle: el('resize_handle'),
     subList: el('sub_list'),
+    sort: el('sort_button'),
     stage: el('preview_stage'),
+    previewSvg: el('preview_svg'),
+    hlBack: el('highlight_back'),
+    hlFront: el('highlight_front'),
     upload: el('upload_button'),
     download: el('download_button'),
     copy: el('copy_button'),
@@ -30,6 +34,8 @@ const state = {
     // file first; it is replaced wholesale as soon as a file arrives.
     subjects: [emptySubject()],
     output: '',
+    reversed: false,    // which way round the sort button's arrow points
+    hover: -1,          // subject the cursor is on, from either side
 };
 
 /** True once anything has been typed or loaded - what the empty state turns on. */
@@ -131,6 +137,10 @@ async function load(file, handle) {
         state.fileName = file.name;
         state.fileHandle = handle;
         state.subjects = subjects;
+        // A fresh file arrives in its own order, so the arrow points down again.
+        state.hover = -1;
+        state.reversed = false;
+        ui.sort.querySelector('img').src = 'assets/icons/sort_down_icon.svg';
         // A single subject is shown expanded; with several, start collapsed.
         subjects.forEach((s) => { s.isOpen = subjects.length === 1; });
 
@@ -149,7 +159,8 @@ async function load(file, handle) {
 /** Regenerates the SVG from the current subjects and refreshes the preview. */
 function rebuild() {
     state.output = buildSvg(state.subjects);
-    ui.stage.innerHTML = state.output;
+    ui.previewSvg.innerHTML = state.output;
+    renderHighlights();
     // With nothing entered there is nothing to export: the preview gives way to
     // the drop target and only Upload is offered.
     const ready = hasContent();
@@ -157,6 +168,120 @@ function rebuild() {
     ui.download.disabled = !ready;
     ui.copy.disabled = !ready;
 }
+
+// ---------------------------------------------------------------- highlights
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/**
+ * Rebuilds the two highlight layers from the same frames the file is built
+ * from: a tint behind the artwork, an outline and a hit area in front of it.
+ * Every subject gets its rectangles once; showing them is a class away.
+ */
+function renderHighlights() {
+    const layout = computeLayout(state.subjects);
+    ui.hlBack.textContent = '';
+    ui.hlFront.textContent = '';
+
+    ui.hlBack.setAttribute('viewBox', layout.viewBox);
+    ui.hlFront.setAttribute('viewBox', layout.viewBox);
+
+    const rect = (cls, frame, index) => {
+        const r = document.createElementNS(SVG_NS, 'rect');
+        r.setAttribute('class', cls);
+        r.setAttribute('x', frame.x);
+        r.setAttribute('y', frame.y);
+        r.setAttribute('width', frame.w);
+        r.setAttribute('height', frame.h);
+        r.dataset.index = index;
+        return r;
+    };
+
+    // The outline is as thick as the subject's own outer stroke, in file units,
+    // so it scales with the drawing exactly as the artwork does.
+    const drawn = [];
+    layout.frames.forEach((frame, index) => {
+        if (frame.empty || !(frame.w > 0) || !(frame.h > 0)) return;
+        ui.hlBack.appendChild(rect('hl_tint', frame, index));
+        const outline = rect('hl_outline', frame, index);
+        outline.setAttribute('stroke-width', layout.p.stOutWidth);
+        ui.hlFront.appendChild(outline);
+        drawn.push({ frame, index });
+    });
+
+    // Largest first, so a small subject sitting inside a big one stays reachable.
+    drawn.sort((a, b) => b.frame.w * b.frame.h - a.frame.w * a.frame.h);
+    for (const { frame, index } of drawn) {
+        const hit = rect('hl_hit', frame, index);
+        hit.addEventListener('mouseenter', () => setHover(index, true));
+        hit.addEventListener('mouseleave', () => setHover(-1, false));
+        hit.addEventListener('click', (e) => { e.stopPropagation(); toggleSubject(index); });
+        ui.hlFront.appendChild(hit);
+    }
+
+    paintHighlights();
+}
+
+/** A subject is lit while its row is expanded or either side is hovered. */
+function paintHighlights() {
+    for (const r of ui.stage.querySelectorAll('.hl_tint, .hl_outline')) {
+        const index = Number(r.dataset.index);
+        const on = state.hover === index || !!(state.subjects[index] || {}).isOpen;
+        r.classList.toggle('is_on', on);
+    }
+    for (const block of ui.subList.children) {
+        block.classList.toggle('is_hover', Number(block.dataset.index) === state.hover);
+    }
+}
+
+/**
+ * @param {number} index subject under the cursor, or -1 for none
+ * @param {boolean} fromPreview hovering the drawing also brings the row into view
+ */
+function setHover(index, fromPreview) {
+    // Rows slide under the cursor while one is being carried; that is not the
+    // pointer picking out a subject.
+    if (drag.active && index >= 0) return;
+    if (state.hover === index) return;
+    state.hover = index;
+    paintHighlights();
+    if (fromPreview && index >= 0) centreInList(ui.subList.children[index]);
+}
+
+/** Puts the row as near the middle of the list as its scroll range allows. */
+function centreInList(block) {
+    if (!block) return;
+    const list = ui.subList;
+    const target = block.offsetTop - (list.clientHeight - block.offsetHeight) / 2;
+    list.scrollTop = Math.max(0, Math.min(list.scrollHeight - list.clientHeight, target));
+}
+
+/** Expands one subject and closes the rest; expanding again closes it. */
+function toggleSubject(index) {
+    const subject = state.subjects[index];
+    if (!subject) return;
+    const opening = !subject.isOpen;
+    state.subjects.forEach((s) => { s.isOpen = false; });
+    subject.isOpen = opening;
+    renderSubList();
+    paintHighlights();
+}
+
+/** Nothing is expanded and nothing is lit. */
+function collapseAll() {
+    if (!state.subjects.some((s) => s.isOpen)) return;
+    state.subjects.forEach((s) => { s.isOpen = false; });
+    renderSubList();
+    paintHighlights();
+}
+
+// Anywhere in the preview that is not a subject means "none of them", and so
+// does the empty space under the last row.
+ui.stage.addEventListener('click', collapseAll);
+ui.subList.addEventListener('click', (e) => {
+    if (e.target.closest('.sub_block') || drag.justDropped) return;
+    collapseAll();
+});
 
 // ---------------------------------------------------------------- subject list
 
@@ -166,6 +291,7 @@ function renderSubList() {
     state.subjects.forEach((subject, index) => {
         const block = document.createElement('div');
         block.className = 'sub_block';
+        block.dataset.index = index;
         if (subject.isOpen) block.classList.add('is_open');
 
         const add = iconButton('add_sub_button', 'assets/icons/add_icon.svg', 12, 12, 'Добавить субъект');
@@ -189,14 +315,19 @@ function renderSubList() {
         }
 
         // The whole row toggles, including its expanded area - but not the
-        // code fields or the buttons, which have their own jobs.
+        // code fields or the buttons, which have their own jobs, and not the
+        // click that ends a drag.
         block.addEventListener('click', (e) => {
             if (e.target.closest('textarea, button')) return;
-            const opening = !subject.isOpen;
-            state.subjects.forEach((s) => { s.isOpen = false; });
-            subject.isOpen = opening;
-            renderSubList();
+            if (drag.justDropped) return;
+            toggleSubject(index);
         });
+
+        // Pointing at a row lights up the subject in the drawing.
+        block.addEventListener('mouseenter', () => setHover(index, false));
+        block.addEventListener('mouseleave', () => setHover(-1, false));
+
+        block.addEventListener('pointerdown', (e) => startRowDrag(e, block));
 
         block.append(add, num, fields);
         if (del) block.appendChild(del);
@@ -205,6 +336,187 @@ function renderSubList() {
 
     // Textareas can only be sized once they are in the document.
     sizeAllFields();
+    // The rows are new elements, so the hover mark has to be put back on.
+    paintHighlights();
+}
+
+// ---------------------------------------------------------------- reordering
+
+// Rows are reordered by carrying them, not by HTML5 drag-and-drop: a draggable
+// row would fight the code fields for the pointer, and the window already
+// listens for a file being dragged in.
+const drag = {
+    active: false,
+    block: null,    // the row in hand, lifted out of the list
+    ghost: null,    // its copy, which holds the place the row would drop into
+    startY: 0,      // where the press landed
+    lastY: 0,       // where the cursor is now
+    grabY: 0,       // how far down the row it was grabbed
+    justDropped: false,
+};
+const DRAG_THRESHOLD = 4;   // px of travel before a press counts as a drag
+const EDGE_STEP = 8;        // px the list scrolls per tick while the row is at its edge
+
+function startRowDrag(e, block) {
+    if (e.button !== 0 || e.target.closest('textarea, button')) return;
+    if (state.subjects.length < 2) return;
+
+    const rect = block.getBoundingClientRect();
+    drag.block = block;
+    drag.startY = e.clientY;
+    drag.lastY = e.clientY;
+    drag.grabY = e.clientY - rect.top;
+
+    // The listeners go on the window, not the row: moving the row in the DOM
+    // releases any pointer capture it holds, and the drag would stop dead.
+    const onMove = (ev) => {
+        if (!drag.active) {
+            if (Math.abs(ev.clientY - drag.startY) < DRAG_THRESHOLD) return;
+            drag.active = true;
+            liftRow(rect);
+            setHover(-1, false);
+        }
+        ev.preventDefault();
+        drag.lastY = ev.clientY;
+        dragRow();
+    };
+
+    const onUp = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
+        stopEdge();
+        if (!drag.active) { drag.block = null; return; }
+
+        // The row drops into the place its copy was holding.
+        drag.ghost.replaceWith(block);
+        drag.ghost = null;
+        drag.active = false;
+        drag.block = null;
+        markDropGap();          // with no row in hand, this clears the marks
+        block.removeAttribute('style');
+        block.classList.remove('is_dragging');
+        document.body.classList.remove('is_row_dragging');
+        // The pointerup is followed by a click, which must not toggle the row.
+        drag.justDropped = true;
+        setTimeout(() => { drag.justDropped = false; }, 0);
+        commitRowOrder();
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+}
+
+/**
+ * Takes the row out of the list and leaves a copy of it in its place. The copy
+ * is what travels through the list and shows where the row will land; the row
+ * itself is fixed to the viewport and follows the cursor.
+ */
+function liftRow(rect) {
+    const block = drag.block;
+
+    const ghost = block.cloneNode(true);
+    ghost.classList.add('sub_block_ghost');
+    // cloneNode copies a textarea's markup, not what has been typed into it.
+    const typed = block.querySelectorAll('textarea');
+    ghost.querySelectorAll('textarea').forEach((area, i) => { area.value = typed[i].value; });
+
+    block.replaceWith(ghost);
+    drag.ghost = ghost;
+
+    // Out of the list entirely, so it is neither clipped by it nor counted
+    // among its rows, and fixed so that scrolling the list leaves it alone.
+    block.classList.add('is_dragging');
+    block.style.left = `${rect.left}px`;
+    block.style.width = `${rect.width}px`;
+    block.style.top = `${rect.top}px`;
+    document.body.appendChild(block);
+    document.body.classList.add('is_row_dragging');
+}
+
+/**
+ * One step of the carry: the copy is slotted where the row would land, which is
+ * what pushes the other rows out of the way, and the row itself is put under
+ * the cursor. The numbers are left alone until the drop - the row keeps the
+ * number it was picked up with.
+ */
+function dragRow() {
+    const ghost = drag.ghost;
+    const list = ui.subList;
+    const listRect = list.getBoundingClientRect();
+    // A row loses its top border once it is no longer the first, so the height
+    // is read afresh rather than remembered from the press.
+    const height = ghost.getBoundingClientRect().height;
+
+    // Where the row is being held. The slot is chosen from that, unclamped, so
+    // carrying the row past the end of the list really does mean the end.
+    const wanted = drag.lastY - drag.grabY;
+    const middle = wanted + height / 2;
+
+    // Everything below the copy is already standing one row lower to make room
+    // for it. Measuring against where the rows would be without the copy is
+    // what keeps the answer the same whichever side of them it is on - compare
+    // against where they actually are and the row has to travel a whole row
+    // past a neighbour before they trade places.
+    const rows = [...list.children];
+    const gap = rows.indexOf(ghost);
+    let before = null;
+    for (let i = 0; i < rows.length && !before; i++) {
+        if (i === gap) continue;
+        const r = rows[i].getBoundingClientRect();
+        if (middle < r.top + r.height / 2 - (i > gap ? height : 0)) before = rows[i];
+    }
+    if (before !== ghost.nextElementSibling) list.insertBefore(ghost, before);
+    markDropGap();
+
+    // What is drawn stays inside the list, so the row never leaves the view.
+    drag.block.style.top =
+        `${Math.max(listRect.top, Math.min(listRect.bottom - height, wanted))}px`;
+
+    followEdge(wanted, height, listRect);
+}
+
+/** Draws the gap the row would drop into on the two rows framing it. */
+function markDropGap() {
+    for (const b of ui.subList.children) b.classList.remove('is_drop_above', 'is_drop_below');
+    if (!drag.ghost) return;
+    const above = drag.ghost.previousElementSibling;
+    const below = drag.ghost.nextElementSibling;
+    if (above) above.classList.add('is_drop_above');
+    if (below) below.classList.add('is_drop_below');
+}
+
+// Carrying the row past the top or bottom of the list keeps it scrolling, so a
+// row can be taken to a place the list is not currently showing.
+let edgeTimer = null;
+function followEdge(wantedTop, height, listRect) {
+    const dir = wantedTop < listRect.top ? -1
+        : (wantedTop + height > listRect.bottom ? 1 : 0);
+    if (!dir) { stopEdge(); return; }
+    if (edgeTimer) return;
+    edgeTimer = setInterval(() => {
+        const before = ui.subList.scrollTop;
+        ui.subList.scrollTop += dir * EDGE_STEP;
+        // At either end of the list there is nowhere left to go.
+        if (ui.subList.scrollTop === before) { stopEdge(); return; }
+        dragRow();
+    }, 16);
+}
+function stopEdge() {
+    clearInterval(edgeTimer);
+    edgeTimer = null;
+}
+
+/** Reads the order off the rows and rebuilds the file from it. */
+function commitRowOrder() {
+    const order = [...ui.subList.children].map((b) => Number(b.dataset.index));
+    const moved = order.some((from, to) => from !== to);
+    if (!moved) return;
+    state.subjects = order.map((from) => state.subjects[from]);
+    state.hover = -1;
+    rebuild();
+    renderSubList();
 }
 
 function iconButton(className, src, w, h, title) {
@@ -273,6 +585,7 @@ new ResizeObserver(sizeAllFields).observe(ui.subList);
 function addSubject(index) {
     state.subjects.forEach((s) => { s.isOpen = false; });
     state.subjects.splice(index + 1, 0, { ...emptySubject(), isOpen: true });
+    state.hover = -1;
     rebuild();
     renderSubList();
 }
@@ -280,9 +593,23 @@ function addSubject(index) {
 function removeSubject(index) {
     if (state.subjects.length <= 1) return;
     state.subjects.splice(index, 1);
+    // The rows below shift up, so whatever was hovered is no longer that row.
+    state.hover = -1;
     rebuild();
     renderSubList();
 }
+
+// Turns the list end for end: what was typed for the last subject becomes s0.
+// Which numbers the layers carry is the whole point, so the file is rebuilt.
+ui.sort.addEventListener('click', () => {
+    state.subjects.reverse();
+    state.reversed = !state.reversed;
+    state.hover = -1;
+    ui.sort.querySelector('img').src =
+        `assets/icons/sort_${state.reversed ? 'up' : 'down'}_icon.svg`;
+    rebuild();
+    renderSubList();
+});
 
 // ---------------------------------------------------------------- sidebar resize
 

@@ -231,10 +231,12 @@ export function indicatorPositions(frame, p) {
 }
 
 /**
- * @param {{fill:string, strokeIn:string, fillBBox:object}[]} subjects
- * @returns {string} the complete SVG document
+ * Subject frames and the box they are laid out in. The preview highlights read
+ * the same numbers as the file, so the two can never point at different places.
+ *
+ * @param {{fillBBox:object, strokeBBox:object}[]} subjects
  */
-export function buildSvg(subjects, params) {
+export function computeLayout(subjects, params) {
     const p = { ...PARAMS, ...(params || {}) };
     const half = p.stOutWidth / 2;
 
@@ -258,9 +260,27 @@ export function buildSvg(subjects, params) {
 
     const objW = maxX - minX;
     const objH = maxY - minY;
+    const viewH = objH + p.bottomPadding;
+    return {
+        p, frames, x: minX, y: minY, w: objW, h: objH, viewH,
+        // The preview highlights reuse this string, so their coordinate system
+        // is the file's own, down to the rounding.
+        viewBox: `${f2(minX)} ${f2(minY)} ${f2(objW)} ${f2(viewH)}`,
+    };
+}
+
+/**
+ * @param {{fill:string, strokeIn:string, fillBBox:object}[]} subjects
+ * @returns {string} the complete SVG document
+ */
+export function buildSvg(subjects, params) {
+    const layout = computeLayout(subjects, params);
+    const { p, frames, w: objW, h: objH, viewH } = layout;
+    const minX = layout.x;
+    const minY = layout.y;
+
     // The hatch is computed on the artwork only, before the bottom padding.
     const hatch = computeHatch(objW, objH, p);
-    const viewH = objH + p.bottomPadding;
 
     const stops = hatch.stops
         .map((s) => `            <stop offset="${s.offset.toFixed(2)}%" class="${s.cls}"></stop>`)
@@ -274,7 +294,7 @@ export function buildSvg(subjects, params) {
         .map((s, i) => subjectLayer(i, indicatorPositions(frames[i], p)))
         .join('');
 
-    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="${f2(minX)} ${f2(minY)} ${f2(objW)} ${f2(viewH)}" width="${f2(objW)}" height="${f2(viewH)}">
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="${layout.viewBox}" width="${f2(objW)}" height="${f2(viewH)}">
 ${styleBlock(p)}
 
     <defs>

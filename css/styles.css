@@ -301,6 +301,18 @@ body.is_resizing {
     cursor: not-allowed;
 }
 
+/* Nothing has been entered yet: the only thing to do is load a file, so Upload
+   is the filled button and the two export buttons are not offered at all. */
+body.is_empty .download_button,
+body.is_empty .copy_button { display: none; }
+
+body.is_empty .upload_button { background: var(--accent); }
+
+body.is_empty .upload_button:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
 /* ---------- right preview ---------- */
 
 .svg_privew_block {
@@ -331,20 +343,71 @@ body.is_resizing {
     /* preserveAspectRatio defaults to xMidYMid meet, so proportions are kept. */
 }
 
+/* ---------- drag-and-drop frame: empty state and drag overlay ---------- */
+
+/* Design: the block is inset 10px from its container, corner radius 26, and
+   carries a 1px white dash-dot outline. */
+.drag_and_drop_block {
+    position: absolute;
+    inset: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 20px;
+    border-radius: 26px;
+    text-align: center;
+    pointer-events: none;
+}
+
+/* CSS borders cannot be dashed to a given measure, so the outline is a real
+   stroke: 14px of line, 14px of gap. The rect fills the svg viewport and is
+   stroked at double width - the outer half falls outside the viewport and is
+   clipped, leaving a crisp 1px line inside. */
+.dash_frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.dash_frame rect {
+    fill: none;
+    stroke: var(--text);
+    stroke-width: 2;
+    stroke-dasharray: 14 14;
+}
+
+.first_screen { display: none; }
+
+body.is_empty .first_screen { display: flex; }
+body.is_empty .preview_stage { display: none; }
+
+/* While a file is being dragged, the overlay draws the only frame: the one on
+   the first screen would show through the veil as a second, offset outline. */
+body.is_dragging .first_screen .dash_frame { display: none; }
+
+.upload_file_icon { flex: 0 0 auto; }
+
+.first_screen_text {
+    margin: 0;
+    max-width: 100%;
+}
+
 /* ---------- drag overlay ---------- */
 
+/* Design drag_screen: #11111C at 80%, with the same inset dash-dot frame. */
 .drop_overlay {
     position: fixed;
     inset: 0;
     display: none;
-    align-items: center;
-    justify-content: center;
-    background: rgba(17, 17, 28, 0.85);
-    border: 2px dashed var(--accent);
+    background: rgba(17, 17, 28, 0.8);
     z-index: 10;
 }
 
-.drop_overlay.is_active { display: flex; }
+.drop_overlay.is_active { display: block; }
 
 .error_bar {
     position: fixed;

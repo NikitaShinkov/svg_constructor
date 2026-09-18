@@ -18,12 +18,24 @@ const ui = {
     errorBar: el('error_bar'),
 };
 
+/** A subject with nothing in it yet, ready to be typed into. */
+function emptySubject() {
+    return { fill: '', strokeIn: '', fillBBox: null, strokeBBox: null, confidence: 1, isOpen: false };
+}
+
 const state = {
     fileName: null,
     fileHandle: null,   // FileSystemFileHandle, when the browser provides one
-    subjects: [],
+    // The page opens on an empty s0 so code can be typed in without loading a
+    // file first; it is replaced wholesale as soon as a file arrives.
+    subjects: [emptySubject()],
     output: '',
 };
+
+/** True once anything has been typed or loaded - what the empty state turns on. */
+function hasContent() {
+    return state.subjects.some((s) => (s.fill || '').trim() || (s.strokeIn || '').trim());
+}
 
 let errorTimer = null;
 function showError(message) {
@@ -63,11 +75,18 @@ ui.fileInput.addEventListener('change', async () => {
 let dragDepth = 0;
 const hasFiles = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
 
+/** The overlay owns the screen during a drag; the body class lets what is
+ *  underneath step aside, starting with the first screen's frame. */
+function showDropOverlay(on) {
+    ui.overlay.classList.toggle('is_active', on);
+    document.body.classList.toggle('is_dragging', on);
+}
+
 window.addEventListener('dragenter', (e) => {
     if (!hasFiles(e)) return;
     e.preventDefault();
     dragDepth++;
-    ui.overlay.classList.add('is_active');
+    showDropOverlay(true);
 });
 window.addEventListener('dragover', (e) => {
     if (!hasFiles(e)) return;
@@ -77,13 +96,13 @@ window.addEventListener('dragover', (e) => {
 window.addEventListener('dragleave', (e) => {
     if (!hasFiles(e)) return;
     e.preventDefault();
-    if (--dragDepth <= 0) { dragDepth = 0; ui.overlay.classList.remove('is_active'); }
+    if (--dragDepth <= 0) { dragDepth = 0; showDropOverlay(false); }
 });
 window.addEventListener('drop', async (e) => {
     if (!hasFiles(e)) return;
     e.preventDefault();
     dragDepth = 0;
-    ui.overlay.classList.remove('is_active');
+    showDropOverlay(false);
 
     const item = e.dataTransfer.items && e.dataTransfer.items[0];
     let handle = null;
@@ -118,6 +137,7 @@ async function load(file, handle) {
         clearError();
         rebuild();
         renderSubList();
+        document.body.dataset.loaded = 'true';
     } catch (err) {
         console.error(err);
         showError(err.message || 'Не удалось обработать файл.');
@@ -130,7 +150,10 @@ async function load(file, handle) {
 function rebuild() {
     state.output = buildSvg(state.subjects);
     ui.stage.innerHTML = state.output;
-    const ready = state.subjects.length > 0;
+    // With nothing entered there is nothing to export: the preview gives way to
+    // the drop target and only Upload is offered.
+    const ready = hasContent();
+    document.body.classList.toggle('is_empty', !ready);
     ui.download.disabled = !ready;
     ui.copy.disabled = !ready;
 }
@@ -157,8 +180,13 @@ function renderSubList() {
         fields.appendChild(codeField('fill', subject, 'fill'));
         fields.appendChild(codeField('str', subject, 'strokeIn'));
 
-        const del = iconButton('delete_sub_button', 'assets/icons/delete_icon.svg', 11, 12, 'Удалить субъект');
-        del.addEventListener('click', (e) => { e.stopPropagation(); removeSubject(index); });
+        // The last remaining subject cannot be removed, so it is offered no
+        // delete button at all.
+        let del = null;
+        if (state.subjects.length > 1) {
+            del = iconButton('delete_sub_button', 'assets/icons/delete_icon.svg', 11, 12, 'Удалить субъект');
+            del.addEventListener('click', (e) => { e.stopPropagation(); removeSubject(index); });
+        }
 
         // The whole row toggles, including its expanded area - but not the
         // code fields or the buttons, which have their own jobs.
@@ -170,7 +198,8 @@ function renderSubList() {
             renderSubList();
         });
 
-        block.append(add, num, fields, del);
+        block.append(add, num, fields);
+        if (del) block.appendChild(del);
         ui.subList.appendChild(block);
     });
 
@@ -243,14 +272,13 @@ new ResizeObserver(sizeAllFields).observe(ui.subList);
 
 function addSubject(index) {
     state.subjects.forEach((s) => { s.isOpen = false; });
-    state.subjects.splice(index + 1, 0, {
-        fill: '', strokeIn: '', fillBBox: null, strokeBBox: null, confidence: 1, isOpen: true,
-    });
+    state.subjects.splice(index + 1, 0, { ...emptySubject(), isOpen: true });
     rebuild();
     renderSubList();
 }
 
 function removeSubject(index) {
+    if (state.subjects.length <= 1) return;
     state.subjects.splice(index, 1);
     rebuild();
     renderSubList();
@@ -330,6 +358,11 @@ ui.copy.addEventListener('click', async () => {
         showError('Не удалось скопировать код в буфер обмена.');
     }
 });
+
+// First paint: the empty s0, expanded and ready to be typed into.
+state.subjects[0].isOpen = true;
+rebuild();
+renderSubList();
 
 // Signals that the module finished wiring up, for automated checks.
 document.body.dataset.ready = "true";

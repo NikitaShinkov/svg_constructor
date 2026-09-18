@@ -10,7 +10,9 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400&display=swap">
 <link rel="stylesheet" href="css/styles.css">
 </head>
-<body>
+<!-- The empty state is the page's starting point, so it is set in the markup:
+     switching it on from the script would flash the loaded layout first. -->
+<body class="is_empty">
 
 <div class="app">
 
@@ -37,12 +39,25 @@
     </aside>
 
     <main class="svg_privew_block" id="svg_privew_block">
+        <div class="drag_and_drop_block first_screen" id="first_screen">
+            <svg class="dash_frame" aria-hidden="true" focusable="false">
+                <rect x="0" y="0" width="100%" height="100%" rx="26" ry="26"></rect>
+            </svg>
+            <img class="upload_file_icon" src="assets/icons/upload_file_icon.svg" alt="" width="60" height="78">
+            <p class="first_screen_text">Перетащите в окно svg-файл<br>или введите svg-код для заливки (fill) и внутренних линий (str) первого субъекта</p>
+        </div>
         <div class="preview_stage" id="preview_stage"></div>
     </main>
 
 </div>
 
-<div class="drop_overlay" id="drop_overlay"><span>Отпустите файл для загрузки</span></div>
+<div class="drop_overlay" id="drop_overlay">
+    <div class="drag_and_drop_block">
+        <svg class="dash_frame" aria-hidden="true" focusable="false">
+            <rect x="0" y="0" width="100%" height="100%" rx="26" ry="26"></rect>
+        </svg>
+    </div>
+</div>
 <div class="error_bar" id="error_bar" role="alert"></div>
 
 <input type="file" id="file_input" accept=".svg,image/svg+xml" hidden>

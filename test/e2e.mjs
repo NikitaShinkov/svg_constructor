@@ -122,7 +122,7 @@ try {
             nodeId,
             files: [path.join(root, 'src_doc', 'files', fixture)],
         });
-        await waitUntil(session, `document.querySelectorAll('#sub_list .sub_block').length > 0`);
+        await waitUntil(session, `document.body.dataset.loaded === 'true'`);
 
         // Expand the first row so its fields are measurable.
         await session.evaluate(`(document.querySelector('#sub_list .sub_num')||{click(){}}).click()`);
@@ -184,6 +184,8 @@ try {
                     const c = document.querySelector('#sub_list .sub_block:not(.is_open)');
                     if (!c) return true;
                     const d = c.querySelector('.delete_sub_button');
+                    // A lone subject cannot be deleted, so it carries no button.
+                    if (!d) return true;
                     return Math.abs(c.getBoundingClientRect().right - d.getBoundingClientRect().right) <= 6;
                 })(),
                 handleLineW: cs(document.getElementById('resize_handle'), 'width'),
@@ -206,7 +208,8 @@ try {
         want('no textarea scrollbar', report.areaOverflow, 'hidden');
         want('textarea fits content', report.areaScrolls, false);
         want('add buttons', report.addButtons, expectedSubjects);
-        want('delete buttons', report.deleteButtons, expectedSubjects);
+        // The last subject cannot be deleted, so a one-subject file gets no button.
+        want('delete buttons', report.deleteButtons, expectedSubjects > 1 ? expectedSubjects : 0);
         want('chevrons removed', report.chevrons, 0);
         want('sidebar width', report.sidebarW, 360);
         want('sidebar min-width', report.sidebarMinW, '360px');
@@ -423,6 +426,134 @@ try {
         await step('sidebar stops at the 360px minimum',
             `Math.round(document.getElementById('sud_sidebloсk').getBoundingClientRect().width)`, 360);
     }
+
+    // ---- first screen: nothing loaded yet -----------------------------------
+
+    await session.send('Page.navigate', { url: `http://localhost:${appPort}/index.html` });
+    await waitUntil(session, `document.body.dataset.ready === 'true'`);
+    await sleep(200);
+
+    await step('starts with a single expanded s0', `(() => {
+        return {
+            blocks: document.querySelectorAll('#sub_list .sub_block').length,
+            label: document.querySelector('#sub_list .sub_num').textContent,
+            open: document.querySelectorAll('#sub_list .sub_block.is_open').length,
+            fields: document.querySelectorAll('#sub_list textarea').length,
+            empty: [...document.querySelectorAll('#sub_list textarea')].every(a => a.value === ''),
+        };
+    })()`, { blocks: 1, label: 's0', open: 1, fields: 2, empty: true });
+
+    await step('a lone subject offers no delete button',
+        `document.querySelectorAll('#sub_list .delete_sub_button').length`, 0);
+
+    await step('only the filled upload button is offered', `(() => {
+        const cs = (id, p) => getComputedStyle(document.getElementById(id))[p];
+        return {
+            upload: cs('upload_button', 'backgroundColor'),
+            download: cs('download_button', 'display'),
+            copy: cs('copy_button', 'display'),
+        };
+    })()`, { upload: 'rgb(76, 76, 255)', download: 'none', copy: 'none' });
+
+    await step('preview shows the drop target instead of an svg', `(() => {
+        const cs = (id, p) => getComputedStyle(document.getElementById(id))[p];
+        const outer = document.getElementById('svg_privew_block').getBoundingClientRect();
+        const inner = document.getElementById('first_screen').getBoundingClientRect();
+        const rect = document.querySelector('#first_screen .dash_frame rect');
+        return {
+            firstScreen: cs('first_screen', 'display') !== 'none',
+            stageHidden: cs('preview_stage', 'display') === 'none',
+            icon: !!document.querySelector('#first_screen .upload_file_icon'),
+            text: document.querySelector('#first_screen .first_screen_text').textContent,
+            lineBreak: !!document.querySelector('#first_screen .first_screen_text br'),
+            inset: [inner.left - outer.left, inner.top - outer.top,
+                    outer.right - inner.right, outer.bottom - inner.bottom].map(Math.round).join(','),
+            stroke: getComputedStyle(rect).stroke,
+            dashes: getComputedStyle(rect).strokeDasharray,
+        };
+    })()`, {
+        firstScreen: true,
+        stageHidden: true,
+        icon: true,
+        text: 'Перетащите в окно svg-файлили введите svg-код для заливки (fill) и внутренних линий (str) первого субъекта',
+        lineBreak: true,
+        inset: '10,10,10,10',
+        stroke: 'rgb(255, 255, 255)',
+        dashes: '14px, 14px',
+    });
+
+    // ---- drag overlay -------------------------------------------------------
+    // Still on the first screen, so the frame underneath is there to be hidden.
+
+    await step('a dragged file veils the page with a bordered block', `(() => {
+        const dt = new DataTransfer();
+        dt.items.add(new File(['<svg></svg>'], 'x.svg', { type: 'image/svg+xml' }));
+        window.dispatchEvent(new DragEvent('dragenter', { dataTransfer: dt, bubbles: true, cancelable: true }));
+        const overlay = document.getElementById('drop_overlay');
+        const block = overlay.querySelector('.drag_and_drop_block');
+        const outer = overlay.getBoundingClientRect();
+        const inner = block.getBoundingClientRect();
+        const rect = block.querySelector('.dash_frame rect');
+        const out = {
+            shown: getComputedStyle(overlay).display !== 'none',
+            covers: getComputedStyle(overlay).position === 'fixed'
+                && Math.round(outer.width) === document.documentElement.clientWidth
+                && Math.round(outer.height) === document.documentElement.clientHeight,
+            bg: getComputedStyle(overlay).backgroundColor,
+            text: overlay.textContent.trim(),
+            inset: [inner.left - outer.left, inner.top - outer.top,
+                    outer.right - inner.right, outer.bottom - inner.bottom].map(Math.round).join(','),
+            stroke: getComputedStyle(rect).stroke,
+            dashes: getComputedStyle(rect).strokeDasharray,
+            // The overlay draws the only frame while the drag lasts.
+            firstScreenVisible: getComputedStyle(document.getElementById('first_screen')).display !== 'none',
+            firstFrameHidden: getComputedStyle(
+                document.querySelector('#first_screen .dash_frame')).display === 'none',
+        };
+        window.dispatchEvent(new DragEvent('dragleave', { dataTransfer: dt, bubbles: true, cancelable: true }));
+        return out;
+    })()`, {
+        shown: true,
+        covers: true,
+        bg: 'rgba(17, 17, 28, 0.8)',
+        text: '',
+        inset: '10,10,10,10',
+        stroke: 'rgb(255, 255, 255)',
+        dashes: '14px, 14px',
+        firstScreenVisible: true,
+        firstFrameHidden: true,
+    });
+
+    await step('the veil and the first screen frame come back as they were', `(() => {
+        const cs = (el, p) => getComputedStyle(el)[p];
+        return {
+            overlay: cs(document.getElementById('drop_overlay'), 'display'),
+            firstFrame: cs(document.querySelector('#first_screen .dash_frame'), 'display'),
+        };
+    })()`, { overlay: 'none', firstFrame: 'block' });
+
+    // Typing into the empty fields is the other way off the first screen.
+    await session.evaluate(`(() => {
+        const a = document.querySelector('#sub_list .sub_block.is_open textarea');
+        a.value = '<path d="M0,0L100,0L100,80L0,80Z"></path>';
+        a.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+    await sleep(300);
+
+    await step('typed code brings back the preview and the export buttons', `(() => {
+        const cs = (id, p) => getComputedStyle(document.getElementById(id))[p];
+        return {
+            firstScreenGone: cs('first_screen', 'display') === 'none',
+            preview: !!document.querySelector('#preview_stage svg'),
+            upload: cs('upload_button', 'backgroundColor'),
+            download: cs('download_button', 'display') !== 'none'
+                && !document.getElementById('download_button').disabled,
+            copy: cs('copy_button', 'display') !== 'none'
+                && !document.getElementById('copy_button').disabled,
+        };
+    })()`, {
+        firstScreenGone: true, preview: true, upload: 'rgba(0, 0, 0, 0)', download: true, copy: true,
+    });
 
     if (errors.length) {
         failures++;

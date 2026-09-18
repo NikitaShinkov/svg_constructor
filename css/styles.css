@@ -11,11 +11,12 @@
     --scroll-thumb: #9393ff;
     --scroll-track: #1d1d38;
     --text: #ffffff;
-    --highlight: #3db5ff;
+    --highlight: #ff00fb;
     --drop-line: #9393ff;
 
     --radius: 6px;
     --control-h: 36px;
+    --toolbar-h: 40px;
     --icon-btn: 24px;
     --sub-num-w: 29px;
     --field-pad: 6px;
@@ -61,8 +62,201 @@ body {
     width: var(--sidebar-min);
     min-width: var(--sidebar-min);
     flex: 0 0 auto;
-    padding: 12px 12px 24px;
+    padding: 8px 12px 24px;
     background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+}
+
+/* ---------- settings toolbar ---------- */
+
+.work_area {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.settings_toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex: 0 0 auto;
+    height: var(--toolbar-h);
+    padding: 0 20px;
+    background: var(--sidebar-bg);
+    border-bottom: 1px solid var(--border);
+}
+
+/* The design lays the bar out at 1920. In a narrower window the settings are
+   cut off at the right rather than running into the layer segments, which are
+   the one control that must stay reachable. */
+.settings {
+    display: flex;
+    align-items: center;
+    /* 20px between the groups, as drawn, tightening only once the window is
+       narrower than the design's 1920. */
+    gap: clamp(8px, 1.5vw, 20px);
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.layer_selection_block { flex: 0 0 auto; }
+
+.indicators_settings,
+.lines_settings,
+.hatching_settings,
+.layer_selection_block {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+}
+
+.settings_label { white-space: nowrap; }
+
+/* Dropped whole when the bar runs out of room, in the order set in app.js. */
+.settings_toolbar .is_hidden { display: none; }
+
+/* ---------- switch ---------- */
+
+.switch {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    width: 26px;
+    height: 15px;
+    padding: 1px;
+    border-radius: 11px;
+    background: none;
+    border: 1px solid var(--accent);
+    cursor: pointer;
+}
+
+.switch.is_on {
+    background: var(--accent);
+    justify-content: flex-end;
+}
+
+.switch_knob {
+    width: 13px;
+    height: 13px;
+    border-radius: 100%;
+    background: var(--text);
+}
+
+/* ---------- slider ---------- */
+
+/* Fixed indicator sizes, one stop per prepared template. The track is the one
+   thing here that reads the same when it is shorter, so it gives way first. */
+.slider {
+    position: relative;
+    flex: 0 1 150px;
+    min-width: 60px;
+    height: 20px;
+    cursor: pointer;
+    touch-action: none;
+}
+
+.slider_track,
+.slider_filled {
+    position: absolute;
+    top: 8px;
+    left: 0;
+    height: 4px;
+    background: var(--field-bg);
+}
+
+.slider_track { width: 100%; }
+.slider_filled { background: var(--accent); }
+
+.slider_knob {
+    position: absolute;
+    top: 0;
+    width: 8px;
+    height: 20px;
+    border-radius: 4px;
+    background: var(--text);
+}
+
+.slider:focus-visible { outline: none; }
+.slider:focus-visible .slider_knob { box-shadow: 0 0 0 2px var(--accent); }
+
+/* ---------- unit inputs ---------- */
+
+.unit_input {
+    flex: 0 0 auto;
+    width: 46px;
+    height: 23px;
+    padding: 6px;
+    text-align: left;
+    background: var(--field-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+}
+
+.unit_input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+/* ---------- layer segments ---------- */
+
+.segments {
+    display: flex;
+    align-items: center;
+    width: 190px;
+    height: 15px;
+    flex: 0 0 auto;
+}
+
+.segment {
+    position: relative;
+    flex: 1 1 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    cursor: pointer;
+}
+
+.segment:first-child { border-radius: 24px 0 0 24px; }
+.segment:last-child { border-radius: 0 24px 24px 0; }
+
+/* A 15px stripe is a small thing to hit, so each segment reaches the full
+   height of the bar for the pointer while staying 15px to the eye. The
+   pseudo-element belongs to the button, so hover and clicks land on it. */
+.segment::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: var(--toolbar-h);
+    transform: translateY(-50%);
+}
+
+/* Drawn as an outline straddling the edge, and raised, so the whole ring is
+   visible over the segments on either side. */
+.segment.is_on {
+    z-index: 1;
+    outline: 2px solid var(--text);
+    outline-offset: -1px;
+}
+
+.segment_otlichno { background: #049b4e; }
+.segment_norm { background: #00ff00; }
+.segment_tpm { background: #fff200; }
+.segment_ndp { background: #ff0000; }
+.segment_repair { background: #7f4124; }
+
+/* The hatch the "Reserve" background is filled with, in miniature. */
+.segment_background {
+    background: repeating-linear-gradient(-45deg,
+        #808080 0 2px, transparent 2px 6px);
 }
 
 /* Full-height grab area on the right edge, so the whole border can be dragged. */
@@ -381,6 +575,7 @@ body.is_empty .upload_button:hover {
     position: relative;
     flex: 1 1 auto;
     min-width: 0;
+    min-height: 0;
     padding: 20px;
     display: flex;
     align-items: center;
@@ -388,7 +583,9 @@ body.is_empty .upload_button:hover {
     background: var(--preview-bg);
 }
 
-/* The injected <svg> is scaled by CSS only; the exported markup is untouched. */
+/* The injected <svg> is scaled by CSS only; the exported markup is untouched.
+   The wheel zoom scales the whole stage rather than the drawing inside it, so
+   the highlight layers cannot drift out of register with the artwork. */
 .preview_stage {
     position: relative;
     width: 100%;
@@ -488,6 +685,8 @@ body.is_empty .upload_button:hover {
 
 body.is_empty .first_screen { display: flex; }
 body.is_empty .preview_stage { display: none; }
+/* With nothing to look at there is nothing to set up either. */
+body.is_empty .settings_toolbar { display: none; }
 
 /* While a file is being dragged, the overlay draws the only frame: the one on
    the first screen would show through the veil as a second, offset outline. */

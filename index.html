@@ -43,6 +43,56 @@
         <div class="resize_handle" id="resize_handle" title="Потяните, чтобы изменить ширину"></div>
     </aside>
 
+    <div class="work_area">
+
+    <div class="settings_toolbar" id="settings_toolbar">
+        <div class="settings">
+
+            <!-- Everything here changes the preview or the file; the fields
+                 carry their units as text and shed them while being edited. -->
+            <div class="indicators_settings" id="indicators_settings" data-drop="4">
+                <button type="button" class="switch is_on" id="indicators_switch"
+                        role="switch" aria-checked="true" title="Показать индикаторы">
+                    <span class="switch_knob"></span>
+                </button>
+                <span class="settings_label" id="indicators_label">Индикаторы 45 px</span>
+                <div class="slider" id="indicators_slider" role="slider" tabindex="0"
+                     aria-label="Размер индикаторов" aria-valuemin="20" aria-valuemax="60" aria-valuenow="45">
+                    <span class="slider_track"></span>
+                    <span class="slider_filled" id="slider_filled"></span>
+                    <span class="slider_knob" id="slider_knob"></span>
+                </div>
+            </div>
+
+            <div class="lines_settings" id="lines_settings" data-drop="2">
+                <span class="settings_label">Линии внешн.</span>
+                <input type="text" class="unit_input" id="line_out" inputmode="numeric"
+                       data-unit=" px" data-min="0" data-max="99" aria-label="Толщина внешней линии">
+                <span class="settings_label">, внутр.</span>
+                <input type="text" class="unit_input" id="line_in" inputmode="numeric"
+                       data-unit=" px" data-min="0" data-max="99" aria-label="Толщина внутренней линии">
+            </div>
+
+            <div class="hatching_settings" id="hatching_settings" data-drop="1">
+                <span class="settings_label">Штриховка</span>
+                <input type="text" class="unit_input" id="hatch_angle" inputmode="numeric"
+                       data-unit="°" data-min="0" data-max="180" aria-label="Угол штриховки">
+                <input type="text" class="unit_input" id="hatch_width" inputmode="numeric"
+                       data-unit=" px" data-min="1" data-max="99" aria-label="Толщина линии штриховки">
+                <input type="text" class="unit_input" id="hatch_coverage" inputmode="numeric"
+                       data-unit=" %" data-min="1" data-max="100" aria-label="Доля закрашенной части">
+            </div>
+
+        </div>
+
+        <!-- Picks which of the six layers the preview shows. The file keeps
+             all of them whatever is chosen here. -->
+        <div class="layer_selection_block" id="layer_selection_block" data-drop="3">
+            <span class="settings_label" id="layer_name">Отлично</span>
+            <div class="segments" id="segments"></div>
+        </div>
+    </div>
+
     <main class="svg_privew_block" id="svg_privew_block">
         <div class="drag_and_drop_block first_screen" id="first_screen">
             <svg class="dash_frame" aria-hidden="true" focusable="false">
@@ -60,6 +110,8 @@
             <svg class="highlight_layer" id="highlight_front" aria-hidden="true" focusable="false"></svg>
         </div>
     </main>
+
+    </div>
 
 </div>
 

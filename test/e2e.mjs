@@ -32,7 +32,9 @@ const FIXTURES = [
 
 const userDataDir = path.join(root, '.chrome-e2e');
 const chrome = spawn(CHROME, [
-    '--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run',
+    // The settings toolbar is laid out for 1920; in a default 800px window its
+    // controls are clipped and clicks aimed at them land on the segments.
+    '--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run', '--window-size=1600,900',
     `--remote-debugging-port=${cdpPort}`,
     `--user-data-dir=${userDataDir}`,
     'about:blank',
@@ -151,6 +153,8 @@ try {
                 sidebarW: Math.round(side.getBoundingClientRect().width),
                 sidebarMinW: cs(side, 'minWidth'),
                 sidebarBorder: cs(side, 'borderRightWidth'),
+                sidebarBorderColour: cs(side, 'borderRightColor'),
+                sidebarPadTop: cs(side, 'paddingTop'),
                 previewBg: cs(document.getElementById('svg_privew_block'), 'backgroundColor'),
                 blockRadius: block ? cs(block, 'borderTopLeftRadius') : '',
                 blockBorderTop: block ? cs(block, 'borderTopWidth') : '',
@@ -213,7 +217,9 @@ try {
         want('chevrons removed', report.chevrons, 0);
         want('sidebar width', report.sidebarW, 360);
         want('sidebar min-width', report.sidebarMinW, '360px');
-        want('sidebar has no border', report.sidebarBorder, '0px');
+        want('sidebar right border', report.sidebarBorder, '1px');
+        want('sidebar right border colour', report.sidebarBorderColour, 'rgb(55, 55, 93)');
+        want('sidebar top padding', report.sidebarPadTop, '8px');
         want('preview background', report.previewBg, 'rgb(32, 32, 53)');
         want('sub_block no radius', report.blockRadius, '0px');
         want('sub_block top border', report.blockBorderTop, '1px');
@@ -517,10 +523,10 @@ try {
         outlines: 7,
         hits: 7,
         sameViewBox: true,
-        stroke: 'rgb(61, 181, 255)',
+        stroke: 'rgb(255, 0, 251)',
         strokeWidth: '2',
         outlineFill: 'none',
-        tintFill: 'rgb(61, 181, 255)',
+        tintFill: 'rgb(255, 0, 251)',
         tintOpacity: '0.1',
         tintStroke: 'none',
         layerTakesNoClicks: 'none',
@@ -792,6 +798,590 @@ try {
             l.style.height = '';
             l.style.flex = '';
         })()`);
+    }
+
+    // ---- settings toolbar ---------------------------------------------------
+
+    await session.send('Page.navigate', { url: `http://localhost:${appPort}/index.html` });
+    await waitUntil(session, `document.body.dataset.ready === 'true'`);
+    {
+        const doc = await session.send('DOM.getDocument');
+        const { nodeId } = await session.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: '#file_input' });
+        await session.send('DOM.setFileInputFiles', {
+            nodeId, files: [path.join(root, 'src_doc', 'files', 'PG_2m1v2s_S-S_figma_draft.svg')],
+        });
+        await waitUntil(session, `document.body.dataset.loaded === 'true'`);
+        await sleep(300);
+    }
+
+    await step('the toolbar sits above the preview and is 40px tall', `(() => {
+        const bar = document.getElementById('settings_toolbar');
+        const preview = document.getElementById('svg_privew_block');
+        const r = bar.getBoundingClientRect();
+        const cs = getComputedStyle(bar);
+        return {
+            height: Math.round(r.height),
+            abovePreview: Math.round(r.bottom) <= Math.round(preview.getBoundingClientRect().top),
+            rightOfSidebar: Math.round(r.left) >= Math.round(document.getElementById('sud_sidebloсk').getBoundingClientRect().right),
+            background: cs.backgroundColor,
+            rule: [cs.borderBottomWidth, cs.borderBottomColor].join(' '),
+            blocks: [...bar.querySelectorAll('.indicators_settings, .lines_settings, .hatching_settings, .layer_selection_block')]
+                .map(b => b.className.split(' ')[0]).join(','),
+        };
+    })()`, {
+        height: 40,
+        abovePreview: true,
+        rightOfSidebar: true,
+        background: 'rgb(17, 17, 28)',
+        rule: '1px rgb(55, 55, 93)',
+        blocks: 'indicators_settings,lines_settings,hatching_settings,layer_selection_block',
+    });
+
+    // ---- layer segments
+
+    const shownLayers = `(() => {
+        const on = new Set();
+        for (const g of document.querySelectorAll('#preview_svg g[id^="layer_s"]')) {
+            const m = /^layer_s\\d+_(otlichno|norm|tpm|ndp|repair|background)$/.exec(g.id);
+            if (m && getComputedStyle(g).display !== 'none') on.add(m[1]);
+        }
+        return [...on].join(',');
+    })()`;
+
+    await step('six segments, otlichno chosen, and only that layer showing', `(() => {
+        const segs = [...document.querySelectorAll('#segments .segment')];
+        const on = document.querySelector('#segments .segment.is_on');
+        const cs = getComputedStyle(on);
+        return {
+            order: segs.map(s => s.dataset.layer).join(','),
+            chosen: on.dataset.layer,
+            name: document.getElementById('layer_name').textContent,
+            // A 2px white ring, raised so it draws over the segments beside it.
+            ring: [cs.outlineWidth, cs.outlineColor, cs.outlineStyle].join(' '),
+            raised: cs.zIndex,
+            showing: ${shownLayers},
+        };
+    })()`, {
+        order: 'otlichno,norm,tpm,ndp,repair,background',
+        chosen: 'otlichno',
+        name: 'Отлично',
+        ring: '2px rgb(255, 255, 255) solid',
+        raised: '1',
+        showing: 'otlichno',
+    });
+
+    await step('every layer is still in the document, just hidden', `(() => {
+        const all = [...document.querySelectorAll('#preview_svg g[id^="layer_s"]')]
+            .filter(g => /^layer_s\\d+_(otlichno|norm|tpm|ndp|repair|background)$/.test(g.id));
+        const hidden = all.filter(g => g.style.display === 'none');
+        return {
+            // 2 subjects x 6 state layers.
+            groups: all.length,
+            hiddenInline: hidden.length,
+            // The labels the file carries: 20 per subject plus 4 for layer_o.
+            labels: document.querySelectorAll('#preview_svg [inkscape\\\\:label]').length,
+        };
+    })()`, { groups: 12, hiddenInline: 10, labels: 44 });
+
+    await step('pointing at a segment shows that layer', `(() => {
+        document.querySelector('#segments [data-layer="ndp"]').dispatchEvent(new MouseEvent('mouseenter'));
+        return {
+            showing: ${shownLayers},
+            name: document.getElementById('layer_name').textContent,
+            ringOn: document.querySelector('#segments .segment.is_on').dataset.layer,
+        };
+    })()`, { showing: 'ndp', name: 'НДП', ringOn: 'ndp' });
+
+    await step('leaving the segments falls back to the one last clicked', `(() => {
+        document.getElementById('segments').dispatchEvent(new MouseEvent('mouseleave'));
+        return { showing: ${shownLayers}, name: document.getElementById('layer_name').textContent };
+    })()`, { showing: 'otlichno', name: 'Отлично' });
+
+    await step('clicking a segment keeps it after the cursor leaves', `(() => {
+        const seg = document.querySelector('#segments [data-layer="repair"]');
+        seg.dispatchEvent(new MouseEvent('mouseenter'));
+        seg.click();
+        document.getElementById('segments').dispatchEvent(new MouseEvent('mouseleave'));
+        return { showing: ${shownLayers}, name: document.getElementById('layer_name').textContent };
+    })()`, { showing: 'repair', name: 'Ремонт' });
+
+    {
+        // The stripe is 15px tall in a 40px bar; the pointer gets the whole
+        // height of the bar over the same width.
+        const aim = await session.evaluate(`(() => {
+            const seg = document.querySelector('#segments [data-layer="tpm"]');
+            const bar = document.getElementById('settings_toolbar').getBoundingClientRect();
+            const r = seg.getBoundingClientRect();
+            return {
+                x: Math.round(r.left + r.width / 2),
+                // Well above the stripe, but still inside the bar.
+                y: Math.round(bar.top + 3),
+                stripeTop: Math.round(r.top),
+                left: Math.round(r.left - 3),
+            };
+        })()`);
+        const mouse = async (type, x, y) => session.send('Input.dispatchMouseEvent', {
+            type, x, y, button: 'left', buttons: type === 'mouseReleased' ? 0 : 1, clickCount: 1, pointerType: 'mouse',
+        });
+        await mouse('mouseMoved', aim.x, aim.y);
+        await sleep(200);
+        const hovered = await session.evaluate(`(document.querySelector('#segments .segment.is_on') || {dataset:{}}).dataset.layer`);
+        await mouse('mousePressed', aim.x, aim.y);
+        await mouse('mouseReleased', aim.x, aim.y);
+        await sleep(200);
+        const clicked = await session.evaluate(`document.getElementById('layer_name').textContent`);
+
+        // The area grew in height only: at the top of the bar the segment
+        // answers across its own width and no further.
+        const bounds = await session.evaluate(`(() => {
+            const seg = document.querySelector('#segments [data-layer="tpm"]');
+            const segs = document.getElementById('segments').getBoundingClientRect();
+            const r = seg.getBoundingClientRect();
+            const y = ${aim.y};
+            const at = (x) => {
+                const hit = document.elementFromPoint(Math.round(x), y);
+                return hit && hit.closest('.segment') ? hit.closest('.segment').dataset.layer : 'none';
+            };
+            return {
+                middle: at(r.left + r.width / 2),
+                justInside: at(r.left + 1),
+                nextOne: at(r.left - 2),
+                pastTheEnd: at(segs.right + 3),
+                beforeTheStart: at(segs.left - 3),
+            };
+        })()`);
+
+        const ok = hovered === 'tpm' && clicked === 'ТПМ' && aim.y < aim.stripeTop - 5
+            && bounds.middle === 'tpm' && bounds.justInside === 'tpm'
+            && bounds.nextOne === 'norm'
+            && bounds.pastTheEnd === 'none' && bounds.beforeTheStart === 'none';
+        if (ok) console.log('PASS  a segment answers to the whole height of the bar, at its own width');
+        else {
+            failures++;
+            console.log(`FAIL  a segment answers to the whole height of the bar\n        hovered ${hovered} at y=${aim.y} (stripe starts ${aim.stripeTop}), clicked ${clicked}\n        across the bar top: ${JSON.stringify(bounds)}`);
+        }
+    }
+
+    await session.evaluate(`document.querySelector('#segments [data-layer="otlichno"]').click()`);
+
+    // ---- indicator switch
+
+    const indicatorsShown = `[...document.querySelectorAll('#preview_svg g[id^="layer_s"]')]
+        .filter(g => /^layer_s\\d+_(fail|old_sost|old_repair|old_lock|insert)$/.test(g.id))
+        .filter(g => getComputedStyle(g).display !== 'none').length`;
+
+    await step('the switch starts on with every indicator showing',
+        `({ on: document.getElementById('indicators_switch').classList.contains('is_on'), showing: ${indicatorsShown} })`,
+        { on: true, showing: 10 });
+
+    await step('switching off hides the indicators but keeps them in the file', `(() => {
+        document.getElementById('indicators_switch').click();
+        const groups = [...document.querySelectorAll('#preview_svg g[id^="layer_s"]')]
+            .filter(g => /^layer_s\\d+_(fail|old_sost|old_repair|old_lock|insert)$/.test(g.id));
+        return {
+            on: document.getElementById('indicators_switch').classList.contains('is_on'),
+            showing: ${indicatorsShown},
+            stillThere: groups.length,
+            // Hidden by an inline style on the copy, not cut out of the markup.
+            hiddenInline: groups.every(g => g.style.display === 'none'),
+            uses: document.querySelectorAll('#preview_svg use[*|href="#fail"]').length,
+        };
+    })()`, { on: false, showing: 0, stillThere: 10, hiddenInline: true, uses: 2 });
+
+    await session.evaluate(`document.getElementById('indicators_switch').click()`);
+    await step('switching back on shows them again', indicatorsShown, 10);
+
+    // ---- indicator size slider
+
+    await step('the slider starts on the 45px template', `(() => {
+        const knob = document.getElementById('slider_knob');
+        const slider = document.getElementById('indicators_slider');
+        return {
+            label: document.getElementById('indicators_label').textContent,
+            // 45 is the sixth of the seven prepared sizes.
+            atFraction: Math.round((parseFloat(knob.style.left) / (slider.clientWidth - 8)) * 6),
+            circle: document.querySelector('#preview_svg #circle circle').getAttribute('r'),
+            stroke: document.querySelector('#preview_svg style').textContent.includes('stroke-width:3.40'),
+        };
+    })()`, { label: 'Индикаторы 45 px', atFraction: 5, circle: '20.8', stroke: true });
+
+    {
+        const box = await session.evaluate(`(() => {
+            const r = document.getElementById('indicators_slider').getBoundingClientRect();
+            return { left: Math.round(r.left), top: Math.round(r.top + r.height / 2), width: Math.round(r.width) };
+        })()`);
+        const mouse = async (type, x, y) => session.send('Input.dispatchMouseEvent', {
+            type, x, y, button: 'left', buttons: type === 'mouseReleased' ? 0 : 1, clickCount: 1, pointerType: 'mouse',
+        });
+        // Drag the knob to the far left: the smallest prepared template.
+        await mouse('mousePressed', box.left + box.width - 4, box.top);
+        await mouse('mouseMoved', box.left + box.width / 2, box.top);
+        await mouse('mouseMoved', box.left + 1, box.top);
+        await mouse('mouseReleased', box.left + 1, box.top);
+        await sleep(300);
+
+        await step('dragging the knob swaps in another prepared template', `(() => ({
+            label: document.getElementById('indicators_label').textContent,
+            circle: document.querySelector('#preview_svg #circle circle').getAttribute('r'),
+            // Each size brings its own outer stroke; nothing is scaled.
+            stroke: document.querySelector('#preview_svg style').textContent.includes('stroke-width:1.60'),
+            noScale: document.querySelector('#preview_svg style').textContent.includes('scale(1.00)'),
+            filled: Math.round(parseFloat(document.getElementById('slider_filled').style.width)),
+        }))()`, { label: 'Индикаторы 20 px', circle: '9.2', stroke: true, noScale: true, filled: 4 });
+
+        await mouse('mousePressed', box.left + box.width - 1, box.top);
+        await mouse('mouseReleased', box.left + box.width - 1, box.top);
+        await sleep(300);
+        await step('and back up to the largest', `document.getElementById('indicators_label').textContent`,
+            'Индикаторы 60 px');
+    }
+
+    // Stepping back down to 45 also puts the defaults back for what follows.
+    await step('a size change turns the indicators back on', `(() => {
+        document.getElementById('indicators_switch').click();
+        const off = { on: document.getElementById('indicators_switch').classList.contains('is_on'), showing: ${indicatorsShown} };
+        const s = document.getElementById('indicators_slider');
+        s.focus();
+        s.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+        return {
+            off,
+            // Arrow keys step through the sizes as dragging does.
+            label: document.getElementById('indicators_label').textContent,
+            on: document.getElementById('indicators_switch').classList.contains('is_on'),
+            showing: ${indicatorsShown},
+        };
+    })()`, {
+        off: { on: false, showing: 0 },
+        label: 'Индикаторы 45 px',
+        on: true,
+        showing: 10,
+    });
+
+    // ---- number fields
+
+    await step('the fields show their units until they are edited', `(() => {
+        const v = (id) => document.getElementById(id).value;
+        return [v('line_out'), v('line_in'), v('hatch_angle'), v('hatch_width'), v('hatch_coverage')].join('|');
+    })()`, '2 px|2 px|45°|4 px|30 %');
+
+    await step('focus drops the unit and selects the number', `(() => {
+        const f = document.getElementById('line_out');
+        f.focus();
+        return { value: f.value, selected: f.value.slice(f.selectionStart, f.selectionEnd) };
+    })()`, { value: '2', selected: '2' });
+
+    await step('only digits go in', `(() => {
+        const f = document.getElementById('line_out');
+        f.focus();
+        f.value = '';
+        const typed = [];
+        for (const ch of ['5', '-', '.', 'e', ',', '7']) {
+            const ev = new InputEvent('beforeinput', { data: ch, inputType: 'insertText', cancelable: true, bubbles: true });
+            const allowed = f.dispatchEvent(ev);
+            if (allowed) { f.value = f.value + ch; f.dispatchEvent(new Event('input', { bubbles: true })); }
+            typed.push(ch + ':' + (allowed ? 'in' : 'out'));
+        }
+        return { typed: typed.join(','), value: f.value };
+    })()`, { typed: '5:in,-:out,.:out,e:out,,:out,7:in', value: '57' });
+
+    await step('the outer line width reaches the file and the frames', `(() => {
+        const f = document.getElementById('line_out');
+        f.focus();
+        f.value = '6';
+        f.dispatchEvent(new Event('input', { bubbles: true }));
+        return {
+            style: document.querySelector('#preview_svg style').textContent
+                .includes('.st_out {fill:none;stroke:white;stroke-width:6.00'),
+            // The frame grows with the stroke it has to cover.
+            frame: document.querySelector('#preview_svg #layer_s0_frame rect').getAttribute('width'),
+        };
+    })()`, { style: true, frame: '226.00' });
+
+    await step('arrows step by one, with shift by ten', `(() => {
+        const f = document.getElementById('line_out');
+        f.focus();
+        const press = (key, shiftKey) => f.dispatchEvent(
+            new KeyboardEvent('keydown', { key, shiftKey, bubbles: true, cancelable: true }));
+        press('ArrowUp'); const up = f.value;
+        press('ArrowDown'); press('ArrowDown'); const down = f.value;
+        press('ArrowUp', true); const jump = f.value;
+        press('ArrowDown', true);
+        return { up, down, jump, back: f.value };
+    })()`, { up: '7', down: '5', jump: '15', back: '5' });
+
+    await session.evaluate(`(() => {
+        const f = document.getElementById('line_out');
+        f.focus(); f.value = '2'; f.dispatchEvent(new Event('input', { bubbles: true })); f.blur();
+    })()`);
+    await sleep(200);
+    await step('blur puts the unit back', `document.getElementById('line_out').value`, '2 px');
+
+    // ---- hatching
+
+    await step('reaching for a hatch field brings up the layer that shows it', `(() => {
+        const grad = () => {
+            const g = document.querySelector('#preview_svg #linear_grad');
+            return [g.getAttribute('x1'), g.getAttribute('x2'), g.getAttribute('y2')].join(' ');
+        };
+        const at45 = grad();
+        const f = document.getElementById('hatch_angle');
+        // Focus alone, before a single keystroke.
+        f.focus();
+        const onFocus = {
+            showing: ${shownLayers},
+            name: document.getElementById('layer_name').textContent,
+            ringOn: document.querySelector('#segments .segment.is_on').dataset.layer,
+        };
+        f.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+        return {
+            onFocus,
+            value: f.value,
+            stillShowing: ${shownLayers},
+            at45,
+            at46: grad(),
+        };
+    })()`, {
+        onFocus: { showing: 'background', name: 'Резерв', ringOn: 'background' },
+        value: '46',
+        stillShowing: 'background',
+        // What the reference PG file carries for this object at 45 degrees.
+        at45: '354 51 303',
+        at46: '354 57 307',
+    });
+
+    await step('leaving the field goes back to the layer that was chosen', `(() => {
+        document.getElementById('hatch_angle').blur();
+        return {
+            value: document.getElementById('hatch_angle').value,
+            showing: ${shownLayers},
+            name: document.getElementById('layer_name').textContent,
+        };
+    })()`, { value: '46°', showing: 'otlichno', name: 'Отлично' });
+
+    await step('hatch width and coverage change the stripes', `(() => {
+        const count = () => document.querySelectorAll('#preview_svg #linear_grad stop').length;
+        const before = count();
+        const w = document.getElementById('hatch_width');
+        w.focus(); w.value = '8'; w.dispatchEvent(new Event('input', { bubbles: true })); w.blur();
+        const wider = count();
+        const c = document.getElementById('hatch_coverage');
+        c.focus(); c.value = '60'; c.dispatchEvent(new Event('input', { bubbles: true })); c.blur();
+        return { fewerWhenThicker: wider < before, moreWhenDenser: count() > wider };
+    })()`, { fewerWhenThicker: true, moreWhenDenser: true });
+
+    // ---- the bar gives up its blocks in order when the window narrows
+
+    {
+        // Read from the markup, so a block added to the bar is picked up here
+        // without the test being touched.
+        const shown = `(() => {
+            const bar = document.getElementById('settings_toolbar');
+            const settings = document.querySelector('.settings');
+            return {
+                blocks: [...bar.querySelectorAll('[data-drop]')]
+                    .filter(b => getComputedStyle(b).display !== 'none')
+                    .map(b => b.id).join(','),
+                clipped: settings.scrollWidth > settings.clientWidth + 1
+                    || bar.scrollWidth > bar.clientWidth + 1,
+            };
+        })()`;
+        const atWidth = async (width) => {
+            await session.send('Emulation.setDeviceMetricsOverride',
+                { width, height: 700, deviceScaleFactor: 1, mobile: false });
+            await sleep(250);
+            return session.evaluate(shown);
+        };
+
+        // No width is written down here either: the bar is swept from wide to
+        // narrow and what must hold at every step is checked instead.
+        const order = await session.evaluate(`[...document.querySelectorAll('#settings_toolbar [data-drop]')]
+            .sort((a, b) => Number(a.dataset.drop) - Number(b.dataset.drop))
+            .map(b => b.id).join(',')`);
+        const dropOrder = order.split(',');
+
+        const problems = [];
+        let previous = null;
+        for (let width = 1800; width >= 400; width -= 100) {
+            const got = await atWidth(width);
+            const visible = got.blocks ? got.blocks.split(',') : [];
+
+            if (got.clipped) problems.push(`at ${width}px the bar is still cut off`);
+
+            // Whatever is gone has to be gone in order: if a block is showing,
+            // every block due to go after it is showing too.
+            const shouldBeGone = dropOrder.slice(0, dropOrder.length - visible.length);
+            const expected = dropOrder.filter((id) => !shouldBeGone.includes(id));
+            if (visible.slice().sort().join(',') !== expected.slice().sort().join(',')) {
+                problems.push(`at ${width}px: ${got.blocks || 'nothing'}, expected ${expected.join(',') || 'nothing'}`);
+            }
+            // Narrowing never brings a block back.
+            if (previous !== null && visible.length > previous) {
+                problems.push(`at ${width}px the bar grew back from ${previous} blocks to ${visible.length}`);
+            }
+            previous = visible.length;
+        }
+        if (previous !== 0) problems.push(`the narrowest window still showed ${previous} blocks`);
+
+        // And everything comes back when there is room again.
+        const back = await atWidth(1800);
+        if (back.blocks.split(',').length !== dropOrder.length) {
+            problems.push(`widening again left: ${back.blocks}`);
+        }
+        await session.send('Emulation.clearDeviceMetricsOverride');
+        await sleep(200);
+
+        if (problems.length) {
+            failures++;
+            console.log('FAIL  the bar drops its blocks in order as the window narrows');
+            problems.forEach((p) => console.log('        ' + p));
+        } else {
+            console.log(`PASS  the bar drops its blocks in order (${order}) as the window narrows, and takes them back`);
+        }
+    }
+
+    // ---- the bar is only there when there is a preview under it
+
+    await step('the bar is hidden until something has been entered', `(() => {
+        const bar = () => getComputedStyle(document.getElementById('settings_toolbar')).display;
+        const withFile = bar();
+        // Empty every field: the first screen comes back, and the bar with it.
+        const kept = [];
+        for (const a of document.querySelectorAll('#sub_list textarea')) {
+            kept.push(a.value);
+            a.value = '';
+            a.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        const empty = { bar: bar(), firstScreen: getComputedStyle(document.getElementById('first_screen')).display };
+        const areas = [...document.querySelectorAll('#sub_list textarea')];
+        areas[0].value = kept[0];
+        areas[0].dispatchEvent(new Event('input', { bubbles: true }));
+        return { withFile, empty, backAgain: bar() };
+    })()`, {
+        withFile: 'flex',
+        empty: { bar: 'none', firstScreen: 'flex' },
+        backAgain: 'flex',
+    });
+
+    // ---- wheel zoom ---------------------------------------------------------
+
+    await session.send('Page.navigate', { url: `http://localhost:${appPort}/index.html` });
+    await waitUntil(session, `document.body.dataset.ready === 'true'`);
+    {
+        const doc = await session.send('DOM.getDocument');
+        const { nodeId } = await session.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: '#file_input' });
+        await session.send('DOM.setFileInputFiles', {
+            nodeId, files: [path.join(root, 'src_doc', 'files', 'PG_2m1v2s_S-S_figma_draft.svg')],
+        });
+        await waitUntil(session, `document.body.dataset.loaded === 'true'`);
+        await sleep(400);
+    }
+
+    // The drawing's own size on screen, however it is being scaled.
+    const drawnSize = `(() => {
+        const svg = document.querySelector('#preview_svg svg');
+        const box = svg.getBoundingClientRect();
+        const vb = svg.viewBox.baseVal;
+        // The svg element fills the stage; the drawing is letterboxed inside it.
+        const fit = Math.min(box.width / vb.width, box.height / vb.height);
+        return { w: vb.width * fit, h: vb.height * fit };
+    })()`;
+
+    await step('it opens at the size that fits the block, with no scaling', `(() => {
+        const stage = document.getElementById('preview_stage');
+        const drawn = ${drawnSize};
+        const block = document.getElementById('svg_privew_block').getBoundingClientRect();
+        return {
+            transform: stage.style.transform,
+            // Filling the block means touching one of its sides, bar the padding.
+            fills: Math.round(Math.min(block.width - drawn.w, block.height - drawn.h)) <= 41,
+        };
+    })()`, { transform: '', fills: true });
+
+    {
+        const wheel = async (deltaY, times) => {
+            const at = await session.evaluate(`(() => {
+                const r = document.getElementById('svg_privew_block').getBoundingClientRect();
+                return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+            })()`);
+            for (let i = 0; i < times; i++) {
+                await session.send('Input.dispatchMouseEvent', {
+                    type: 'mouseWheel', x: at.x, y: at.y, deltaX: 0, deltaY, pointerType: 'mouse',
+                });
+            }
+            await sleep(250);
+        };
+
+        const before = await session.evaluate(drawnSize);
+        await wheel(120, 3);
+        const smaller = await session.evaluate(drawnSize);
+        if (smaller.w < before.w && smaller.h < before.h) {
+            console.log('PASS  scrolling down zooms out');
+        } else {
+            failures++;
+            console.log(`FAIL  scrolling down zooms out\n        ${JSON.stringify(before)} -> ${JSON.stringify(smaller)}`);
+        }
+
+        // All the way out: the longer side stops at 150px.
+        await wheel(120, 30);
+        await step('zooming all the way out stops at 150px on the longer side', `(() => {
+            const d = ${drawnSize};
+            return Math.round(Math.max(d.w, d.h));
+        })()`, 150);
+
+        // All the way back in: the drawing fits the block again and nothing is scaled.
+        await wheel(-120, 30);
+        await step('zooming all the way in stops at the size that fits', `(() => {
+            const d = ${drawnSize};
+            return {
+                transform: document.getElementById('preview_stage').style.transform,
+                w: Math.round(d.w),
+                h: Math.round(d.h),
+            };
+        })()`, { transform: '', w: Math.round(before.w), h: Math.round(before.h) });
+
+        // Both ends are measured off the block, so a narrower window moves them.
+        await wheel(120, 6);
+        const midway = await session.evaluate(drawnSize);
+        await session.send('Emulation.setDeviceMetricsOverride',
+            { width: 1000, height: 900, deviceScaleFactor: 1, mobile: false });
+        await sleep(400);
+        const narrowed = await session.evaluate(drawnSize);
+        const narrowedMax = await session.evaluate(`(() => {
+            document.getElementById('preview_stage').style.transform = '';
+            const d = ${drawnSize};
+            return { w: d.w, h: d.h };
+        })()`);
+        await session.send('Emulation.clearDeviceMetricsOverride');
+        await sleep(400);
+        const restored = await session.evaluate(drawnSize);
+
+        const problems = [];
+        if (!(narrowed.w < midway.w)) problems.push(`narrowing did not shrink the drawing: ${midway.w} -> ${narrowed.w}`);
+        // The kept quantity is the place in the range, not the size: 0 is
+        // filling the block, 1 is the 150px floor. Both ends moved with the
+        // block, so the drawing is a different size at the same level.
+        const level = (drawn, filled) => {
+            const floor = 150 / Math.max(filled.w, filled.h);
+            return Math.log(drawn.w / filled.w) / Math.log(floor);
+        };
+        const was = level(midway, before);
+        const now = level(narrowed, narrowedMax);
+        if (Math.abs(was - now) > 0.02) {
+            problems.push(`zoom level moved: ${was.toFixed(3)} -> ${now.toFixed(3)} of the range`);
+        }
+        if (!(narrowedMax.w < before.w)) {
+            problems.push(`the maximum did not follow the block: ${before.w} -> ${narrowedMax.w}`);
+        }
+        if (Math.abs(restored.w - midway.w) > 1) {
+            problems.push(`widening back did not restore the size: ${midway.w} -> ${restored.w}`);
+        }
+        if (problems.length) {
+            failures++;
+            console.log('FAIL  the zoom range follows the width of the block');
+            problems.forEach((p) => console.log('        ' + p));
+        } else {
+            console.log('PASS  the zoom range follows the width of the block, keeping the level');
+        }
     }
 
     // ---- first screen: nothing loaded yet -----------------------------------

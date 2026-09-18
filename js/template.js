@@ -7,9 +7,10 @@
 // Structure and naming follow Instruction.pdf sections 6.2-6.24 and the
 // reference files in src_doc/examples.
 
+import { INDICATORS } from './indicators.js';
+
 export const PARAMS = {
     indicatorDiameter: 45,      // section 6.13, 45px variant
-    indicatorStrokeWidth: 3.4,
     indicatorScale: 1,
     stInWidth: 2,               // internal lines
     stOutWidth: 2,              // outer outline
@@ -67,7 +68,15 @@ export function computeHatch(width, height, p) {
     return { ...v, stops: stripeStops(v.length, lineWidth, gap) };
 }
 
-function styleBlock(p) {
+/**
+ * The prepared symbol set for the chosen size. KOMPAKS ignores a `scale`
+ * transform, so each size is its own set of paths rather than one set scaled.
+ */
+export function indicatorSet(p) {
+    return INDICATORS[p.indicatorDiameter] || INDICATORS[PARAMS.indicatorDiameter];
+}
+
+function styleBlock(p, set) {
     return `    <style type="text/css">
         <!-- subject click area -->
         .frame {fill:none}
@@ -90,7 +99,7 @@ function styleBlock(p) {
         .ndp {fill:#FF0000}
         .repair {fill:#7F4124}
         <!-- indicator outer line -->
-        .icons_st_out {stroke:white;stroke-width:${f2(p.indicatorStrokeWidth)};stroke-miterlimit:10}
+        .icons_st_out {stroke:white;stroke-width:${f2(set.strokeWidth)};stroke-miterlimit:10}
         <!-- indicator icon fill white -->
         .icon_w {fill:#FFFFFF}
         <!-- indicator icon fill black -->
@@ -103,40 +112,6 @@ function styleBlock(p) {
         .scale {transform:scale(${f2(p.indicatorScale)})}
     </style>`;
 }
-
-// The indicator symbol library for diameter 45 / outer stroke 3.4, copied
-// verbatim from svg_constructor_45_3.4 (verified byte-identical to the examples).
-const ICONS_45 = `        <!--indicators-->
-        <g id="circle" class="scale">
-            <circle cx="22.5" cy="22.5" r="20.8" class="icons_st_out"></circle>
-        </g>
-        <g id="fail">
-            <use xlink:href="#circle" class="fail"></use>
-            <path class="icon_w scale" d="M18.31,34.32c0-2.46,1.63-4.14,4.16-4.14,2.37,0,4,1.68,4,4.14,0,2.31-1.63,4.14-4,4.14-2.53,0-4.16-1.83-4.16-4.14ZM19.79,27.88h0l-1.04-20.7h7.26l-1.04,20.7h-5.18Z"></path>
-        </g>
-        <g id="old_repair">
-            <use xlink:href="#circle" class="repair"></use>
-            <path class="icon_w scale" d="M29.38,23.38l-6.11-1.3-1.26-5.99,6.27-6.16c-.93-.17-1.72-.32-2.66-.49-5.79,0-11.27,5.51-11.27,11.33,0,1.3.31,2.44.63,3.57l-9.88,9.52c1.81,2.77,4.27,5.08,7.16,6.72l9.77-9.59.16-.16c.79.16,1.57.32,2.5.32,5.79,0,11.27-5.51,11.27-11.33.17-.82,0-1.63-.31-2.6l-6.26,6.16Z"></path>
-        </g>
-        <g id="old_lock_icon" class="scale">
-            <path d="M12.42,11.03v22.49h21.55l-.02,1.71H10.7V11l1.72.03ZM27.12,19.22c-.51,6.53-6.75,10.92-13.29,9.86v3.38c8.48,1.04,15.79-4.87,16.5-12.85,1.52.21,2.24.33,3.97.57l-2.13-5.2-2.13-5.21-3.44,4.46-3.44,4.45c1.78.25,2.18.3,3.97.54h0Z"></path>
-        </g>
-        <g id="old_lock_norm">
-            <use xlink:href="#circle" class="norm"></use>
-            <use xlink:href="#old_lock_icon" class="icon_b"></use>
-        </g>
-        <g id="old_lock_tpm">
-            <use xlink:href="#circle" class="tpm"></use>
-            <use xlink:href="#old_lock_icon" class="icon_b"></use>
-        </g>
-        <g id="old_lock_ndp">
-            <use xlink:href="#circle" class="ndp"></use>
-            <use xlink:href="#old_lock_icon" class="icon_w"></use>
-        </g>
-        <g id="insert">
-            <use xlink:href="#circle" class="insert"></use>
-            <path class="icon_w scale" d="M22.93,22.5l-11.42,9.09V13.41l11.42,9.09ZM36.02,22.5l-11.43,9.09V13.41l11.43,9.09Z"></path>
-        </g>`;
 
 /**
  * `fill` and `strokeIn` are inserted exactly as the user typed them - the app
@@ -279,6 +254,8 @@ export function buildSvg(subjects, params) {
     const minX = layout.x;
     const minY = layout.y;
 
+    const set = indicatorSet(p);
+
     // The hatch is computed on the artwork only, before the bottom padding.
     const hatch = computeHatch(objW, objH, p);
 
@@ -295,7 +272,7 @@ export function buildSvg(subjects, params) {
         .join('');
 
     return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="${layout.viewBox}" width="${f2(objW)}" height="${f2(viewH)}">
-${styleBlock(p)}
+${styleBlock(p, set)}
 
     <defs>
         <!--gradient-->
@@ -303,7 +280,7 @@ ${styleBlock(p)}
 ${stops}
         </linearGradient>
 
-${defs}${ICONS_45}
+${defs}${set.icons}
     </defs>
 
 ${layers}    <g id="layer_o" inkscape:label="layer_o" style="display:inline">

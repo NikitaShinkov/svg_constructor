@@ -1,7 +1,8 @@
 // Wiring: upload -> detect -> build -> preview / subject list / download.
 
 import { detectSubjects, parseGeometryFragment } from './detect.js';
-import { buildSvg, computeLayout } from './template.js';
+import { buildSvg, computeLayout, PARAMS } from './template.js';
+import { INDICATOR_SIZES } from './indicators.js';
 
 const el = (id) => document.getElementById(id);
 
@@ -10,6 +11,7 @@ const ui = {
     resizeHandle: el('resize_handle'),
     subList: el('sub_list'),
     sort: el('sort_button'),
+    preview: el('svg_privew_block'),
     stage: el('preview_stage'),
     previewSvg: el('preview_svg'),
     hlBack: el('highlight_back'),
@@ -20,6 +22,15 @@ const ui = {
     fileInput: el('file_input'),
     overlay: el('drop_overlay'),
     errorBar: el('error_bar'),
+    indicatorSwitch: el('indicators_switch'),
+    indicatorLabel: el('indicators_label'),
+    slider: el('indicators_slider'),
+    sliderFilled: el('slider_filled'),
+    sliderKnob: el('slider_knob'),
+    settingsToolbar: el('settings_toolbar'),
+    settings: document.querySelector('.settings'),
+    segments: el('segments'),
+    layerName: el('layer_name'),
 };
 
 /** A subject with nothing in it yet, ready to be typed into. */
@@ -36,7 +47,23 @@ const state = {
     output: '',
     reversed: false,    // which way round the sort button's arrow points
     hover: -1,          // subject the cursor is on, from either side
+    zoom: 1,            // 1 fills the preview block, 0 is 150px on the longer side
+    docSize: { w: 0, h: 0 },
+    params: { ...PARAMS },
+    // What the preview shows. None of it reaches the file: every layer and
+    // every indicator is written out whatever is chosen here.
+    preview: {
+        indicators: true,
+        layer: 'otlichno',  // the segment last clicked
+        hover: null,        // the segment under the cursor
+        forced: null,       // held on "background" while the hatch is edited
+    },
 };
+
+/** The layer the preview is showing, whoever asked for it. */
+function shownLayer() {
+    return state.preview.hover || state.preview.forced || state.preview.layer;
+}
 
 /** True once anything has been typed or loaded - what the empty state turns on. */
 function hasContent() {
@@ -158,16 +185,94 @@ async function load(file, handle) {
 
 /** Regenerates the SVG from the current subjects and refreshes the preview. */
 function rebuild() {
-    state.output = buildSvg(state.subjects);
+    state.output = buildSvg(state.subjects, state.params);
     ui.previewSvg.innerHTML = state.output;
+    applyPreviewLayers();
     renderHighlights();
-    // With nothing entered there is nothing to export: the preview gives way to
-    // the drop target and only Upload is offered.
+    // With nothing entered there is nothing to export, nothing to set up and
+    // nothing to look at: the preview gives way to the drop target, the
+    // settings bar goes with it, and only Upload is offered.
     const ready = hasContent();
     document.body.classList.toggle('is_empty', !ready);
     ui.download.disabled = !ready;
     ui.copy.disabled = !ready;
+    // After the class, so the stage is measurable when it is the one showing.
+    applyZoom();
 }
+
+// ---------------------------------------------------------------- preview layers
+
+// Instruction.pdf 6.2 fixes what the file contains, so nothing here may touch
+// the markup: the toolbar hides groups in the injected copy and leaves
+// state.output alone.
+const LAYERS = ['otlichno', 'norm', 'tpm', 'ndp', 'repair', 'background'];
+const LAYER_NAMES = {
+    otlichno: 'Отлично',
+    norm: 'ДОП',
+    tpm: 'ТПМ',
+    ndp: 'НДП',
+    repair: 'Ремонт',
+    background: 'Резерв',
+};
+
+// Exact matches only: layer_s0_norm is a state, layer_s0_old_lock_norm is not.
+const STATE_GROUP = /^layer_s\d+_(otlichno|norm|tpm|ndp|repair|background)$/;
+const INDICATOR_GROUP = /^layer_s\d+_(fail|old_sost|old_repair|old_lock|insert)$/;
+
+/** Shows one state layer per subject, and the indicators if they are wanted. */
+function applyPreviewLayers() {
+    const wanted = shownLayer();
+    for (const g of ui.previewSvg.querySelectorAll('g[id^="layer_s"]')) {
+        const state_ = STATE_GROUP.exec(g.id);
+        if (state_) { g.style.display = state_[1] === wanted ? 'inline' : 'none'; continue; }
+        if (INDICATOR_GROUP.test(g.id)) g.style.display = state.preview.indicators ? 'inline' : 'none';
+    }
+
+    ui.layerName.textContent = LAYER_NAMES[wanted];
+    for (const seg of ui.segments.children) {
+        seg.classList.toggle('is_on', seg.dataset.layer === wanted);
+    }
+}
+
+// ---------------------------------------------------------------- zoom
+
+// Fully zoomed in, the drawing fills the block, which is how it has always been
+// shown; fully out, its longer side is 150px. The wheel runs between the two.
+// Both ends move with the block, so the zoom is kept as a position in the range
+// rather than as a size, and a resize simply re-reads it.
+const ZOOM_MIN_PX = 150;
+const ZOOM_STEP = 0.08;
+
+/** What the browser scales the drawing by to fit the stage, as it stands. */
+function fitScale() {
+    const { w, h } = state.docSize;
+    // clientWidth ignores the transform, which is what makes this stable to
+    // read from inside the thing it sizes.
+    const W = ui.stage.clientWidth;
+    const H = ui.stage.clientHeight;
+    if (!(w > 0 && h > 0 && W > 0 && H > 0)) return 0;
+    return Math.min(W / w, H / h);
+}
+
+function applyZoom() {
+    const fit = fitScale();
+    const longest = Math.max(state.docSize.w, state.docSize.h) * fit;
+    // In a block too small to show even the minimum, there is nothing to zoom.
+    const floor = longest > ZOOM_MIN_PX ? ZOOM_MIN_PX / longest : 1;
+    const scale = Math.pow(floor, 1 - state.zoom);
+    ui.stage.style.transform = scale === 1 ? '' : `scale(${scale})`;
+}
+
+ui.preview.addEventListener('wheel', (e) => {
+    if (!hasContent()) return;
+    e.preventDefault();
+    state.zoom = Math.max(0, Math.min(1, state.zoom - Math.sign(e.deltaY) * ZOOM_STEP));
+    applyZoom();
+}, { passive: false });
+
+// The block changes width with the window and with the subject panel, and both
+// ends of the zoom range are measured from it.
+new ResizeObserver(applyZoom).observe(ui.stage);
 
 // ---------------------------------------------------------------- highlights
 
@@ -179,7 +284,8 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
  * Every subject gets its rectangles once; showing them is a class away.
  */
 function renderHighlights() {
-    const layout = computeLayout(state.subjects);
+    const layout = computeLayout(state.subjects, state.params);
+    state.docSize = { w: layout.w, h: layout.viewH };
     ui.hlBack.textContent = '';
     ui.hlFront.textContent = '';
 
@@ -611,6 +717,221 @@ ui.sort.addEventListener('click', () => {
     renderSubList();
 });
 
+// ---------------------------------------------------------------- settings toolbar
+
+// ---- fitting the bar to the window
+
+// When the bar runs out of room its blocks go, whole, lowest data-drop first.
+// Nothing here knows a width: the order comes from the markup and the decision
+// from measuring, so a new block only has to be written with a data-drop of
+// its own. The slider narrows first (see the stylesheet), so a block is only
+// dropped once even the tightened layout would be cut off.
+const DROP_ORDER = [...ui.settingsToolbar.querySelectorAll('[data-drop]')]
+    .sort((a, b) => Number(a.dataset.drop) - Number(b.dataset.drop));
+
+/**
+ * True while anything on the bar is being cut off. The settings block is the
+ * one that gives way, so it is measured too - a block outside it would show up
+ * on the bar itself.
+ */
+function tooTight() {
+    return ui.settings.scrollWidth > ui.settings.clientWidth + 1
+        || ui.settingsToolbar.scrollWidth > ui.settingsToolbar.clientWidth + 1;
+}
+
+function fitToolbar() {
+    for (const block of DROP_ORDER) block.classList.remove('is_hidden');
+    for (const block of DROP_ORDER) {
+        // Reading the width after each one flushes the layout, so the next
+        // test sees the room the last block gave up.
+        if (!tooTight()) return;
+        block.classList.add('is_hidden');
+    }
+}
+
+/** Everything on the bar that depends on how much room the bar has. */
+function layoutToolbar() {
+    fitToolbar();
+    // The knob's place is a fraction of a track that both shrinks with the
+    // window and measures zero while the bar is hidden.
+    paintSlider();
+}
+
+// Fires for the window, for the sidebar being dragged, and for the bar being
+// shown again with the preview. Hiding a block never changes the bar's own
+// width, so this cannot feed itself.
+new ResizeObserver(layoutToolbar).observe(ui.settingsToolbar);
+
+// ---- layer segments
+
+for (const layer of LAYERS) {
+    const seg = document.createElement('button');
+    seg.type = 'button';
+    seg.className = `segment segment_${layer}`;
+    seg.dataset.layer = layer;
+    seg.title = LAYER_NAMES[layer];
+    // Pointing at a segment shows that layer; the one last clicked is what the
+    // preview falls back to when the cursor leaves.
+    seg.addEventListener('mouseenter', () => { state.preview.hover = layer; applyPreviewLayers(); });
+    seg.addEventListener('click', () => {
+        state.preview.layer = layer;
+        state.preview.forced = null;
+        applyPreviewLayers();
+    });
+    ui.segments.appendChild(seg);
+}
+
+ui.segments.addEventListener('mouseleave', () => {
+    state.preview.hover = null;
+    applyPreviewLayers();
+});
+
+// ---- indicator switch
+
+function setIndicators(on) {
+    state.preview.indicators = on;
+    ui.indicatorSwitch.classList.toggle('is_on', on);
+    ui.indicatorSwitch.setAttribute('aria-checked', String(on));
+    ui.indicatorSwitch.title = on ? 'Скрыть индикаторы' : 'Показать индикаторы';
+    applyPreviewLayers();
+}
+
+ui.indicatorSwitch.addEventListener('click', () => setIndicators(!state.preview.indicators));
+
+// ---- indicator size slider
+
+const KNOB_W = 8;
+
+/** Which prepared size the slider is on. */
+function sizeIndex() {
+    const i = INDICATOR_SIZES.indexOf(state.params.indicatorDiameter);
+    return i < 0 ? INDICATOR_SIZES.indexOf(PARAMS.indicatorDiameter) : i;
+}
+
+function paintSlider() {
+    const size = state.params.indicatorDiameter;
+    const travel = ui.slider.clientWidth - KNOB_W;
+    const at = (sizeIndex() / (INDICATOR_SIZES.length - 1)) * travel;
+    ui.sliderKnob.style.left = `${at}px`;
+    ui.sliderFilled.style.width = `${at + KNOB_W / 2}px`;
+    ui.indicatorLabel.textContent = `Индикаторы ${size} px`;
+    ui.slider.setAttribute('aria-valuenow', String(size));
+    ui.slider.setAttribute('aria-valuetext', `${size} px`);
+}
+
+/** Only the prepared sizes exist, so the knob lands on the nearest one. */
+function setIndicatorSize(index) {
+    const clamped = Math.max(0, Math.min(INDICATOR_SIZES.length - 1, index));
+    const size = INDICATOR_SIZES[clamped];
+    if (size === state.params.indicatorDiameter) { paintSlider(); return; }
+    state.params.indicatorDiameter = size;
+    // Resizing something invisible says the user wants to see it.
+    if (!state.preview.indicators) setIndicators(true);
+    paintSlider();
+    layoutToolbar();   // the label grows and shrinks with the number in it
+    rebuild();
+}
+
+function sizeFromPointer(clientX) {
+    const r = ui.slider.getBoundingClientRect();
+    const travel = r.width - KNOB_W;
+    const at = Math.max(0, Math.min(travel, clientX - r.left - KNOB_W / 2));
+    return Math.round((at / travel) * (INDICATOR_SIZES.length - 1));
+}
+
+ui.slider.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    ui.slider.setPointerCapture(e.pointerId);
+    ui.slider.focus();
+    setIndicatorSize(sizeFromPointer(e.clientX));
+
+    const onMove = (ev) => setIndicatorSize(sizeFromPointer(ev.clientX));
+    const onUp = () => {
+        ui.slider.removeEventListener('pointermove', onMove);
+        ui.slider.removeEventListener('pointerup', onUp);
+        ui.slider.removeEventListener('pointercancel', onUp);
+    };
+    ui.slider.addEventListener('pointermove', onMove);
+    ui.slider.addEventListener('pointerup', onUp);
+    ui.slider.addEventListener('pointercancel', onUp);
+});
+
+ui.slider.addEventListener('keydown', (e) => {
+    const step = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 }[e.key];
+    if (!step) return;
+    e.preventDefault();
+    setIndicatorSize(sizeIndex() + step);
+});
+
+// ---- number fields
+
+// Each field carries its unit as text and sheds it while it is being edited.
+// Nothing but digits may be typed: no sign, no decimal point, no exponent.
+const FIELDS = [
+    { id: 'line_out', key: 'stOutWidth' },
+    { id: 'line_in', key: 'stInWidth' },
+    { id: 'hatch_angle', key: 'hatchAngle', hatch: true },
+    { id: 'hatch_width', key: 'hatchLineWidth', hatch: true },
+    { id: 'hatch_coverage', key: 'hatchCoverage', hatch: true },
+];
+
+function setUpField({ id, key, hatch }) {
+    const input = el(id);
+    const min = Number(input.dataset.min);
+    const max = Number(input.dataset.max);
+    const unit = input.dataset.unit;
+    const show = () => {
+        input.value = document.activeElement === input
+            ? String(state.params[key])
+            : `${state.params[key]}${unit}`;
+    };
+
+    const commit = (value) => {
+        const next = Math.max(min, Math.min(max, value));
+        if (next === state.params[key]) return;
+        state.params[key] = next;
+        rebuild();
+    };
+
+    input.addEventListener('focus', () => {
+        // The hatch is only visible on the background layer, so reaching for
+        // one of its fields brings that layer up before anything is typed.
+        if (hatch) { state.preview.forced = 'background'; applyPreviewLayers(); }
+        show();
+        input.select();
+    });
+    input.addEventListener('blur', () => {
+        if (hatch && state.preview.forced) { state.preview.forced = null; applyPreviewLayers(); }
+        show();
+    });
+
+    // beforeinput sees the text on its way in, so a rejected character never
+    // reaches the field and the caret does not jump.
+    input.addEventListener('beforeinput', (e) => {
+        if (e.data != null && !/^\d+$/.test(e.data)) e.preventDefault();
+    });
+
+    input.addEventListener('input', () => {
+        const digits = input.value.replace(/\D/g, '');
+        if (digits !== input.value) input.value = digits;
+        if (digits === '') return;      // mid-edit, wait for a number
+        commit(Number(digits));
+    });
+
+    input.addEventListener('keydown', (e) => {
+        const dir = e.key === 'ArrowUp' ? 1 : (e.key === 'ArrowDown' ? -1 : 0);
+        if (!dir) return;
+        e.preventDefault();
+        commit(state.params[key] + dir * (e.shiftKey ? 10 : 1));
+        show();
+        input.select();
+    });
+
+    show();
+}
+
+FIELDS.forEach(setUpField);
+
 // ---------------------------------------------------------------- sidebar resize
 
 ui.resizeHandle.addEventListener('pointerdown', (e) => {
@@ -688,6 +1009,7 @@ ui.copy.addEventListener('click', async () => {
 
 // First paint: the empty s0, expanded and ready to be typed into.
 state.subjects[0].isOpen = true;
+paintSlider();
 rebuild();
 renderSubList();
 

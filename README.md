@@ -14,7 +14,16 @@
 * добавление субъекта под текущим и удаление текущего с автоматической
   перенумерацией слоёв в итоговом файле;
 * скачивание нового svg-файла по кнопке «Скачать» и копирование его кода
-  в буфер обмена по кнопке рядом.
+  в буфер обмена по кнопке рядом;
+* the click area (`layer_sN_frame`, the rectangle KOMPAKS lets the operator
+  click on) of every subject: its four borders can be dragged in the preview -
+  with Alt for both sides at once, and snapping onto the subject's own edge -
+  or typed into the fields above the subject list, and the reset button puts
+  them back to the subject's own size. The indicators stay where they are, and
+  a click area pulled inside its subject never crops the drawing;
+* a triangular cursor at the foot of the selected click area, switched on and
+  off on the settings bar, which shows how big the area is against the drawing
+  and never reaches the file.
 
 Индикаторы, состояния и штриховка резерва генерируются по шаблону — искать их
 в исходном файле не нужно. Свойства заливки и обводки из исходного файла не

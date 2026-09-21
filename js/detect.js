@@ -356,6 +356,9 @@ export function detectSubjects(svgText) {
             strokeIn: asPath(lines),
             fillBBox: fills.length ? unionOf(fills.map((m) => m.bbox)) : null,
             strokeBBox: lines.length ? unionOf(lines.map((m) => m.bbox)) : null,
+            // A freshly read subject is clicked where it is drawn; the sidebar
+            // moves these borders afterwards.
+            clickArea: { top: 0, right: 0, bottom: 0, left: 0 },
             confidence,
             members: scored,
         };

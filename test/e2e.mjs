@@ -448,7 +448,9 @@ try {
     }
 
     await step('head_line carries the title and the sort button', `(() => {
-        const head = document.querySelector('.head_line');
+        // The click area block has a head line of its own, so this one is
+        // asked for by the list it belongs to.
+        const head = document.querySelector('.sub_list_wrap .head_line');
         const title = head.querySelector('.sidebar_title');
         const button = document.getElementById('sort_button');
         const icon = button.querySelector('img');
@@ -825,7 +827,7 @@ try {
             rightOfSidebar: Math.round(r.left) >= Math.round(document.getElementById('sud_sidebloсk').getBoundingClientRect().right),
             background: cs.backgroundColor,
             rule: [cs.borderBottomWidth, cs.borderBottomColor].join(' '),
-            blocks: [...bar.querySelectorAll('.indicators_settings, .lines_settings, .hatching_settings, .layer_selection_block')]
+            blocks: [...bar.querySelectorAll('.cursor_settings, .indicators_settings, .lines_settings, .hatching_settings, .layer_selection_block')]
                 .map(b => b.className.split(' ')[0]).join(','),
         };
     })()`, {
@@ -834,7 +836,7 @@ try {
         rightOfSidebar: true,
         background: 'rgb(17, 17, 28)',
         rule: '1px rgb(55, 55, 93)',
-        blocks: 'indicators_settings,lines_settings,hatching_settings,layer_selection_block',
+        blocks: 'cursor_settings,indicators_settings,lines_settings,hatching_settings,layer_selection_block',
     });
 
     // ---- layer segments
@@ -1261,6 +1263,393 @@ try {
         empty: { bar: 'none', firstScreen: 'flex' },
         backAgain: 'flex',
     });
+
+    // ---- click area: the frame the third-party app makes clickable -----------
+
+    await session.send('Page.navigate', { url: `http://localhost:${appPort}/index.html` });
+    await waitUntil(session, `document.body.dataset.ready === 'true'`);
+    {
+        const doc = await session.send('DOM.getDocument');
+        const { nodeId } = await session.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: '#file_input' });
+        await session.send('DOM.setFileInputFiles', {
+            nodeId, files: [path.join(root, 'src_doc', 'files', 'PG_2m1v2s_S-S_figma_draft.svg')],
+        });
+        await waitUntil(session, `document.body.dataset.loaded === 'true'`);
+        await sleep(300);
+    }
+
+    // Real pointer input, so the bands are met the way a user meets them.
+    const mouse = (type, x, y, modifiers = 0) => session.send('Input.dispatchMouseEvent', {
+        type, x, y, modifiers, button: 'left', buttons: type === 'mouseReleased' ? 0 : 1, clickCount: 1,
+    });
+    const bandAt = (selector) => session.evaluate(`(() => {
+        const b = document.querySelector('${selector}');
+        const r = b.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2,
+                 scale: document.getElementById('highlight_front').getScreenCTM().a };
+    })()`);
+    const type = (id, value) => session.evaluate(`(() => {
+        const i = document.getElementById('${id}');
+        i.focus();
+        i.value = '${value}';
+        i.dispatchEvent(new Event('input', { bubbles: true }));
+        i.blur();
+    })()`);
+
+    await step('with nothing selected there is no click area block',
+        "getComputedStyle(document.getElementById('click_area_settings')).display", 'none');
+
+    await session.evaluate("document.querySelector('#sub_list .sub_num').click()");
+    await sleep(300);
+
+    await step('selecting a subject opens the block, drawn as designed', `(() => {
+        const cs = (el, p) => getComputedStyle(el)[p];
+        const block = document.getElementById('click_area_settings');
+        const side = document.getElementById('sud_sidebloсk');
+        const fields = [...block.querySelectorAll('.click_input')];
+        const first = fields[0];
+        const inputs = [...block.querySelectorAll('.click_input input')];
+        return {
+            shown: cs(block, 'display') !== 'none',
+            aboveList: block.getBoundingClientRect().bottom
+                <= document.querySelector('.sub_list_wrap').getBoundingClientRect().top,
+            inSidebar: block.parentElement === side,
+            title: block.querySelector('.sidebar_title').textContent,
+            resetIcon: block.querySelector('#reset_button img').getAttribute('src').split('/').pop(),
+            resetAtRight: Math.round(block.querySelector('#reset_button').getBoundingClientRect().right)
+                === Math.round(block.querySelector('.head_line').getBoundingClientRect().right),
+            columns: block.querySelectorAll('.click_column').length,
+            fieldCount: fields.length,
+            fieldH: Math.round(first.getBoundingClientRect().height),
+            radius: cs(first, 'borderTopLeftRadius'),
+            background: cs(first, 'backgroundColor'),
+            border: [cs(first, 'borderTopWidth'), cs(first, 'borderTopColor')].join(' '),
+            icons: fields.map(f => f.querySelector('img').getAttribute('src').split('/').pop()).join(','),
+            values: inputs.map(i => i.value).join(','),
+            gaps: [cs(block, 'rowGap'), cs(block.querySelector('.inputs_block'), 'columnGap'),
+                   cs(block.querySelectorAll('.click_column')[1], 'rowGap')].join(','),
+        };
+    })()`, {
+        shown: true,
+        aboveList: true,
+        inSidebar: true,
+        title: 'Область нажатия',
+        resetIcon: 'reset_icon.svg',
+        resetAtRight: true,
+        columns: 3,
+        fieldCount: 4,
+        fieldH: 23,
+        radius: '6px',
+        background: 'rgb(36, 36, 60)',
+        border: '1px rgb(55, 55, 93)',
+        icons: 'border_left_icon.svg,border_top_icon.svg,border_bottom_icon.svg,border_right_icon.svg',
+        values: '0 px,0 px,0 px,0 px',
+        gaps: '8px,6px,6px',
+    });
+
+    // The frame is what KOMPAKS makes clickable, so a border moves the rect in
+    // the file and the pink outline together - or the file and what is shown
+    // have come apart. The indicators belong to the subject, not to its click
+    // area, and must sit still through all of it.
+    const clickAreaState = `(() => {
+        const rect = document.querySelector('#preview_svg #layer_s0_frame rect');
+        const outline = document.querySelector('.hl_outline.is_on');
+        const box = (el, attrs) => attrs.map(a => Math.round(Number(el.getAttribute(a)))).join(',');
+        return {
+            frame: box(rect, ['x', 'y', 'width', 'height']),
+            outline: box(outline, ['x', 'y', 'width', 'height']),
+            topLeftIndicator: box(document.querySelector('#preview_svg #layer_s0_old_repair use'), ['x', 'y']),
+            viewBox: document.querySelector('#preview_svg svg').getAttribute('viewBox'),
+            fields: [...document.querySelectorAll('.click_input input')].map(i => i.value).join(','),
+        };
+    })()`;
+
+    await step('an untouched subject is clickable exactly where it is drawn', clickAreaState, {
+        frame: '0,0,222,252',
+        outline: '0,0,222,252',
+        topLeftIndicator: '0,0',
+        viewBox: '0.00 0.00 354.00 322.00',
+        fields: '0 px,0 px,0 px,0 px',
+    });
+
+    await type('click_left', '10');
+    await sleep(300);
+
+    await step('a border pushed out grows the frame and the document, and leaves the indicators', clickAreaState, {
+        frame: '-10,0,232,252',
+        outline: '-10,0,232,252',
+        topLeftIndicator: '0,0',
+        viewBox: '-10.00 0.00 364.00 322.00',
+        fields: '10 px,0 px,0 px,0 px',
+    });
+
+    // A border may be pulled inside the subject as well as pushed out of it.
+    await type('click_top', '-20');
+    await sleep(300);
+    await step('a negative border eats into the subject', clickAreaState, {
+        frame: '-10,20,232,232',
+        outline: '-10,20,232,232',
+        topLeftIndicator: '0,0',
+        viewBox: '-10.00 0.00 364.00 322.00',
+        fields: '10 px,-20 px,0 px,0 px',
+    });
+
+    await session.evaluate("document.getElementById('reset_button').click()");
+    await sleep(200);
+
+    // s0 is the leftmost subject of this file, so a click area pulled inside it
+    // used to take the document's left edge with it and cut the drawing off.
+    await type('click_left', '-30');
+    await sleep(300);
+    await step('shrinking the outermost click area does not crop the drawing', clickAreaState, {
+        frame: '30,0,192,252',
+        outline: '30,0,192,252',
+        topLeftIndicator: '0,0',
+        viewBox: '0.00 0.00 354.00 322.00',
+        fields: '-30 px,0 px,0 px,0 px',
+    });
+
+    await session.evaluate("document.getElementById('reset_button').click()");
+    await sleep(300);
+    await step('reset puts every border back to the subject itself', clickAreaState, {
+        frame: '0,0,222,252',
+        outline: '0,0,222,252',
+        topLeftIndicator: '0,0',
+        viewBox: '0.00 0.00 354.00 322.00',
+        fields: '0 px,0 px,0 px,0 px',
+    });
+
+    await step('the borders are grab bands of their own, pointing the right way', `(() => {
+        const bands = [...document.querySelectorAll('.hl_edge.is_live')];
+        const scale = document.getElementById('highlight_front').getScreenCTM().a;
+        const thickness = bands.map(b => Math.round(Number(b.getAttribute(
+            b.dataset.side === 'left' || b.dataset.side === 'right' ? 'width' : 'height')) * scale));
+        return {
+            count: bands.length,
+            sides: bands.map(b => b.dataset.side).join(','),
+            cursors: bands.map(b => getComputedStyle(b).cursor).join(','),
+            thickness: [...new Set(thickness)].join(','),
+            // A subject that is neither selected nor under the cursor has none.
+            others: document.querySelectorAll('.hl_edge:not(.is_live)').length,
+            othersInert: [...document.querySelectorAll('.hl_edge:not(.is_live)')]
+                .every(b => getComputedStyle(b).pointerEvents === 'none'),
+        };
+    })()`, {
+        count: 4,
+        sides: 'top,right,bottom,left',
+        cursors: 'ns-resize,ew-resize,ns-resize,ew-resize',
+        thickness: '9',
+        others: 4,
+        othersInert: true,
+    });
+
+    // Dragging a border with the real pointer, and the field must follow it.
+    {
+        const band = await bandAt('.hl_edge_left.is_live');
+        await mouse('mousePressed', band.x, band.y);
+        for (let i = 1; i <= 6; i++) await mouse('mouseMoved', band.x - i * 5, band.y);
+        await mouse('mouseReleased', band.x - 30, band.y);
+        await sleep(300);
+
+        const after = await session.evaluate(`(() => ({
+            left: document.getElementById('click_left').value,
+            frame: (() => {
+                const r = document.querySelector('#preview_svg #layer_s0_frame rect');
+                return [r.getAttribute('x'), r.getAttribute('width')].map(Number).map(Math.round).join(',');
+            })(),
+            stillSelected: document.querySelectorAll('.hl_edge.is_live').length === 4,
+        }))()`);
+        // 30 screen pixels of travel, in file units, allowing for the drawing
+        // being scaled down as the area it has to fit grows.
+        const grown = Number(after.left.replace(' px', ''));
+        const wanted = Math.round(30 / band.scale);
+        const ok = grown > 0 && Math.abs(grown - wanted) <= 2
+            && after.frame === `${-grown},${222 + grown}`
+            && after.stillSelected;
+        if (ok) console.log('PASS  dragging a border outwards grows the click area and the field with it');
+        else {
+            failures++;
+            console.log(`FAIL  dragging a border outwards grows the click area and the field with it
+        got:      ${JSON.stringify(after)}
+        expected: about ${wanted}px of growth, still selected`);
+        }
+        await session.evaluate("document.getElementById('reset_button').click()");
+        await sleep(200);
+    }
+
+    // A border can be taken hold of on a subject that is only being pointed at,
+    // and taking hold of it is what picks that subject out.
+    {
+        const inside = await session.evaluate(`(() => {
+            const r = document.querySelector('#preview_svg #layer_s1_frame rect');
+            const ctm = document.getElementById('highlight_front').getScreenCTM();
+            const at = (a) => Number(r.getAttribute(a));
+            const p = document.getElementById('highlight_front').createSVGPoint();
+            p.x = at('x') + at('width') / 2;
+            p.y = at('y') + at('height') / 2;
+            const s = p.matrixTransform(ctm);
+            return { x: s.x, y: s.y };
+        })()`);
+        await mouse('mouseMoved', inside.x, inside.y);
+        await sleep(200);
+
+        await step('pointing at a subject offers its borders too', `(() => {
+            const live = [...document.querySelectorAll('.hl_edge.is_live')];
+            const s1 = live.filter(b => b.dataset.index === '1');
+            return {
+                lit: [...new Set(live.map(b => b.dataset.index))].sort().join(','),
+                s1Bands: s1.length,
+                s1Cursors: [...new Set(s1.map(b => getComputedStyle(b).cursor))].sort().join(','),
+                s1Selected: document.querySelectorAll('#sub_list .sub_block')[1].classList.contains('is_open'),
+            };
+        })()`, { lit: '0,1', s1Bands: 4, s1Cursors: 'ew-resize,ns-resize', s1Selected: false });
+
+        const band = await bandAt('.hl_edge_left[data-index="1"]');
+        await mouse('mousePressed', band.x, band.y);
+        for (let i = 1; i <= 5; i++) await mouse('mouseMoved', band.x - i * 4, band.y);
+        await mouse('mouseReleased', band.x - 20, band.y);
+        await sleep(300);
+
+        await step('dragging that border picks the subject up with it', `(() => ({
+            selected: [...document.querySelectorAll('#sub_list .sub_block')]
+                .findIndex(b => b.classList.contains('is_open')),
+            left: document.getElementById('click_left').value,
+            s1Frame: (() => {
+                const r = document.querySelector('#preview_svg #layer_s1_frame rect');
+                return [r.getAttribute('x'), r.getAttribute('width')].map(Number).map(Math.round).join(',');
+            })(),
+            s0Untouched: document.querySelector('#preview_svg #layer_s0_frame rect').getAttribute('x') === '0.00',
+        }))()`, {
+            selected: 1,
+            left: `${Math.round(20 / band.scale)} px`,
+            s1Frame: `${226 - Math.round(20 / band.scale)},${128 + Math.round(20 / band.scale)}`,
+            s0Untouched: true,
+        });
+
+        await session.evaluate("document.getElementById('reset_button').click()");
+        await sleep(200);
+    }
+
+    // Alt: the border across the area mirrors the one being dragged.
+    {
+        await session.evaluate("document.querySelectorAll('#sub_list .sub_num')[0].click()");
+        await sleep(300);
+        const band = await bandAt('.hl_edge_left[data-index="0"]');
+        const ALT = 1;
+        // Well clear of the snapping range, or the pair would land back on the
+        // shape and prove nothing.
+        await mouse('mousePressed', band.x, band.y, ALT);
+        for (let i = 1; i <= 6; i++) await mouse('mouseMoved', band.x - i * 10, band.y, ALT);
+        await mouse('mouseReleased', band.x - 60, band.y, ALT);
+        await sleep(300);
+
+        await step('holding Alt moves the border across with it, about the centre', `(() => {
+            const r = document.querySelector('#preview_svg #layer_s0_frame rect');
+            const at = (a) => Number(r.getAttribute(a));
+            const px = (id) => Number(document.getElementById(id).value.replace(' px', ''));
+            return {
+                grew: px('click_left') > 15,
+                mirrored: px('click_left') === px('click_right'),
+                widthIsBoth: Math.round(at('width')) === 222 + px('click_left') + px('click_right'),
+                // The subject's own middle is 111; the area must still be on it.
+                centred: Math.abs(at('x') + at('width') / 2 - 111) < 0.01,
+                vertical: [document.getElementById('click_top').value,
+                           document.getElementById('click_bottom').value].join(','),
+            };
+        })()`, {
+            grew: true,
+            mirrored: true,
+            widthIsBoth: true,
+            centred: true,
+            vertical: '0 px,0 px',
+        });
+
+        await session.evaluate("document.getElementById('reset_button').click()");
+        await sleep(200);
+    }
+
+    // Snapping: near the subject's own edge the border takes it exactly.
+    {
+        await type('click_left', '40');
+        await sleep(300);
+        const band = await bandAt('.hl_edge_left[data-index="0"]');
+        // Back inwards by nearly all of the 40px, leaving the border inside the
+        // snapping range - 5% of the subject's 222px width, so 11px either way.
+        const travel = Math.round(38 * band.scale);
+        await mouse('mousePressed', band.x, band.y);
+        for (let i = 1; i <= 6; i++) await mouse('mouseMoved', band.x + (travel * i) / 6, band.y);
+        await mouse('mouseReleased', band.x + travel, band.y);
+        await sleep(300);
+
+        await step('a border let go near the shape snaps onto it', clickAreaState, {
+            frame: '0,0,222,252',
+            outline: '0,0,222,252',
+            topLeftIndicator: '0,0',
+            viewBox: '0.00 0.00 354.00 322.00',
+            fields: '0 px,0 px,0 px,0 px',
+        });
+    }
+
+    // ---- the pointer at the foot of the click area
+
+    await step('the pointer is a third of the average subject and clears the border', `(() => {
+        const marks = [...document.querySelectorAll('.hl_cursor')];
+        const shown = marks.filter(m => getComputedStyle(m).visibility === 'visible');
+        const pts = shown[0].getAttribute('points').split(' ').map(p => p.split(',').map(Number));
+        const w = pts[1][0] - pts[2][0];
+        const h = pts[1][1] - pts[0][1];
+        const widths = [...document.querySelectorAll('#preview_svg [id$="_frame"] rect')]
+            .map(r => Number(r.getAttribute('width')));
+        const average = widths.reduce((s, v) => s + v, 0) / widths.length;
+        const frame = document.querySelector('#preview_svg #layer_s0_frame rect');
+        const at = (a) => Number(frame.getAttribute(a));
+        const near = (a, b) => Math.abs(a - b) < 0.01;
+        return {
+            drawnForEverySubject: marks.length,
+            shown: shown.length,
+            forTheSelected: shown[0].dataset.index === '0',
+            widthIsAThirdOfAverage: near(w, average / 3),
+            shapeOfTheIcon: near(h, w * 0.8),          // design/icons/pointer.svg is 100x80
+            centred: near(pts[0][0], at('x') + at('width') / 2),
+            tipAboveTheBorder: near(at('y') + at('height') - pts[0][1], h / 3),
+            fill: getComputedStyle(shown[0]).fill,
+            stroke: getComputedStyle(shown[0]).stroke,
+        };
+    })()`, {
+        drawnForEverySubject: 2,
+        shown: 1,
+        forTheSelected: true,
+        widthIsAThirdOfAverage: true,
+        shapeOfTheIcon: true,
+        centred: true,
+        tipAboveTheBorder: true,
+        fill: 'rgb(255, 255, 255)',
+        stroke: 'rgb(0, 0, 0)',
+    });
+
+    await session.evaluate("document.getElementById('cursor_switch').click()");
+    await sleep(200);
+    await step('the cursor switch only changes the preview', `(() => ({
+        off: !document.getElementById('cursor_switch').classList.contains('is_on'),
+        checked: document.getElementById('cursor_switch').getAttribute('aria-checked'),
+        shown: [...document.querySelectorAll('.hl_cursor')]
+            .filter(m => getComputedStyle(m).visibility === 'visible').length,
+        // Nothing of any of this may reach the file: no pointer, no highlight.
+        inFile: /polygon|hl_cursor|hl_edge|hl_outline/.test(document.getElementById('preview_svg').innerHTML),
+    }))()`, { off: true, checked: 'false', shown: 0, inFile: false });
+
+    await session.evaluate("document.getElementById('cursor_switch').click()");
+    await sleep(200);
+
+    // Putting the selection away takes the block and the bands with it.
+    await session.evaluate("document.getElementById('preview_stage').click()");
+    await sleep(300);
+    await step('deselecting puts the block and the borders away', `(() => ({
+        block: getComputedStyle(document.getElementById('click_area_settings')).display,
+        bands: document.querySelectorAll('.hl_edge.is_selected').length,
+        pointer: [...document.querySelectorAll('.hl_cursor')]
+            .filter(m => getComputedStyle(m).visibility === 'visible').length,
+    }))()`, { block: 'none', bands: 0, pointer: 0 });
 
     // ---- wheel zoom ---------------------------------------------------------
 

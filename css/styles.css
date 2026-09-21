@@ -104,6 +104,7 @@ body {
 
 .layer_selection_block { flex: 0 0 auto; }
 
+.cursor_settings,
 .indicators_settings,
 .lines_settings,
 .hatching_settings,
@@ -339,6 +340,65 @@ body.is_resizing {
         scrollbar-color: var(--scroll-thumb) var(--scroll-track);
     }
 }
+
+/* ---------- click area ---------- */
+
+/* Design click_area_settings: a head line like the list's own, then three
+   columns of 23px fields - left, top over bottom, right - laid out the way the
+   borders they move sit around the subject. Only a selected subject has an
+   area to adjust, so with nothing selected the block is not there at all. */
+.click_area_settings {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+.click_area_settings.is_on { display: flex; }
+
+.inputs_block {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.click_column {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+/* The whole field is the label, so a click anywhere in it - the icon included -
+   puts the caret in the number. */
+.click_input {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 23px;
+    padding: 0 6px;
+    background: var(--field-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: text;
+}
+
+.click_input:focus-within { border-color: var(--accent); }
+
+.click_input img { flex: 0 0 auto; }
+
+.click_input input {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    background: none;
+    border: 0;
+    color: var(--text);
+}
+
+.click_input input:focus { outline: none; }
 
 /* ---------- subject row ---------- */
 
@@ -635,6 +695,45 @@ body.is_empty .upload_button:hover {
     fill: none;
     stroke: var(--highlight);
 }
+
+/* Grab bands over the four borders of the selected subject's click area. They
+   are as wide as the pointer needs whatever the zoom is, so app.js sets their
+   thickness in file units from the current scale. */
+.highlight_layer .hl_edge {
+    fill: transparent;
+    stroke: none;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.highlight_layer .hl_edge.is_live {
+    visibility: visible;
+    pointer-events: all;
+}
+
+.hl_edge_top,
+.hl_edge_bottom { cursor: ns-resize; }
+
+.hl_edge_left,
+.hl_edge_right { cursor: ew-resize; }
+
+/* The cursor stays what it was grabbed as for the whole drag, wherever the
+   pointer travels while the border follows it. */
+body.is_edge_x { cursor: ew-resize; }
+body.is_edge_y { cursor: ns-resize; }
+body.is_edge_x,
+body.is_edge_y { user-select: none; }
+
+/* Drawn to the proportions of design/icons/pointer.svg: a triangle as wide as
+   a third of the average subject, pointing at the click area it belongs to. */
+.hl_cursor {
+    fill: var(--text);
+    stroke: #000000;
+    stroke-linejoin: miter;
+    visibility: hidden;
+}
+
+.hl_cursor.is_selected { visibility: visible; }
 
 /* Invisible, but it is what the cursor actually meets in the drawing. */
 .hl_hit {

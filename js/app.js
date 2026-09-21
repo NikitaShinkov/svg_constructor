@@ -1,7 +1,7 @@
 // Wiring: upload -> detect -> build -> preview / subject list / download.
 
 import { detectSubjects, parseGeometryFragment } from './detect.js';
-import { buildSvg, computeLayout, PARAMS } from './template.js';
+import { buildSvg, computeLayout, PARAMS, clickArea } from './template.js';
 import { INDICATOR_SIZES } from './indicators.js';
 
 const el = (id) => document.getElementById(id);
@@ -31,11 +31,18 @@ const ui = {
     settings: document.querySelector('.settings'),
     segments: el('segments'),
     layerName: el('layer_name'),
+    cursorSwitch: el('cursor_switch'),
+    clickBlock: el('click_area_settings'),
+    resetClick: el('reset_button'),
 };
 
 /** A subject with nothing in it yet, ready to be typed into. */
 function emptySubject() {
-    return { fill: '', strokeIn: '', fillBBox: null, strokeBBox: null, confidence: 1, isOpen: false };
+    return {
+        fill: '', strokeIn: '', fillBBox: null, strokeBBox: null, confidence: 1, isOpen: false,
+        // How far each border of the click area sits outside the subject.
+        clickArea: { top: 0, right: 0, bottom: 0, left: 0 },
+    };
 }
 
 const state = {
@@ -54,11 +61,17 @@ const state = {
     // every indicator is written out whatever is chosen here.
     preview: {
         indicators: true,
+        cursor: true,       // the triangle at the foot of the selected click area
         layer: 'otlichno',  // the segment last clicked
         hover: null,        // the segment under the cursor
         forced: null,       // held on "background" while the hatch is edited
     },
 };
+
+/** The expanded subject - the one the click area block belongs to, or -1. */
+function selectedIndex() {
+    return state.subjects.findIndex((s) => s.isOpen);
+}
 
 /** The layer the preview is showing, whoever asked for it. */
 function shownLayer() {
@@ -261,6 +274,7 @@ function applyZoom() {
     const floor = longest > ZOOM_MIN_PX ? ZOOM_MIN_PX / longest : 1;
     const scale = Math.pow(floor, 1 - state.zoom);
     ui.stage.style.transform = scale === 1 ? '' : `scale(${scale})`;
+    sizeEdgeHandles();
 }
 
 ui.preview.addEventListener('wheel', (e) => {
@@ -321,11 +335,105 @@ function renderHighlights() {
         const hit = rect('hl_hit', frame, index);
         hit.addEventListener('mouseenter', () => setHover(index, true));
         hit.addEventListener('mouseleave', () => setHover(-1, false));
-        hit.addEventListener('click', (e) => { e.stopPropagation(); toggleSubject(index); });
+        hit.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // The click that ends a border drag is not a click on the subject.
+            if (edge.justDragged) return;
+            toggleSubject(index);
+        });
         ui.hlFront.appendChild(hit);
     }
 
+    // The pointer is a third as wide as the average subject. It is measured on
+    // the subjects themselves, not on their click areas, so moving a border
+    // cannot resize it.
+    const widths = layout.frames.filter((f) => !f.empty && f.base.w > 0).map((f) => f.base.w);
+    const pointerW = widths.length ? widths.reduce((s, w) => s + w, 0) / widths.length / 3 : 0;
+
+    // Over the hit areas, so the borders of the selected subject answer first.
+    for (const { frame, index } of drawn) {
+        if (pointerW > 0) ui.hlFront.appendChild(pointerMark(frame, index, pointerW));
+        for (const side of SIDES) ui.hlFront.appendChild(edgeHandle(frame, index, side));
+    }
+
+    sizeEdgeHandles();
     paintHighlights();
+}
+
+const SIDES = ['top', 'right', 'bottom', 'left'];
+
+/**
+ * The triangle at the foot of a click area, to the proportions of
+ * design/icons/pointer.svg (100 wide, 80 tall, 4 of stroke). Its tip stands a
+ * third of its height inside the area rather than on the border itself.
+ */
+function pointerMark(frame, index, w) {
+    const h = w * 0.8;
+    const cx = frame.x + frame.w / 2;
+    const tip = frame.y + frame.h - h / 3;
+    const p = document.createElementNS(SVG_NS, 'polygon');
+    p.setAttribute('class', 'hl_cursor');
+    p.setAttribute('points', `${cx},${tip} ${cx + w / 2},${tip + h} ${cx - w / 2},${tip + h}`);
+    p.setAttribute('stroke-width', w * 0.04);
+    p.dataset.index = index;
+    return p;
+}
+
+/**
+ * A grab band lying along one border of a subject's frame. The frame it belongs
+ * to rides on the element, because the band's thickness is a screen measure and
+ * is worked out again every time the drawing changes size.
+ */
+function edgeHandle(frame, index, side) {
+    const r = document.createElementNS(SVG_NS, 'rect');
+    r.setAttribute('class', `hl_edge hl_edge_${side}`);
+    r.dataset.index = index;
+    r.dataset.side = side;
+    r.dataset.fx = frame.x;
+    r.dataset.fy = frame.y;
+    r.dataset.fw = frame.w;
+    r.dataset.fh = frame.h;
+    r.addEventListener('pointerdown', (e) => startEdgeDrag(e, index, side));
+    // The band lies over its subject's outline, so the subject has to stay
+    // hovered while the pointer is on it - otherwise the band would go quiet
+    // under the cursor and hand it straight back.
+    r.addEventListener('mouseenter', () => setHover(index, true));
+    r.addEventListener('mouseleave', () => setHover(-1, false));
+    // Letting this through would put the click area away mid-adjustment.
+    r.addEventListener('click', (e) => e.stopPropagation());
+    return r;
+}
+
+// How wide the band is to the pointer, on screen, at any zoom.
+const EDGE_GRAB_PX = 9;
+
+/** Screen pixels per file unit, as the preview is being shown right now. */
+function previewScale() {
+    const ctm = ui.hlFront.getScreenCTM ? ui.hlFront.getScreenCTM() : null;
+    return ctm && ctm.a > 0 ? ctm.a : 0;
+}
+
+/** Re-lays the grab bands so they stay the same width under the cursor. */
+function sizeEdgeHandles() {
+    const scale = previewScale();
+    if (!scale) return;
+    const t = EDGE_GRAB_PX / scale;
+    for (const r of ui.hlFront.querySelectorAll('.hl_edge')) {
+        const x = Number(r.dataset.fx);
+        const y = Number(r.dataset.fy);
+        const w = Number(r.dataset.fw);
+        const h = Number(r.dataset.fh);
+        const box = {
+            top: { x: x - t / 2, y: y - t / 2, w: w + t, h: t },
+            bottom: { x: x - t / 2, y: y + h - t / 2, w: w + t, h: t },
+            left: { x: x - t / 2, y: y - t / 2, w: t, h: h + t },
+            right: { x: x + w - t / 2, y: y - t / 2, w: t, h: h + t },
+        }[r.dataset.side];
+        r.setAttribute('x', box.x);
+        r.setAttribute('y', box.y);
+        r.setAttribute('width', box.w);
+        r.setAttribute('height', box.h);
+    }
 }
 
 /** A subject is lit while its row is expanded or either side is hovered. */
@@ -338,6 +446,20 @@ function paintHighlights() {
     for (const block of ui.subList.children) {
         block.classList.toggle('is_hover', Number(block.dataset.index) === state.hover);
     }
+
+    // A lit subject offers its borders, so they can be taken hold of without
+    // picking the subject out first; only the selected one shows the pointer,
+    // because that is the one the sidebar block is adjusting.
+    const selected = selectedIndex();
+    for (const r of ui.stage.querySelectorAll('.hl_edge')) {
+        const index = Number(r.dataset.index);
+        r.classList.toggle('is_live', index === selected || index === state.hover);
+    }
+    for (const p of ui.stage.querySelectorAll('.hl_cursor')) {
+        p.classList.toggle('is_selected',
+            state.preview.cursor && Number(p.dataset.index) === selected);
+    }
+    renderClickArea();
 }
 
 /**
@@ -362,15 +484,20 @@ function centreInList(block) {
     list.scrollTop = Math.max(0, Math.min(list.scrollHeight - list.clientHeight, target));
 }
 
+/** Expands one subject and closes the rest. */
+function selectSubject(index) {
+    if (!state.subjects[index]) return;
+    state.subjects.forEach((s, i) => { s.isOpen = i === index; });
+    renderSubList();
+    paintHighlights();
+}
+
 /** Expands one subject and closes the rest; expanding again closes it. */
 function toggleSubject(index) {
     const subject = state.subjects[index];
     if (!subject) return;
-    const opening = !subject.isOpen;
-    state.subjects.forEach((s) => { s.isOpen = false; });
-    subject.isOpen = opening;
-    renderSubList();
-    paintHighlights();
+    if (subject.isOpen) collapseAll();
+    else selectSubject(index);
 }
 
 /** Nothing is expanded and nothing is lit. */
@@ -383,10 +510,230 @@ function collapseAll() {
 
 // Anywhere in the preview that is not a subject means "none of them", and so
 // does the empty space under the last row.
-ui.stage.addEventListener('click', collapseAll);
+ui.stage.addEventListener('click', () => { if (!edge.justDragged) collapseAll(); });
 ui.subList.addEventListener('click', (e) => {
     if (e.target.closest('.sub_block') || drag.justDropped) return;
     collapseAll();
+});
+
+// ---------------------------------------------------------------- click area
+
+// layer_sN_frame is the rectangle KOMPAKS lets the user click on, so it is a
+// real part of the file, not a preview aid: the four numbers below move its
+// borders, and the highlight, the indicators in the corners and the viewBox all
+// follow, because they are all worked out from the same frame.
+//
+// A border is positive outwards: +10 on the left pushes that border 10px clear
+// of the subject, -10 pulls it inside.
+
+const MIN_FRAME = 1;        // px of frame that must survive, so it cannot invert
+const MAX_BORDER = 9999;
+
+const OPPOSITE = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' };
+
+/** The subject's own rectangle: what its click area is with every border at 0. */
+function subjectBase(subject) {
+    const b = subject.fillBBox || subject.strokeBBox;
+    if (!b) return { w: 0, h: 0 };
+    return { w: b.w + state.params.stOutWidth, h: b.h + state.params.stOutWidth };
+}
+
+/** Keeps a border inside its range and stops the frame turning inside out. */
+function clampBorder(subject, side, value) {
+    const v = Math.max(-MAX_BORDER, Math.min(MAX_BORDER, Math.round(value)));
+    if (!(subject.fillBBox || subject.strokeBBox)) return v;
+    const across = side === 'left' || side === 'right';
+    const base = across ? subjectBase(subject).w : subjectBase(subject).h;
+    const opposite = clickArea(subject)[OPPOSITE[side]];
+    return Math.max(v, MIN_FRAME - base - opposite);
+}
+
+/**
+ * Moves one or both of a subject's borders at once.
+ * @param {number} index the subject
+ * @param {Object<string, number>} wanted the borders to move, by side
+ * @returns {Object<string, number>} where each ended up, which is not always where it was sent
+ */
+function setBorders(index, wanted) {
+    const applied = {};
+    const subject = state.subjects[index];
+    if (!subject) return applied;
+    if (!subject.clickArea) subject.clickArea = { top: 0, right: 0, bottom: 0, left: 0 };
+
+    let moved = false;
+    for (const side of Object.keys(wanted)) {
+        // Clamped against the borders as they stand, so a pair moving together
+        // cannot squeeze the frame out of existence between them.
+        const next = clampBorder(subject, side, wanted[side]);
+        applied[side] = next;
+        if (next !== subject.clickArea[side]) {
+            subject.clickArea[side] = next;
+            moved = true;
+        }
+    }
+    if (moved) rebuild();   // the frame is part of the file, so the file is built again
+    showClickFields();
+    return applied;
+}
+
+/** The block belongs to the selected subject, and there is one only then. */
+function renderClickArea() {
+    const on = selectedIndex() >= 0 && hasContent();
+    ui.clickBlock.classList.toggle('is_on', on);
+    if (on) showClickFields();
+}
+
+/** Fills the four fields from the selected subject, units and all. */
+function showClickFields() {
+    const subject = state.subjects[selectedIndex()];
+    if (!subject) return;
+    const a = clickArea(subject);
+    for (const side of SIDES) {
+        const input = el('click_' + side);
+        // The field being typed into shows the bare number until it is left,
+        // exactly as the fields on the toolbar do. Text that is already right
+        // is left alone: assigning it again would put the caret at the end.
+        const next = document.activeElement === input
+            ? String(a[side])
+            : a[side] + input.dataset.unit;
+        if (input.value !== next) input.value = next;
+    }
+}
+
+// ---- dragging a border in the drawing
+
+const edge = { justDragged: false };
+
+// Within this much of the subject's own edge - a share of the subject's width
+// or height - a dragged border is taken to mean that edge, and reads 0.
+const SNAP_SHARE = 0.05;
+
+function startEdgeDrag(e, index, side) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const subject = state.subjects[index];
+    let scale = previewScale();
+    if (!subject || !scale) return;
+
+    // Taking hold of a border is as good a way of picking a subject as clicking
+    // it: what is being adjusted is what the sidebar block should be showing.
+    if (!subject.isOpen) selectSubject(index);
+
+    // preventDefault leaves the focus where it was, and a field that keeps the
+    // focus is a field that does not show what the border is doing.
+    if (document.activeElement && document.activeElement.closest('.click_input')) {
+        document.activeElement.blur();
+    }
+
+    const across = side === 'left' || side === 'right';
+    // Dragging away from the subject grows the area, on every side.
+    const away = side === 'left' || side === 'top' ? -1 : 1;
+    const opposite = OPPOSITE[side];
+    const start = clickArea(subject);
+    const base = subjectBase(subject);
+    const snap = (across ? base.w : base.h) * SNAP_SHARE;
+
+    let last = across ? e.clientX : e.clientY;
+    // Kept as a fraction so slow travel is not lost to rounding, and reined
+    // back in whenever the border cannot go where it is being taken.
+    let value = start[side];
+
+    document.body.classList.add(across ? 'is_edge_x' : 'is_edge_y');
+
+    const onMove = (ev) => {
+        const now = across ? ev.clientX : ev.clientY;
+        // Read afresh: growing the area grows the viewBox, and the drawing is
+        // scaled to fit, so what a screen pixel is worth changes as it moves.
+        scale = previewScale() || scale;
+        value += ((now - last) / scale) * away;
+        last = now;
+
+        // Near the edge of the subject the border takes it: that is the one
+        // place where the area is the shape again and the field reads 0.
+        const wanted = Math.abs(value) <= snap ? 0 : Math.round(value);
+        const borders = { [side]: wanted };
+        // Alt mirrors the border across the middle of the area, so both sides
+        // travel the same distance and the centre stays where it is.
+        if (ev.altKey) borders[opposite] = start[opposite] + (wanted - start[side]);
+
+        const applied = setBorders(index, borders);
+        // Only a border that was stopped short is worth resyncing to: the snap
+        // is where the border was sent, and forgetting that would pin it there.
+        if (applied[side] !== wanted) value = applied[side];
+    };
+
+    const onUp = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
+        document.body.classList.remove('is_edge_x', 'is_edge_y');
+        // The pointerup is followed by a click, which must not reach the drawing.
+        edge.justDragged = true;
+        setTimeout(() => { edge.justDragged = false; }, 0);
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+}
+
+// ---- the four fields and the reset button
+
+// Same manners as the toolbar fields: the unit is shown until the field is
+// being edited, and only a number may be typed - here with a leading minus,
+// because a border can be pulled inside the subject.
+function setUpBorderField(side) {
+    const input = el('click_' + side);
+    const unit = input.dataset.unit;
+
+    const current = () => clickArea(state.subjects[selectedIndex()] || {})[side];
+    const show = () => {
+        input.value = document.activeElement === input
+            ? String(current())
+            : current() + unit;
+    };
+
+    input.addEventListener('focus', () => { show(); input.select(); });
+    input.addEventListener('blur', show);
+
+    input.addEventListener('beforeinput', (e) => {
+        if (e.data != null && !/^[\d-]+$/.test(e.data)) e.preventDefault();
+    });
+
+    input.addEventListener('input', () => {
+        // One minus sign, and only at the front.
+        const clean = input.value.replace(/(?!^)-/g, '').replace(/[^\d-]/g, '');
+        if (clean !== input.value) input.value = clean;
+        if (clean === '' || clean === '-') return;   // mid-edit, wait for a number
+        const index = selectedIndex();
+        if (index >= 0) setBorders(index, { [side]: Number(clean) });
+    });
+
+    input.addEventListener('keydown', (e) => {
+        const dir = e.key === 'ArrowUp' ? 1 : (e.key === 'ArrowDown' ? -1 : 0);
+        if (!dir) return;
+        e.preventDefault();
+        const index = selectedIndex();
+        if (index < 0) return;
+        setBorders(index, { [side]: current() + dir * (e.shiftKey ? 10 : 1) });
+        show();
+        input.select();
+    });
+}
+
+SIDES.forEach(setUpBorderField);
+
+// Back to the subject's own size, which is what an untouched subject has.
+ui.resetClick.addEventListener('click', () => {
+    const subject = state.subjects[selectedIndex()];
+    if (!subject) return;
+    const a = clickArea(subject);
+    if (!SIDES.some((side) => a[side] !== 0)) return;
+    subject.clickArea = { top: 0, right: 0, bottom: 0, left: 0 };
+    rebuild();
+    showClickFields();
 });
 
 // ---------------------------------------------------------------- subject list
@@ -797,6 +1144,20 @@ function setIndicators(on) {
 }
 
 ui.indicatorSwitch.addEventListener('click', () => setIndicators(!state.preview.indicators));
+
+// ---- cursor switch
+
+// The triangle is drawn on the highlight layer, so this is a preview setting
+// like the one above it: the file has no cursor in it either way.
+function setCursor(on) {
+    state.preview.cursor = on;
+    ui.cursorSwitch.classList.toggle('is_on', on);
+    ui.cursorSwitch.setAttribute('aria-checked', String(on));
+    ui.cursorSwitch.title = on ? 'Скрыть курсор' : 'Показать курсор';
+    paintHighlights();
+}
+
+ui.cursorSwitch.addEventListener('click', () => setCursor(!state.preview.cursor));
 
 // ---- indicator size slider
 

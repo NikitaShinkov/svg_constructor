@@ -84,9 +84,12 @@ the window would hang around after the browser opens.
 | Параметры генерации | `settings_toolbar` над предпросмотром: размер индикаторов (ползунок по готовым шаблонам), толщина внешней и внутренней линий, угол, толщина и заполнение штриховки. Поля показывают единицы (`°`, `px`, `%`) и прячут их на время правки; принимают только цифры; стрелки меняют на 1, с Shift — на 10 |
 | Подписи состояний | В интерфейсе слои называются «Отлично», «ДОП», «ТПМ», «НДП», «Ремонт», «Резерв». Это **только подписи**: слой с подписью «ДОП» — это `norm` (`layer_sN_norm`), и переименовывать его в коде или в файле нельзя |
 | Что показывает предпросмотр | Выключатель индикаторов и `layer_selection_block` (6 сегментов состояний) **меняют только предпросмотр**: группы прячутся инлайновым `display` уже во вставленной копии, `state.output` не трогается. По умолчанию выбран `otlichno`. Наведение на сегмент показывает его слой, уход возвращает последний нажатый. Фокус в любом поле штриховки переключает на `background`, потеря фокуса возвращает прежний сегмент. Ползунок размера сам включает выключенные индикаторы: менять размер того, чего не видно, незачем |
-| Тесная панель | Панель настроек нарисована под 1920. Когда места не хватает, сначала ужимается ползунок, потом блоки убираются целиком — по возрастанию `data-drop` в разметке (сейчас `hatching_settings` 1, `lines_settings` 2, `layer_selection_block` 3, `indicators_settings` 4). **Пороговых ширин нигде нет:** признак нехватки — `scrollWidth` против `clientWidth`, пересчёт по `ResizeObserver`. Новый блок достаточно дописать в html со своим `data-drop` |
+| Тесная панель | Панель настроек нарисована под 1920. Когда места не хватает, сначала ужимается ползунок, потом блоки убираются целиком — по возрастанию `data-drop` в разметке (сейчас `hatching_settings` 1, `lines_settings` 2, `layer_selection_block` 3, `indicators_settings` 4, `cursor_settings` 5). **Пороговых ширин нигде нет:** признак нехватки — `scrollWidth` против `clientWidth`, пересчёт по `ResizeObserver`. Новый блок достаточно дописать в html со своим `data-drop` |
 | Масштаб предпросмотра | Колесо мыши над `svg_privew_block`. Максимум — как сейчас, по размеру блока; минимум — 150 px по большей стороне. Хранится не размер, а место в диапазоне (`state.zoom`, 1 — максимум), поэтому при изменении ширины окна оба конца пересчитываются, а уровень остаётся прежним. Масштабируется `transform` всего `preview_stage`, чтобы слои подсветки не разъехались с рисунком |
 | Размер индикаторов | По умолчанию 45 px, обводка 3.4 — как во всех файлах `src_doc/examples`. КОМПАКС не читает `scale`, поэтому размеры не масштабируются, а берутся готовыми наборами путей: 20/1.6, 24/2, 28/2.1, 32/2.4, 38/2.9, 45/3.4, 60/4.6 в `js/indicators.js` |
+| Click area | `click_area_settings` above the subject list, there only while a subject is selected: four fields (top, right, bottom, left), positive outwards, negative into the subject, and a `reset_button` that puts all four back to 0. This is the real `layer_sN_frame`, so the pink highlight is it; a border stops where the frame would be left thinner than 1px. The indicators do **not** follow it - they belong to the subject and stay on its own rectangle |
+| Dragging a border | A 9px grab band on screen whatever the zoom, `ns-resize`/`ew-resize` under the cursor, and the file is rebuilt as the border travels. The bands belong to any lit subject, hovered or selected, and pressing one selects that subject, so a border can be taken hold of straight away. Alt mirrors the border across the middle of the area, so both sides travel together and the centre stays put. Within 5% of the subject's own width or height the border takes that edge exactly - the one place the field reads 0 - while a typed number is left as typed |
+| Cursor | A triangle to the proportions of `design/icons/pointer.svg`, drawn on the highlight layer at the foot of the selected subject's click area: a third of the average subject's width, 0.8 of that in height, its tip a third of its own height inside the bottom border. The switch in `cursor_settings` (before `indicators_settings`, `data-drop="5"`) changes the preview only |
 | Объём | Не переносить функциональность старого конструктора, пока не попросят |
 | Язык интерфейса | Русский |
 | Language of everything else | English: README, CLAUDE.md, code comments, console output. Only the app interface and its strings stay Russian |
@@ -137,9 +140,33 @@ Edge (File System Access API). В Firefox и Safari файл скачивает�
 и расширяется на толщину внешней обводки:
 
 ```
-frame.w = bbox.w + st_out        frame.x = bbox.x − st_out/2
-frame.h = bbox.h + st_out        frame.y = bbox.y − st_out/2
+base.w = bbox.w + st_out        base.x = bbox.x − st_out/2
+base.h = bbox.h + st_out        base.y = bbox.y − st_out/2
 ```
+
+**Click area.** Each subject carries four offsets (`clickArea`: `top`, `right`,
+`bottom`, `left`, all 0 unless the sidebar moved them) that push the borders of
+that same rectangle outwards:
+
+```
+frame.x = base.x − left                 frame.w = base.w + left + right
+frame.y = base.y − top                  frame.h = base.h + top + bottom
+```
+
+`base` is the rectangle above - the subject's own, which every frame carries
+with it. What reads which matters:
+
+* `layer_sN_frame` in the defs and the highlight in the preview are the frame:
+  that is what the click area is;
+* the five indicator positions are worked out on `base`, so moving a click area
+  leaves them on the subject they belong to;
+* the viewBox is the union of **both** rectangles of every subject. An area
+  pushed outside its subject grows the document; one pulled inside it cannot
+  shrink the document, or an outermost subject would crop the drawing it is
+  still drawn in.
+
+With all four at 0 the output is byte for byte what it was, which is what the
+golden files check.
 
 Проверено точным расчётом bbox по кубическим кривым: PG s0 `(1,1,220,250)` → `(0,0,222,252)`,
 PG s1 `(227,1,126,250)` → `(226,0,128,252)`, Object s0 `(1,1,170,250)` → `(0,0,172,252)` —
@@ -221,6 +248,17 @@ node test/e2e.mjs 8080          # настоящее приложение в hea
 только в поле появляется код, панель настроек меняет файл и предпросмотр по
 отдельности, колесо мыши масштабирует предпросмотр в своих пределах).
 
+The click area has a section of its own: the block appears with the selection
+and goes with it, a typed border moves the frame and the document but not the
+indicators, a negative one eats into the subject without cropping the drawing,
+reset puts them back, the four grab bands measure 9px on screen and carry the
+right cursor, and then four drags with the real pointer - one that grows the
+area and the field with it, one on a subject that is only hovered (which picks
+that subject up), one with Alt held (both sides, centre still), and one that
+lets go inside the snapping range (the field lands on 0). The pointer is a
+third of the average subject, centred, clear of the border - and none of it
+reaches the file.
+
 Окно браузера в тесте — 1600×900: панель настроек нарисована под 1920, и в узком
 окне её элементы обрезаются, а клики по ним попадают в сегменты слоёв. Проверки,
 которым нужна другая ширина, ставят её через `Emulation.setDeviceMetricsOverride`
@@ -248,14 +286,14 @@ node test/e2e.mjs 8080          # настоящее приложение в hea
 
 ## 7. Известные ограничения и что делать дальше
 
-1. **Смещения индикаторов не реализованы — первое, что стоит добавить.**
-   В эталонах `PG`, `CC2` и `Object` индикаторы сдвинуты вручную относительно
-   углов рамки: у `CC2` субъекты высотой около 52 px, и четыре индикатора по
-   45 px в углах перекрывали бы друг друга. Формулы и расширение границ есть в
-   `add_frame_icons` старого `scripts.js`. Поля смещений уже заложены в модель
-   субъекта (по умолчанию 0), интерфейса для них нет. Ползунок размера частично
-   закрывает ту же боль (можно взять индикаторы помельче), но не заменяет
-   смещения.
+1. **Per-indicator offsets are still missing.** In the `PG`, `CC2` and `Object`
+   references the indicators are nudged one by one away from the corners of the
+   frame: `CC2` has subjects about 52px tall, where four 45px indicators in the
+   corners would overlap. The formulas are in `add_frame_icons` of the old
+   `scripts.js`. The size slider covers part of that ground (smaller indicators
+   crowd less), but nothing moves one indicator on its own, and that is what
+   those reference files did. The click area is not that lever either: it was
+   deliberately unhooked from the indicators, which stay on the subject.
 2. **Наборы индикаторов временные.** В `js/indicators.js` лежат семь наборов из
    старого конструктора (20…60 px) — пользователь сказал, что настоящие шаблоны
    подготовит позже. Заменяются целиком: формат таблицы (`strokeWidth` + `icons`)
@@ -308,6 +346,10 @@ node test/e2e.mjs 8080          # настоящее приложение в hea
   `highlight_back` (заливка), `preview_svg` (сам файл), `highlight_front`
   (рамка и области наведения). `viewBox` у всех трёх один и тот же, его отдаёт
   `computeLayout` из `template.js`.
+* The pointer and the four grab bands are preview furniture, like the
+  highlight: they live on `highlight_front`, and nothing about them may be
+  written into the file. What does belong in the file is the click area itself -
+  it is `layer_sN_frame`, which the format has always had.
 * Не измерять геометрию через `getBoundingClientRect` живого DOM: в старой
   версии из-за этого координаты зависели от размера окна. Считается аналитически
   в `js/geometry.js`, работает и в Node.

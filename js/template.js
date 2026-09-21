@@ -193,7 +193,22 @@ ${oldLock}
 `;
 }
 
-/** Corner and centre placement, Instruction.pdf 5.5. */
+/**
+ * How far each border of a subject's click area sits outside the subject
+ * itself, in file units. Positive grows the area, negative eats into it; a
+ * subject that has never been adjusted has none of this and reads as zeros.
+ */
+export function clickArea(subject) {
+    const a = (subject && subject.clickArea) || {};
+    const px = (v) => (Number.isFinite(v) ? v : 0);
+    return { top: px(a.top), right: px(a.right), bottom: px(a.bottom), left: px(a.left) };
+}
+
+/**
+ * Corner and centre placement, Instruction.pdf 5.5. It is given the subject's
+ * own rectangle: the indicators belong to the subject, so moving its click
+ * area leaves them where they are.
+ */
 export function indicatorPositions(frame, p) {
     const d = p.indicatorDiameter * p.indicatorScale;
     return {
@@ -216,20 +231,36 @@ export function computeLayout(subjects, params) {
     const half = p.stOutWidth / 2;
 
     // The frame is the fill silhouette's bounding box grown by the outer stroke,
-    // which is what the reference files contain. A subject with no geometry yet
-    // (just added in the sidebar) gets a zero frame and is left out of the
-    // overall bounds, so it cannot drag the viewBox around.
+    // which is what the reference files contain, and then by the subject's own
+    // click area offsets - what KOMPAKS treats as the clickable rectangle is
+    // the only thing they move. `base` is the subject's own rectangle, which is
+    // what the offsets are measured from and what the indicators are hung on. A
+    // subject with no geometry yet (just added in the sidebar) gets a zero frame
+    // and is left out of the overall bounds, so it cannot drag the viewBox around.
     const frames = subjects.map((s) => {
         const b = s.fillBBox || s.strokeBBox;
-        if (!b) return { x: 0, y: 0, w: 0, h: 0, empty: true };
-        return { x: b.x - half, y: b.y - half, w: b.w + p.stOutWidth, h: b.h + p.stOutWidth };
+        if (!b) return { x: 0, y: 0, w: 0, h: 0, base: { x: 0, y: 0, w: 0, h: 0 }, empty: true };
+        const a = clickArea(s);
+        const base = { x: b.x - half, y: b.y - half, w: b.w + p.stOutWidth, h: b.h + p.stOutWidth };
+        return {
+            x: base.x - a.left,
+            y: base.y - a.top,
+            w: base.w + a.left + a.right,
+            h: base.h + a.top + a.bottom,
+            base,
+        };
     });
 
+    // Both rectangles count: a click area pushed outside its subject grows the
+    // document, one pulled inside it cannot shrink the document and cut the
+    // drawing off, because the subject is still drawn where it always was.
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const f of frames) {
         if (f.empty) continue;
-        minX = Math.min(minX, f.x); minY = Math.min(minY, f.y);
-        maxX = Math.max(maxX, f.x + f.w); maxY = Math.max(maxY, f.y + f.h);
+        for (const r of [f, f.base]) {
+            minX = Math.min(minX, r.x); minY = Math.min(minY, r.y);
+            maxX = Math.max(maxX, r.x + r.w); maxY = Math.max(maxY, r.y + r.h);
+        }
     }
     if (!Number.isFinite(minX)) { minX = 0; minY = 0; maxX = 0; maxY = 0; }
 
@@ -268,7 +299,7 @@ export function buildSvg(subjects, params) {
         .join('');
 
     const layers = subjects
-        .map((s, i) => subjectLayer(i, indicatorPositions(frames[i], p)))
+        .map((s, i) => subjectLayer(i, indicatorPositions(frames[i].base, p)))
         .join('');
 
     return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="${layout.viewBox}" width="${f2(objW)}" height="${f2(viewH)}">

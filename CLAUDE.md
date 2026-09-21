@@ -43,6 +43,7 @@ js/indicators.js      7 наборов индикаторов (20..60 px), вы�
 js/app.js             связывание: загрузка → разбор → сборка → предпросмотр → экспорт
 assets/icons/         иконки, скопированы из design/icons
 server.mjs            локальный статический сервер: node server.mjs [порт]
+start.cmd             Windows launcher: server + browser in one click
 test/golden.mjs       шаблон против эталонов (Node, без браузера)
 test/e2e.mjs          настоящее приложение в headless Chrome через DevTools-протокол
 test/detect.html      разбор всех 12 файлов из src_doc/files (открыть в браузере)
@@ -58,6 +59,15 @@ src_doc/svg_constructor/  СТАРАЯ версия конструктора —
 **Важно:** дизайн берётся из `design/*.json`, **не** из старой версии. Старый
 конструктор полезен только как источник шаблонных строк и формул; его вёрстка и
 поведение устарели.
+
+**Launching:** `start.cmd` in the repository root replaces `node server.mjs`
+typed by hand. It cd-s to its own folder, checks that Node is installed, takes
+the first free port in 8080..8099 (or the one passed as an argument), runs the
+server in that window and opens `http://localhost:<port>/` from a second,
+minimized window that waits for the port to start listening and then closes.
+Ctrl+C or closing the window stops the server. That helper window has to be
+started through `cmd /c`: `start "" file.cmd` runs the batch under `cmd /K`, so
+the window would hang around after the browser opens.
 
 Репозиторий: `https://github.com/NikitaShinkov/svg_constructor`
 Живая версия: `https://nikitashinkov.github.io/svg_constructor/`
@@ -79,6 +89,7 @@ src_doc/svg_constructor/  СТАРАЯ версия конструктора —
 | Размер индикаторов | По умолчанию 45 px, обводка 3.4 — как во всех файлах `src_doc/examples`. КОМПАКС не читает `scale`, поэтому размеры не масштабируются, а берутся готовыми наборами путей: 20/1.6, 24/2, 28/2.1, 32/2.4, 38/2.9, 45/3.4, 60/4.6 в `js/indicators.js` |
 | Объём | Не переносить функциональность старого конструктора, пока не попросят |
 | Язык интерфейса | Русский |
+| Language of everything else | English: README, CLAUDE.md, code comments, console output. Only the app interface and its strings stay Russian |
 | Шрифт | Inter 12 px — везде, единственный размер и начертание |
 | Проверка ввода | **Нет никакой.** Что пользователь ввёл в поле, то и попадает в файл |
 | Первый экран | Пока ни в одном поле ничего нет: в списке один раскрытый `s0`, залитый `upload_button`, `download_button` и `copy_button` скрыты, вместо предпросмотра — зона перетаскивания, панель настроек тоже спрятана (настраивать нечего). Как только в поле появляется текст (или загружается файл), экран становится обычным |

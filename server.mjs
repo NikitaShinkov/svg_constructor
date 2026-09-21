@@ -38,5 +38,5 @@ http.createServer((req, res) => {
         res.end(data);
     });
 }).listen(port, () => {
-    console.log(`SVG-конструктор: http://localhost:${port}/`);
+    console.log(`SVG constructor: http://localhost:${port}/`);
 });

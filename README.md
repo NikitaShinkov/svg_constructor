@@ -22,6 +22,12 @@
 
 ## Запуск
 
+On Windows, double-click `start.cmd`: it starts the server and opens the app
+in the browser. A port can be given as an argument — `start.cmd 8099`; without
+one the first free port from 8080 is taken.
+
+The same by hand:
+
 ```
 node server.mjs
 ```

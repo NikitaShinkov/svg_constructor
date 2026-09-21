@@ -81,14 +81,16 @@ the window would hang around after the browser opens.
 | Порядок субъектов | По порядку в файле (имена слоёв, если есть). `sort_button` в `head_line` разворачивает список целиком, строку можно перенести мышью на новое место: она едет за курсором, соседи расступаются и отмечают линией `#9393FF` место, куда строка встанет, а номера остаются прежними до отпускания — перенумерация и пересборка файла происходят при отпускании |
 | Подсветка субъекта | Строка списка и фигура в предпросмотре подсвечивают друг друга: рамка `#FF00FB` толщиной во внешнюю обводку поверх фигуры и та же рамка заливкой 10 % под ней. Рисуется двумя отдельными слоями над и под предпросмотром — **в выгружаемый файл ничего не добавляется**. Щелчок мимо субъектов — и в предпросмотре, и в пустой части списка — сворачивает все строки |
 | Сохранение файла | `showSaveFilePicker` с `startIn` на исходный файл: то же имя, та же папка, пользователь подтверждает. Исходник не перезаписывается молча |
-| Параметры генерации | `settings_toolbar` над предпросмотром: размер индикаторов (ползунок по готовым шаблонам), толщина внешней и внутренней линий, угол, толщина и заполнение штриховки. Поля показывают единицы (`°`, `px`, `%`) и прячут их на время правки; принимают только цифры; стрелки меняют на 1, с Shift — на 10 |
+| Параметры генерации | `settings_toolbar` над предпросмотром: размер индикаторов (ползунок по готовым шаблонам), толщина внешней и внутренней линий, угол, толщина и заполнение штриховки. Поля показывают число без единиц: пиксели не подписываются нигде — ни здесь, ни в `click_area_settings`, ни в `indicator_position_settings`. Подписаны только `°` и ` %`, и на время правки они прячутся. Принимают только цифры; стрелки меняют на 1, с Shift — на 10 |
 | Подписи состояний | В интерфейсе слои называются «Отлично», «ДОП», «ТПМ», «НДП», «Ремонт», «Резерв». Это **только подписи**: слой с подписью «ДОП» — это `norm` (`layer_sN_norm`), и переименовывать его в коде или в файле нельзя |
 | Что показывает предпросмотр | Выключатель индикаторов и `layer_selection_block` (6 сегментов состояний) **меняют только предпросмотр**: группы прячутся инлайновым `display` уже во вставленной копии, `state.output` не трогается. По умолчанию выбран `otlichno`. Наведение на сегмент показывает его слой, уход возвращает последний нажатый. Фокус в любом поле штриховки переключает на `background`, потеря фокуса возвращает прежний сегмент. Ползунок размера сам включает выключенные индикаторы: менять размер того, чего не видно, незачем |
 | Тесная панель | Панель настроек нарисована под 1920. Когда места не хватает, сначала ужимается ползунок, потом блоки убираются целиком — по возрастанию `data-drop` в разметке (сейчас `hatching_settings` 1, `lines_settings` 2, `layer_selection_block` 3, `indicators_settings` 4, `cursor_settings` 5). **Пороговых ширин нигде нет:** признак нехватки — `scrollWidth` против `clientWidth`, пересчёт по `ResizeObserver`. Новый блок достаточно дописать в html со своим `data-drop` |
 | Масштаб предпросмотра | Колесо мыши над `svg_privew_block`. Максимум — как сейчас, по размеру блока; минимум — 150 px по большей стороне. Хранится не размер, а место в диапазоне (`state.zoom`, 1 — максимум), поэтому при изменении ширины окна оба конца пересчитываются, а уровень остаётся прежним. Масштабируется `transform` всего `preview_stage`, чтобы слои подсветки не разъехались с рисунком |
 | Размер индикаторов | По умолчанию 45 px, обводка 3.4 — как во всех файлах `src_doc/examples`. КОМПАКС не читает `scale`, поэтому размеры не масштабируются, а берутся готовыми наборами путей: 20/1.6, 24/2, 28/2.1, 32/2.4, 38/2.9, 45/3.4, 60/4.6 в `js/indicators.js` |
+| Picking a subject | A subject is selected by clicking its row, its shape, its click area or any of its indicators, and it is lit while the pointer is on any of those. Hence two hit rectangles per subject in the preview - the click area and the subject's own shape, which part company as soon as a border is moved - and the indicators answer for their subject too. **What answers the pointer must not depend on what is lit:** an area that goes inert under the cursor hands it straight back to what is underneath, and the two then take turns for as long as the pointer is there |
 | Click area | `click_area_settings` above the subject list, there only while a subject is selected: four fields (top, right, bottom, left), positive outwards, negative into the subject, and a `reset_button` that puts all four back to 0. This is the real `layer_sN_frame`, so the pink highlight is it; a border stops where the frame would be left thinner than 1px. The indicators do **not** follow it - they belong to the subject and stay on its own rectangle |
-| Dragging a border | A 9px grab band on screen whatever the zoom, `ns-resize`/`ew-resize` under the cursor, and the file is rebuilt as the border travels. The bands belong to any lit subject, hovered or selected, and pressing one selects that subject, so a border can be taken hold of straight away. Alt mirrors the border across the middle of the area, so both sides travel together and the centre stays put. Within 5% of the subject's own width or height the border takes that edge exactly - the one place the field reads 0 - while a typed number is left as typed |
+| Dragging a border | A 9px grab band on screen whatever the zoom, `ns-resize`/`ew-resize` under the cursor, and the file is rebuilt as the border travels. The bands belong to any lit subject, hovered or selected, and pressing one selects that subject, so a border can be taken hold of straight away. Alt mirrors the border across the middle of the area, so both sides travel together and the centre stays put. Within 5% of the subject's own width or height the border takes that edge exactly - the one place the field reads 0 - while a typed number is left as typed. A border in hand owns the pointer until it is let go: no other subject lights up as it is carried over them, and the cursor stays the resize one (`cursor: inherit !important` on everything, because the hit areas under it carry cursors of their own and say so more specifically). What is under the pointer when it is let go is asked for with `elementFromPoint`, since resting on something is not an event |
+| Indicator positions | `indicator_position_settings` under the click area block, for the selected subject: an X and a Y field per indicator, in the same three columns (old_repair over old_sost, insert, old_lock over fail). Clicking an indicator in the drawing picks it out - which shows on its pair of fields, outlined in `--accent`, and nowhere in the drawing itself - and the arrow keys then move it, 1px a press and 10 with Shift. Every indicator on show can be clicked, on any subject, selected or not; being switched off on the toolbar is the one thing that takes their hit areas away. It is put down by Esc or by a click anywhere but itself (a listener on the way in, since the drawing stops its clicks on the way out). The offsets are part of the file: they are the `x`/`y` of the `<use>`. Its `reset_button` is the one control that reaches past the selected subject: indicators are nudged a fileful at a time, so it puts every indicator of every subject back |
 | Cursor | A triangle to the proportions of `design/icons/pointer.svg`, drawn on the highlight layer at the foot of the selected subject's click area: a third of the average subject's width, 0.8 of that in height, its tip a third of its own height inside the bottom border. The switch in `cursor_settings` (before `indicators_settings`, `data-drop="5"`) changes the preview only |
 | Объём | Не переносить функциональность старого конструктора, пока не попросят |
 | Язык интерфейса | Русский |
@@ -165,8 +167,19 @@ with it. What reads which matters:
   shrink the document, or an outermost subject would crop the drawing it is
   still drawn in.
 
-With all four at 0 the output is byte for byte what it was, which is what the
-golden files check.
+**Indicator offsets.** Each subject also carries a nudge per indicator
+(`indicatorOffsets`, `{x, y}` by key, missing means zero), added to the corner
+and centre placement of Instruction.pdf 5.5. The reference files need them:
+`CC2` has subjects about 52px tall, where four 45px indicators in the corners
+would overlap. An indicator that has been nudged counts towards the document
+bounds as well - at its own place it is inside the subject already, so this can
+only grow the document, and an indicator pushed off the subject is not cut off.
+
+`computeLayout` works the positions out once, into `frames[i].indicators`, and
+both the builder and the preview read them from there.
+
+With all four borders and every offset at 0 the output is byte for byte what it
+was, which is what the golden files check.
 
 Проверено точным расчётом bbox по кубическим кривым: PG s0 `(1,1,220,250)` → `(0,0,222,252)`,
 PG s1 `(227,1,126,250)` → `(226,0,128,252)`, Object s0 `(1,1,170,250)` → `(0,0,172,252)` —
@@ -255,9 +268,21 @@ reset puts them back, the four grab bands measure 9px on screen and carry the
 right cursor, and then four drags with the real pointer - one that grows the
 area and the field with it, one on a subject that is only hovered (which picks
 that subject up), one with Alt held (both sides, centre still), and one that
-lets go inside the snapping range (the field lands on 0). The pointer is a
-third of the average subject, centred, clear of the border - and none of it
-reaches the file.
+lets go inside the snapping range (the field lands on 0). A fifth drag checks
+what a border in hand owns: carried across a neighbour, nothing but the subject
+being adjusted is lit, and the body and the element under the pointer both read
+`ew-resize` until the button comes up. The pointer is a third of the average
+subject, centred, clear of the border - and none of it reaches the file.
+
+The indicators have their own section after it: the block is drawn as designed
+under the click area, pointing at an indicator lights its subject and keeps it
+lit while the pointer rests there, clicking one picks out both the subject and
+the indicator, the arrow keys move that one indicator (1px, 10 with Shift) and
+leave its neighbours alone, Esc puts it down and the arrows go quiet, the shape
+outside a shrunken click area still picks its subject out, one indicator pushed
+off the subject grows the document, the block follows the selection from subject
+to subject, hidden indicators answer to nothing, and the reset button puts every
+indicator of every subject back.
 
 Окно браузера в тесте — 1600×900: панель настроек нарисована под 1920, и в узком
 окне её элементы обрезаются, а клики по ним попадают в сегменты слоёв. Проверки,
@@ -286,14 +311,11 @@ reaches the file.
 
 ## 7. Известные ограничения и что делать дальше
 
-1. **Per-indicator offsets are still missing.** In the `PG`, `CC2` and `Object`
-   references the indicators are nudged one by one away from the corners of the
-   frame: `CC2` has subjects about 52px tall, where four 45px indicators in the
-   corners would overlap. The formulas are in `add_frame_icons` of the old
-   `scripts.js`. The size slider covers part of that ground (smaller indicators
-   crowd less), but nothing moves one indicator on its own, and that is what
-   those reference files did. The click area is not that lever either: it was
-   deliberately unhooked from the indicators, which stay on the subject.
+1. **Offsets are set by hand, never read.** Indicators can now be nudged one by
+   one, which is what the `PG`, `CC2` and `Object` references did, but a file
+   arriving from the editor always starts with every offset at 0: nothing reads
+   the positions back out of an existing KOMPAKS file. Rebuilding one of those
+   references means moving its indicators again by hand.
 2. **Наборы индикаторов временные.** В `js/indicators.js` лежат семь наборов из
    старого конструктора (20…60 px) — пользователь сказал, что настоящие шаблоны
    подготовит позже. Заменяются целиком: формат таблицы (`strokeWidth` + `icons`)
@@ -350,6 +372,19 @@ reaches the file.
   highlight: they live on `highlight_front`, and nothing about them may be
   written into the file. What does belong in the file is the click area itself -
   it is `layer_sN_frame`, which the format has always had.
+* Не ставить `pointer-events` в зависимость от наведения: an element that
+  answers the pointer only while something is hovered goes inert the moment the
+  pointer reaches it, the element underneath takes the pointer back, and the two
+  swap places frame after frame. Anything in the drawing that can be pointed at
+  either answers always (the subjects, their shapes, their indicators) or is
+  gated on something the pointer cannot change by arriving - the indicators
+  switch, or the subject being lit *and* the area carrying its own
+  `mouseenter`/`mouseleave`, which is what keeps the border bands still.
+* Не полагаться на `mouseleave` от элементов предпросмотра: rebuilding the file
+  replaces the hit areas under the cursor, and an element taken out of the
+  document never reports that the pointer left it. The subject under the cursor
+  is therefore also cleared on `mouseleave` of the preview block itself, which
+  is never replaced.
 * Не измерять геометрию через `getBoundingClientRect` живого DOM: в старой
   версии из-за этого координаты зависели от размера окна. Считается аналитически
   в `js/geometry.js`, работает и в Node.

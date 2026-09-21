@@ -400,6 +400,56 @@ body.is_resizing {
 
 .click_input input:focus { outline: none; }
 
+/* ---------- indicator positions ---------- */
+
+/* Design indicator_position_settings: the same three columns as the block
+   above, each row an icon and the two fields that move that indicator. */
+.indicator_position_settings {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+.indicator_position_settings.is_on { display: flex; }
+
+.ind_row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ind_row > img { flex: 0 0 auto; }
+
+.ind_fields {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.ind_input {
+    flex: 1 1 0;
+    width: 100%;
+    min-width: 0;
+    height: 23px;
+    padding: 0 6px;
+    background: var(--field-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+}
+
+.ind_input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+/* The indicator picked out in the drawing: its two fields are the ones the
+   arrow keys are moving. */
+.ind_fields.is_selected .ind_input { border-color: var(--accent); }
+
 /* ---------- subject row ---------- */
 
 .sub_block {
@@ -718,9 +768,16 @@ body.is_empty .upload_button:hover {
 .hl_edge_right { cursor: ew-resize; }
 
 /* The cursor stays what it was grabbed as for the whole drag, wherever the
-   pointer travels while the border follows it. */
+   pointer travels while the border follows it. Everything underneath inherits
+   it: the border snapping onto the shape puts a hit area under the pointer, and
+   its own cursor would otherwise take over mid-drag. */
 body.is_edge_x { cursor: ew-resize; }
 body.is_edge_y { cursor: ns-resize; }
+/* !important because the things under the pointer are the very things that
+   carry a cursor of their own - the hit areas and the indicators - and they say
+   so more specifically than any selector this rule could be written with. */
+body.is_edge_x *,
+body.is_edge_y * { cursor: inherit !important; }
 body.is_edge_x,
 body.is_edge_y { user-select: none; }
 
@@ -734,6 +791,21 @@ body.is_edge_y { user-select: none; }
 }
 
 .hl_cursor.is_selected { visibility: visible; }
+
+/* The five indicators can be picked out in the drawing; which one is picked
+   shows in the sidebar, on its pair of fields. */
+.highlight_layer .hl_ind {
+    fill: transparent;
+    stroke: none;
+    visibility: hidden;
+    pointer-events: none;
+    cursor: pointer;
+}
+
+.highlight_layer .hl_ind.is_live {
+    visibility: visible;
+    pointer-events: all;
+}
 
 /* Invisible, but it is what the cursor actually meets in the drawing. */
 .hl_hit {

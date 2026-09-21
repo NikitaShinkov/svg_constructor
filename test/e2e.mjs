@@ -500,7 +500,7 @@ try {
         fills: ${fills},
     }))()`, { icon: 'sort_down_icon.svg', fills: beforeSort });
 
-    await step('each subject has a tint, an outline and a hit area', `(() => {
+    await step('each subject has a tint, an outline and hit areas for shape and click area', `(() => {
         const rects = (sel) => document.querySelectorAll(sel).length;
         const outline = document.querySelector('#highlight_front .hl_outline');
         const tint = document.querySelector('#highlight_back .hl_tint');
@@ -509,6 +509,9 @@ try {
         return {
             tints: rects('#highlight_back .hl_tint'),
             outlines: rects('#highlight_front .hl_outline'),
+            // One for the click area and one for the subject's own shape: they
+            // part company as soon as a border is moved, and the subject
+            // answers the pointer over both.
             hits: rects('#highlight_front .hl_hit'),
             // Same viewBox and same box as the file, so the two line up exactly.
             sameViewBox: front.getAttribute('viewBox') === svg.getAttribute('viewBox'),
@@ -523,7 +526,7 @@ try {
     })()`, {
         tints: 7,
         outlines: 7,
-        hits: 7,
+        hits: 14,
         sameViewBox: true,
         stroke: 'rgb(255, 0, 251)',
         strokeWidth: '2',
@@ -1061,10 +1064,11 @@ try {
 
     // ---- number fields
 
-    await step('the fields show their units until they are edited', `(() => {
+    // Pixels are left unwritten everywhere; the two that are not pixels say so.
+    await step('the fields show the number, and a unit only where it is not px', `(() => {
         const v = (id) => document.getElementById(id).value;
         return [v('line_out'), v('line_in'), v('hatch_angle'), v('hatch_width'), v('hatch_coverage')].join('|');
-    })()`, '2 px|2 px|45°|4 px|30 %');
+    })()`, '2|2|45°|4|30 %');
 
     await step('focus drops the unit and selects the number', `(() => {
         const f = document.getElementById('line_out');
@@ -1116,7 +1120,7 @@ try {
         f.focus(); f.value = '2'; f.dispatchEvent(new Event('input', { bubbles: true })); f.blur();
     })()`);
     await sleep(200);
-    await step('blur puts the unit back', `document.getElementById('line_out').value`, '2 px');
+    await step('blur leaves the number as it is', `document.getElementById('line_out').value`, '2');
 
     // ---- hatching
 
@@ -1296,8 +1300,10 @@ try {
         i.blur();
     })()`);
 
-    await step('with nothing selected there is no click area block',
-        "getComputedStyle(document.getElementById('click_area_settings')).display", 'none');
+    await step('with nothing selected there are no settings blocks', `[
+        getComputedStyle(document.getElementById('click_area_settings')).display,
+        getComputedStyle(document.getElementById('indicator_position_settings')).display,
+    ].join(',')`, 'none,none');
 
     await session.evaluate("document.querySelector('#sub_list .sub_num').click()");
     await sleep(300);
@@ -1343,7 +1349,7 @@ try {
         background: 'rgb(36, 36, 60)',
         border: '1px rgb(55, 55, 93)',
         icons: 'border_left_icon.svg,border_top_icon.svg,border_bottom_icon.svg,border_right_icon.svg',
-        values: '0 px,0 px,0 px,0 px',
+        values: '0,0,0,0',
         gaps: '8px,6px,6px',
     });
 
@@ -1369,7 +1375,7 @@ try {
         outline: '0,0,222,252',
         topLeftIndicator: '0,0',
         viewBox: '0.00 0.00 354.00 322.00',
-        fields: '0 px,0 px,0 px,0 px',
+        fields: '0,0,0,0',
     });
 
     await type('click_left', '10');
@@ -1380,7 +1386,7 @@ try {
         outline: '-10,0,232,252',
         topLeftIndicator: '0,0',
         viewBox: '-10.00 0.00 364.00 322.00',
-        fields: '10 px,0 px,0 px,0 px',
+        fields: '10,0,0,0',
     });
 
     // A border may be pulled inside the subject as well as pushed out of it.
@@ -1391,7 +1397,7 @@ try {
         outline: '-10,20,232,232',
         topLeftIndicator: '0,0',
         viewBox: '-10.00 0.00 364.00 322.00',
-        fields: '10 px,-20 px,0 px,0 px',
+        fields: '10,-20,0,0',
     });
 
     await session.evaluate("document.getElementById('reset_button').click()");
@@ -1406,7 +1412,7 @@ try {
         outline: '30,0,192,252',
         topLeftIndicator: '0,0',
         viewBox: '0.00 0.00 354.00 322.00',
-        fields: '-30 px,0 px,0 px,0 px',
+        fields: '-30,0,0,0',
     });
 
     await session.evaluate("document.getElementById('reset_button').click()");
@@ -1416,7 +1422,7 @@ try {
         outline: '0,0,222,252',
         topLeftIndicator: '0,0',
         viewBox: '0.00 0.00 354.00 322.00',
-        fields: '0 px,0 px,0 px,0 px',
+        fields: '0,0,0,0',
     });
 
     await step('the borders are grab bands of their own, pointing the right way', `(() => {
@@ -1461,7 +1467,7 @@ try {
         }))()`);
         // 30 screen pixels of travel, in file units, allowing for the drawing
         // being scaled down as the area it has to fit grows.
-        const grown = Number(after.left.replace(' px', ''));
+        const grown = Number(after.left);
         const wanted = Math.round(30 / band.scale);
         const ok = grown > 0 && Math.abs(grown - wanted) <= 2
             && after.frame === `${-grown},${222 + grown}`
@@ -1521,7 +1527,7 @@ try {
             s0Untouched: document.querySelector('#preview_svg #layer_s0_frame rect').getAttribute('x') === '0.00',
         }))()`, {
             selected: 1,
-            left: `${Math.round(20 / band.scale)} px`,
+            left: `${Math.round(20 / band.scale)}`,
             s1Frame: `${226 - Math.round(20 / band.scale)},${128 + Math.round(20 / band.scale)}`,
             s0Untouched: true,
         });
@@ -1546,7 +1552,7 @@ try {
         await step('holding Alt moves the border across with it, about the centre', `(() => {
             const r = document.querySelector('#preview_svg #layer_s0_frame rect');
             const at = (a) => Number(r.getAttribute(a));
-            const px = (id) => Number(document.getElementById(id).value.replace(' px', ''));
+            const px = (id) => Number(document.getElementById(id).value);
             return {
                 grew: px('click_left') > 15,
                 mirrored: px('click_left') === px('click_right'),
@@ -1561,7 +1567,7 @@ try {
             mirrored: true,
             widthIsBoth: true,
             centred: true,
-            vertical: '0 px,0 px',
+            vertical: '0,0',
         });
 
         await session.evaluate("document.getElementById('reset_button').click()");
@@ -1586,9 +1592,328 @@ try {
             outline: '0,0,222,252',
             topLeftIndicator: '0,0',
             viewBox: '0.00 0.00 354.00 322.00',
-            fields: '0 px,0 px,0 px,0 px',
+            fields: '0,0,0,0',
         });
     }
+
+    // A border being carried owns the pointer until it is let go: the subjects it
+    // passes over must not light up, and nothing under it may take the cursor.
+    {
+        // The row toggles, so it is only clicked if s0 is not already the one
+        // selected - and the band has to be live, or the press lands past it.
+        await session.evaluate(`(() => {
+            const row = document.querySelectorAll('#sub_list .sub_block')[0];
+            if (!row.classList.contains('is_open')) row.querySelector('.sub_num').click();
+        })()`);
+        await sleep(300);
+        const band = await bandAt('.hl_edge_right.is_live[data-index="0"]');
+        const over = await session.evaluate(`(() => {
+            const r = document.querySelector('.hl_hit[data-index="1"]').getBoundingClientRect();
+            return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        })()`);
+
+        await mouse('mousePressed', band.x, band.y);
+        await mouse('mouseMoved', (band.x + over.x) / 2, band.y);
+        await mouse('mouseMoved', over.x, over.y);
+        await sleep(200);
+        const during = await session.evaluate(`(() => {
+            const under = document.elementFromPoint(${over.x}, ${over.y});
+            return {
+                lit: [...document.querySelectorAll('.hl_outline.is_on')].map(o => o.dataset.index).join(','),
+                bodyCursor: getComputedStyle(document.body).cursor,
+                underPointer: under ? getComputedStyle(under).cursor : '',
+            };
+        })()`);
+        await mouse('mouseReleased', over.x, over.y);
+        await sleep(200);
+
+        const ok = JSON.stringify(during) === JSON.stringify(
+            { lit: '0', bodyCursor: 'ew-resize', underPointer: 'ew-resize' });
+        if (ok) console.log('PASS  a border being dragged keeps the cursor and lights nothing else');
+        else {
+            failures++;
+            console.log(`FAIL  a border being dragged keeps the cursor and lights nothing else
+        got:      ${JSON.stringify(during)}
+        expected: {"lit":"0","bodyCursor":"ew-resize","underPointer":"ew-resize"}`);
+        }
+
+        await mouse('mouseMoved', over.x + 2, over.y + 2);
+        await sleep(200);
+        await step('and hands both back once it is let go', `(() => ({
+            lit: [...document.querySelectorAll('.hl_outline.is_on')].map(o => o.dataset.index).join(','),
+            bodyCursor: getComputedStyle(document.body).cursor,
+        }))()`, { lit: '0,1', bodyCursor: 'auto' });
+
+        await session.evaluate("document.getElementById('reset_button').click()");
+        await sleep(200);
+    }
+
+    // ---- indicator positions -------------------------------------------------
+
+    await step('the indicator block is drawn as designed, under the click area', `(() => {
+        const cs = (el, p) => getComputedStyle(el)[p];
+        const block = document.getElementById('indicator_position_settings');
+        const first = block.querySelector('.ind_input');
+        const r = first.getBoundingClientRect();
+        return {
+            shown: cs(block, 'display') !== 'none',
+            underTheClickArea: block.getBoundingClientRect().top
+                >= document.getElementById('click_area_settings').getBoundingClientRect().bottom,
+            aboveTheList: block.getBoundingClientRect().bottom
+                <= document.querySelector('.sub_list_wrap').getBoundingClientRect().top,
+            title: block.querySelector('.sidebar_title').textContent,
+            resetAtRight: Math.round(block.querySelector('#reset_indicators_button').getBoundingClientRect().right)
+                === Math.round(block.querySelector('.head_line').getBoundingClientRect().right),
+            rows: block.querySelectorAll('.ind_row').length,
+            fields: block.querySelectorAll('.ind_input').length,
+            icons: [...block.querySelectorAll('.ind_row > img')]
+                .map(i => i.getAttribute('src').split('/').pop()).join(','),
+            fieldBox: [Math.round(r.width), Math.round(r.height)].join('x'),
+            radius: cs(first, 'borderTopLeftRadius'),
+            background: cs(first, 'backgroundColor'),
+            values: [...block.querySelectorAll('.ind_input')].map(i => i.value).join(','),
+            gaps: [cs(block, 'rowGap'), cs(block.querySelector('.ind_row'), 'columnGap'),
+                   cs(block.querySelector('.ind_fields'), 'columnGap')].join(','),
+        };
+    })()`, {
+        shown: true,
+        underTheClickArea: true,
+        aboveTheList: true,
+        title: 'Индикаторы',
+        resetAtRight: true,
+        rows: 5,
+        fields: 10,
+        icons: 'old_repair_icon.svg,old_sost_icon.svg,insert_icon.svg,old_lock_icon.svg,fail_icon.svg',
+        fieldBox: '43x23',
+        radius: '6px',
+        background: 'rgb(36, 36, 60)',
+        values: '0,0,0,0,0,0,0,0,0,0',
+        gaps: '8px,4px,2px',
+    });
+
+    // A point of the drawing, in screen coordinates.
+    const at = (x, y) => session.evaluate(`(() => {
+        const svg = document.getElementById('highlight_front');
+        const p = svg.createSVGPoint();
+        p.x = ${x}; p.y = ${y};
+        const s = p.matrixTransform(svg.getScreenCTM());
+        return { x: s.x, y: s.y };
+    })()`);
+
+    // An indicator belongs to its subject: pointing at one is pointing at the
+    // subject, and clicking one picks both out, selected or not.
+    {
+        await mouse('mouseMoved', 20, 800);
+        await session.evaluate("document.getElementById('preview_stage').click()");
+        await sleep(200);
+
+        // s0 is 222x252 with 45px indicators; this is the middle of the one in
+        // its bottom-right corner.
+        const spot = await at(222 - 45 / 2, 252 - 45 / 2);
+        await mouse('mouseMoved', spot.x, spot.y);
+        await sleep(200);
+        const lit = `(() => ({
+            lit: [...document.querySelectorAll('.hl_outline.is_on')].map(o => o.dataset.index).join(','),
+            selected: [...document.querySelectorAll('#sub_list .sub_block')]
+                .findIndex(b => b.classList.contains('is_open')),
+            blocks: [getComputedStyle(document.getElementById('click_area_settings')).display,
+                     getComputedStyle(document.getElementById('indicator_position_settings')).display].join(','),
+        }))()`;
+        await step('pointing at an indicator lights its subject', lit,
+            { lit: '0', selected: -1, blocks: 'none,none' });
+
+        // The subject must stay lit while the pointer wanders over the
+        // indicator: what answers the pointer may not depend on what is lit, or
+        // the two take turns and the highlight flickers.
+        for (let i = 1; i <= 4; i++) { await mouse('mouseMoved', spot.x + i, spot.y + i); await sleep(60); }
+        await step('the subject stays lit while the pointer rests on the indicator', lit,
+            { lit: '0', selected: -1, blocks: 'none,none' });
+
+        await mouse('mousePressed', spot.x, spot.y);
+        await mouse('mouseReleased', spot.x, spot.y);
+        await sleep(250);
+        await step('clicking an indicator picks out its subject as well', `(() => ({
+            selected: [...document.querySelectorAll('#sub_list .sub_block')]
+                .findIndex(b => b.classList.contains('is_open')),
+            blocks: [getComputedStyle(document.getElementById('click_area_settings')).display,
+                     getComputedStyle(document.getElementById('indicator_position_settings')).display].join(','),
+            // Which indicator is in hand shows on its pair of fields; the
+            // drawing itself is left alone.
+            fields: [...document.querySelectorAll('.ind_fields.is_selected')]
+                .map(f => f.dataset.indicator).join(','),
+            inTheDrawing: document.querySelectorAll('.hl_ind_mark').length,
+        }))()`, { selected: 0, blocks: 'flex,flex', fields: 'fail', inTheDrawing: 0 });
+    }
+
+    // Clicking an indicator in the drawing is how one is picked up.
+    {
+        const spot = await session.evaluate(`(() => {
+            const hit = [...document.querySelectorAll('.hl_ind')]
+                .find(h => h.dataset.index === '0' && h.dataset.key === 'fail');
+            const r = hit.getBoundingClientRect();
+            return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        })()`);
+        await mouse('mouseMoved', spot.x, spot.y);
+        await mouse('mousePressed', spot.x, spot.y);
+        await mouse('mouseReleased', spot.x, spot.y);
+        await sleep(300);
+
+        await step('clicking an indicator picks it out', `(() => ({
+            fields: [...document.querySelectorAll('.ind_fields.is_selected')]
+                .map(f => f.dataset.indicator).join(','),
+            // Every indicator on show answers the pointer, on any subject:
+            // clicking one is how its subject is picked out in the first place.
+            live: document.querySelectorAll('.hl_ind.is_live').length,
+            all: document.querySelectorAll('.hl_ind').length,
+            stillSelected: document.querySelectorAll('#sub_list .sub_block.is_open').length,
+        }))()`, { fields: 'fail', live: 10, all: 10, stillSelected: 1 });
+    }
+
+    const arrow = async (key, shift) => {
+        const code = { ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40 }[key];
+        for (const type of ['rawKeyDown', 'keyUp']) {
+            await session.send('Input.dispatchKeyEvent', {
+                type, key, code: key, windowsVirtualKeyCode: code, modifiers: shift ? 8 : 0,
+            });
+        }
+    };
+
+    await arrow('ArrowLeft');
+    await arrow('ArrowLeft');
+    await arrow('ArrowUp', true);
+    await sleep(300);
+
+    await step('the arrows move the indicator, 1px a press and 10 with Shift', `(() => ({
+        x: document.getElementById('ind_fail_x').value,
+        y: document.getElementById('ind_fail_y').value,
+        // fail sits in the bottom-right corner of the subject: 222-45, 252-45.
+        fail: (() => {
+            const u = document.querySelector('#preview_svg #layer_s0_fail use');
+            return [u.getAttribute('x'), u.getAttribute('y')].join(',');
+        })(),
+        // Its neighbours stay where the format puts them.
+        oldRepair: (() => {
+            const u = document.querySelector('#preview_svg #layer_s0_old_repair use');
+            return [u.getAttribute('x'), u.getAttribute('y')].join(',');
+        })(),
+        viewBox: document.querySelector('#preview_svg svg').getAttribute('viewBox'),
+    }))()`, {
+        x: '-2',
+        y: '-10',
+        fail: '175.00,197.00',
+        oldRepair: '0.00,0.00',
+        viewBox: '0.00 0.00 354.00 322.00',
+    });
+
+    // Esc puts the indicator down, and then the arrows are nobody's.
+    {
+        const esc = async () => {
+            for (const type of ['rawKeyDown', 'keyUp']) {
+                await session.send('Input.dispatchKeyEvent', {
+                    type, key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27,
+                });
+            }
+        };
+        await esc();
+        await sleep(200);
+        await arrow('ArrowLeft');
+        await sleep(200);
+        await step('Esc puts the indicator down and the arrows stop moving it', `(() => ({
+            fields: document.querySelectorAll('.ind_fields.is_selected').length,
+            x: document.getElementById('ind_fail_x').value,
+            // The subject itself is still selected.
+            selected: [...document.querySelectorAll('#sub_list .sub_block')]
+                .findIndex(b => b.classList.contains('is_open')),
+        }))()`, { fields: 0, x: '-2', selected: 0 });
+    }
+
+    // The shape sticking out of a click area that has been pulled inside it is
+    // still the subject, and still picks it out.
+    {
+        await type('click_left', '-60');
+        await sleep(300);
+        await mouse('mouseMoved', 20, 800);
+        await session.evaluate("document.getElementById('preview_stage').click()");
+        await sleep(200);
+
+        // Inside the shape, left of the click area, clear of the indicators in
+        // the corners.
+        const spot = await at(25, 126);
+        await mouse('mouseMoved', spot.x, spot.y);
+        await sleep(200);
+        await step('the shape outside the click area lights the subject', `(() => ({
+            lit: [...document.querySelectorAll('.hl_outline.is_on')].map(o => o.dataset.index).join(','),
+            selected: [...document.querySelectorAll('#sub_list .sub_block')]
+                .findIndex(b => b.classList.contains('is_open')),
+        }))()`, { lit: '0', selected: -1 });
+
+        await mouse('mousePressed', spot.x, spot.y);
+        await mouse('mouseReleased', spot.x, spot.y);
+        await sleep(250);
+        await step('and picks the subject out', `(() => ({
+            selected: [...document.querySelectorAll('#sub_list .sub_block')]
+                .findIndex(b => b.classList.contains('is_open')),
+            left: document.getElementById('click_left').value,
+        }))()`, { selected: 0, left: '-60' });
+
+        await session.evaluate("document.getElementById('reset_button').click()");
+        await sleep(200);
+    }
+
+    // An indicator nudged out of the subject takes the document with it, the
+    // way a click area pushed outwards does.
+    await type('ind_old_repair_x', '-40');
+    await sleep(300);
+    await step('an indicator pushed outside the subject grows the document', `(() => {
+        const svg = document.querySelector('#preview_svg svg');
+        const u = document.querySelector('#preview_svg #layer_s0_old_repair use');
+        return {
+            oldRepair: [u.getAttribute('x'), u.getAttribute('y')].join(','),
+            viewBox: svg.getAttribute('viewBox'),
+            width: svg.getAttribute('width'),
+        };
+    })()`, { oldRepair: '-40.00,0.00', viewBox: '-40.00 0.00 394.00 322.00', width: '394.00' });
+
+    // The other subject gets a nudge too, so the reset has to reach past the
+    // subject in hand.
+    await session.evaluate("document.querySelectorAll('#sub_list .sub_num')[1].click()");
+    await sleep(300);
+    await type('ind_insert_y', '25');
+    await sleep(300);
+    await step('the block follows the selection from subject to subject', `(() => ({
+        insertY: document.getElementById('ind_insert_y').value,
+        failX: document.getElementById('ind_fail_x').value,
+        s1Insert: (() => {
+            const u = document.querySelector('#preview_svg #layer_s1_insert use');
+            return u.getAttribute('y');
+        })(),
+    }))()`, { insertY: '25', failX: '0', s1Insert: '128.50' });
+
+    await session.evaluate("document.getElementById('reset_indicators_button').click()");
+    await sleep(300);
+    await step('reset puts every indicator of every subject back', `(() => {
+        const use = (id) => {
+            const u = document.querySelector('#preview_svg #' + id + ' use');
+            return [u.getAttribute('x'), u.getAttribute('y')].join(',');
+        };
+        return {
+            fields: [...document.querySelectorAll('.ind_input')].map(i => i.value).join(','),
+            s0Fail: use('layer_s0_fail'),
+            s0OldRepair: use('layer_s0_old_repair'),
+            s1Insert: use('layer_s1_insert'),
+            viewBox: document.querySelector('#preview_svg svg').getAttribute('viewBox'),
+        };
+    })()`, {
+        fields: '0,0,0,0,0,0,0,0,0,0',
+        s0Fail: '177.00,207.00',
+        s0OldRepair: '0.00,0.00',
+        s1Insert: '267.50,103.50',
+        viewBox: '0.00 0.00 354.00 322.00',
+    });
+
+    // Back to s0 for the checks that follow.
+    await session.evaluate("document.querySelectorAll('#sub_list .sub_num')[0].click()");
+    await sleep(300);
 
     // ---- the pointer at the foot of the click area
 
@@ -1641,15 +1966,35 @@ try {
     await session.evaluate("document.getElementById('cursor_switch').click()");
     await sleep(200);
 
-    // Putting the selection away takes the block and the bands with it.
+    // Putting the selection away takes the blocks and the marks with it. The
+    // pointer is taken off the drawing first: bands and indicators answer for a
+    // hovered subject too, and the cursor is still sitting on one.
+    await mouse("mouseMoved", 20, 800);
     await session.evaluate("document.getElementById('preview_stage').click()");
     await sleep(300);
-    await step('deselecting puts the block and the borders away', `(() => ({
+    await step('deselecting puts the blocks, the borders and the marks away', `(() => ({
         block: getComputedStyle(document.getElementById('click_area_settings')).display,
-        bands: document.querySelectorAll('.hl_edge.is_selected').length,
+        indicatorBlock: getComputedStyle(document.getElementById('indicator_position_settings')).display,
+        bands: document.querySelectorAll('.hl_edge.is_live').length,
+        // The indicators stay there to be clicked - that is one of the ways a
+        // subject is picked out - but none of them is picked.
+        indicators: document.querySelectorAll('.hl_ind.is_live').length,
+        picked: document.querySelectorAll('.ind_fields.is_selected').length,
         pointer: [...document.querySelectorAll('.hl_cursor')]
             .filter(m => getComputedStyle(m).visibility === 'visible').length,
-    }))()`, { block: 'none', bands: 0, pointer: 0 });
+    }))()`, { block: 'none', indicatorBlock: 'none', bands: 0, indicators: 10, picked: 0, pointer: 0 });
+
+    // Hidden indicators answer to nothing: the one thing that takes their hit
+    // areas away, and it cannot happen under the cursor.
+    await session.evaluate("document.getElementById('indicators_switch').click()");
+    await sleep(200);
+    await step('indicators that are not shown cannot be picked', `(() => ({
+        live: document.querySelectorAll('.hl_ind.is_live').length,
+        inert: [...document.querySelectorAll('.hl_ind')]
+            .every(h => getComputedStyle(h).pointerEvents === 'none'),
+    }))()`, { live: 0, inert: true });
+    await session.evaluate("document.getElementById('indicators_switch').click()");
+    await sleep(200);
 
     // ---- wheel zoom ---------------------------------------------------------
 

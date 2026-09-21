@@ -1,7 +1,7 @@
 // Wiring: upload -> detect -> build -> preview / subject list / download.
 
 import { detectSubjects, parseGeometryFragment } from './detect.js';
-import { buildSvg, computeLayout, PARAMS, clickArea } from './template.js';
+import { buildSvg, computeLayout, PARAMS, clickArea, indicatorOffsets, INDICATOR_KEYS } from './template.js';
 import { INDICATOR_SIZES } from './indicators.js';
 
 const el = (id) => document.getElementById(id);
@@ -34,6 +34,8 @@ const ui = {
     cursorSwitch: el('cursor_switch'),
     clickBlock: el('click_area_settings'),
     resetClick: el('reset_button'),
+    indBlock: el('indicator_position_settings'),
+    resetIndicators: el('reset_indicators_button'),
 };
 
 /** A subject with nothing in it yet, ready to be typed into. */
@@ -42,6 +44,8 @@ function emptySubject() {
         fill: '', strokeIn: '', fillBBox: null, strokeBBox: null, confidence: 1, isOpen: false,
         // How far each border of the click area sits outside the subject.
         clickArea: { top: 0, right: 0, bottom: 0, left: 0 },
+        // How far each indicator has been nudged from its place in the corner.
+        indicatorOffsets: {},
     };
 }
 
@@ -54,6 +58,7 @@ const state = {
     output: '',
     reversed: false,    // which way round the sort button's arrow points
     hover: -1,          // subject the cursor is on, from either side
+    indicator: null,    // {subject, key} of the indicator the arrow keys move
     zoom: 1,            // 1 fills the preview block, 0 is 150px on the longer side
     docSize: { w: 0, h: 0 },
     params: { ...PARAMS },
@@ -179,6 +184,7 @@ async function load(file, handle) {
         state.subjects = subjects;
         // A fresh file arrives in its own order, so the arrow points down again.
         state.hover = -1;
+        state.indicator = null;
         state.reversed = false;
         ui.sort.querySelector('img').src = 'assets/icons/sort_down_icon.svg';
         // A single subject is shown expanded; with several, start collapsed.
@@ -332,16 +338,13 @@ function renderHighlights() {
     // Largest first, so a small subject sitting inside a big one stays reachable.
     drawn.sort((a, b) => b.frame.w * b.frame.h - a.frame.w * a.frame.h);
     for (const { frame, index } of drawn) {
-        const hit = rect('hl_hit', frame, index);
-        hit.addEventListener('mouseenter', () => setHover(index, true));
-        hit.addEventListener('mouseleave', () => setHover(-1, false));
-        hit.addEventListener('click', (e) => {
-            e.stopPropagation();
-            // The click that ends a border drag is not a click on the subject.
-            if (edge.justDragged) return;
-            toggleSubject(index);
-        });
-        ui.hlFront.appendChild(hit);
+        // Two rectangles, because they part company as soon as a border is
+        // moved: a click area pulled inside its subject leaves the shape
+        // sticking out, and the subject answers there as much as anywhere.
+        ui.hlFront.appendChild(subjectHit(frame, index));
+        if (frame.base.w > 0 && frame.base.h > 0) {
+            ui.hlFront.appendChild(subjectHit(frame.base, index));
+        }
     }
 
     // The pointer is a third as wide as the average subject. It is measured on
@@ -350,9 +353,27 @@ function renderHighlights() {
     const widths = layout.frames.filter((f) => !f.empty && f.base.w > 0).map((f) => f.base.w);
     const pointerW = widths.length ? widths.reduce((s, w) => s + w, 0) / widths.length / 3 : 0;
 
-    // Over the hit areas, so the borders of the selected subject answer first.
+    // Over the hit areas, so the indicators and then the borders answer first.
+    const d = layout.p.indicatorDiameter * layout.p.indicatorScale;
     for (const { frame, index } of drawn) {
         if (pointerW > 0) ui.hlFront.appendChild(pointerMark(frame, index, pointerW));
+        for (const key of INDICATOR_KEYS) {
+            const box = { ...frame.indicators[key], w: d, h: d };
+            const hit = rect('hl_ind', box, index);
+            hit.dataset.key = key;
+            // An indicator is part of its subject: pointing at one points at
+            // the subject. Without this the subject would be let go the moment
+            // the pointer crossed onto an indicator, and since what is lit
+            // decides what answers the pointer, the two would take turns.
+            hit.addEventListener('mouseenter', () => setHover(index, true));
+            hit.addEventListener('mouseleave', () => setHover(-1, false));
+            hit.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (edge.justDragged) return;
+                selectIndicator(index, key);
+            });
+            ui.hlFront.appendChild(hit);
+        }
         for (const side of SIDES) ui.hlFront.appendChild(edgeHandle(frame, index, side));
     }
 
@@ -361,6 +382,26 @@ function renderHighlights() {
 }
 
 const SIDES = ['top', 'right', 'bottom', 'left'];
+
+/** One of the rectangles a subject can be pointed at and picked by. */
+function subjectHit(box, index) {
+    const r = document.createElementNS(SVG_NS, 'rect');
+    r.setAttribute('class', 'hl_hit');
+    r.setAttribute('x', box.x);
+    r.setAttribute('y', box.y);
+    r.setAttribute('width', box.w);
+    r.setAttribute('height', box.h);
+    r.dataset.index = index;
+    r.addEventListener('mouseenter', () => setHover(index, true));
+    r.addEventListener('mouseleave', () => setHover(-1, false));
+    r.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // The click that ends a border drag is not a click on the subject.
+        if (edge.justDragged) return;
+        toggleSubject(index);
+    });
+    return r;
+}
 
 /**
  * The triangle at the foot of a click area, to the proportions of
@@ -459,7 +500,17 @@ function paintHighlights() {
         p.classList.toggle('is_selected',
             state.preview.cursor && Number(p.dataset.index) === selected);
     }
+
+    // Every indicator on show can be picked, on any subject: clicking one is
+    // how its subject is picked too. Only being hidden takes that away - and
+    // that cannot change under the cursor, which is what kept the pointer and
+    // the highlight trading places.
+    for (const r of ui.stage.querySelectorAll('.hl_ind')) {
+        r.classList.toggle('is_live', state.preview.indicators);
+    }
+
     renderClickArea();
+    renderIndicators();
 }
 
 /**
@@ -467,9 +518,10 @@ function paintHighlights() {
  * @param {boolean} fromPreview hovering the drawing also brings the row into view
  */
 function setHover(index, fromPreview) {
-    // Rows slide under the cursor while one is being carried; that is not the
+    // Rows slide under the cursor while one is being carried, and a border
+    // carried across the drawing passes over its neighbours; neither is the
     // pointer picking out a subject.
-    if (drag.active && index >= 0) return;
+    if ((drag.active || edge.active) && index >= 0) return;
     if (state.hover === index) return;
     state.hover = index;
     paintHighlights();
@@ -487,6 +539,9 @@ function centreInList(block) {
 /** Expands one subject and closes the rest. */
 function selectSubject(index) {
     if (!state.subjects[index]) return;
+    // The arrow keys move an indicator of the subject in hand, so picking a
+    // different subject puts the old one down.
+    if (state.indicator && state.indicator.subject !== index) state.indicator = null;
     state.subjects.forEach((s, i) => { s.isOpen = i === index; });
     renderSubList();
     paintHighlights();
@@ -502,6 +557,7 @@ function toggleSubject(index) {
 
 /** Nothing is expanded and nothing is lit. */
 function collapseAll() {
+    state.indicator = null;
     if (!state.subjects.some((s) => s.isOpen)) return;
     state.subjects.forEach((s) => { s.isOpen = false; });
     renderSubList();
@@ -511,6 +567,12 @@ function collapseAll() {
 // Anywhere in the preview that is not a subject means "none of them", and so
 // does the empty space under the last row.
 ui.stage.addEventListener('click', () => { if (!edge.justDragged) collapseAll(); });
+
+// Rebuilding the file replaces the hit areas under the cursor, and an element
+// that is taken out of the document cannot report that the pointer left it. The
+// block itself is never replaced, so leaving it is the one reliable way to know
+// that nothing in the drawing is being pointed at.
+ui.preview.addEventListener('mouseleave', () => setHover(-1, false));
 ui.subList.addEventListener('click', (e) => {
     if (e.target.closest('.sub_block') || drag.justDropped) return;
     collapseAll();
@@ -585,24 +647,13 @@ function renderClickArea() {
 
 /** Fills the four fields from the selected subject, units and all. */
 function showClickFields() {
-    const subject = state.subjects[selectedIndex()];
-    if (!subject) return;
-    const a = clickArea(subject);
-    for (const side of SIDES) {
-        const input = el('click_' + side);
-        // The field being typed into shows the bare number until it is left,
-        // exactly as the fields on the toolbar do. Text that is already right
-        // is left alone: assigning it again would put the caret at the end.
-        const next = document.activeElement === input
-            ? String(a[side])
-            : a[side] + input.dataset.unit;
-        if (input.value !== next) input.value = next;
-    }
+    if (selectedIndex() < 0) return;
+    for (const show of borderFields) show();
 }
 
 // ---- dragging a border in the drawing
 
-const edge = { justDragged: false };
+const edge = { active: false, justDragged: false };
 
 // Within this much of the subject's own edge - a share of the subject's width
 // or height - a dragged border is taken to mean that edge, and reads 0.
@@ -640,6 +691,7 @@ function startEdgeDrag(e, index, side) {
     // back in whenever the border cannot go where it is being taken.
     let value = start[side];
 
+    edge.active = true;
     document.body.classList.add(across ? 'is_edge_x' : 'is_edge_y');
 
     const onMove = (ev) => {
@@ -664,11 +716,19 @@ function startEdgeDrag(e, index, side) {
         if (applied[side] !== wanted) value = applied[side];
     };
 
-    const onUp = () => {
+    const onUp = (ev) => {
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
         window.removeEventListener('pointercancel', onUp);
+        edge.active = false;
         document.body.classList.remove('is_edge_x', 'is_edge_y');
+        // Nothing has answered for the pointer while the border was in hand,
+        // and staying still over an element is not something the browser
+        // reports, so what it is on now has to be asked for.
+        const under = ev && document.elementFromPoint(ev.clientX, ev.clientY);
+        const on = under && under.dataset && under.dataset.index !== undefined
+            ? Number(under.dataset.index) : -1;
+        setHover(on, false);
         // The pointerup is followed by a click, which must not reach the drawing.
         edge.justDragged = true;
         setTimeout(() => { edge.justDragged = false; }, 0);
@@ -681,21 +741,33 @@ function startEdgeDrag(e, index, side) {
 
 // ---- the four fields and the reset button
 
-// Same manners as the toolbar fields: the unit is shown until the field is
-// being edited, and only a number may be typed - here with a leading minus,
-// because a border can be pulled inside the subject.
-function setUpBorderField(side) {
-    const input = el('click_' + side);
-    const unit = input.dataset.unit;
+/**
+ * A field in the sidebar that holds one number. Same manners as the fields on
+ * the toolbar: it carries its unit as text and sheds it while it is being
+ * edited, and only a number may be typed - here with a leading minus, since
+ * these can go either way. The arrows step by 1, or by 10 with Shift.
+ *
+ * @param {HTMLInputElement} input
+ * @param {() => number} get where the number lives
+ * @param {(value: number) => void} set what to do when it changes
+ * @param {() => void} [onFocus] anything else reaching for the field means
+ * @returns {() => void} puts what `get` says into the field
+ */
+function numberField(input, get, set, onFocus) {
+    const unit = input.dataset.unit || '';   // px is left unwritten
 
-    const current = () => clickArea(state.subjects[selectedIndex()] || {})[side];
+    // Text that is already right is left alone: assigning it again would put
+    // the caret at the end of whatever is being typed.
     const show = () => {
-        input.value = document.activeElement === input
-            ? String(current())
-            : current() + unit;
+        const next = document.activeElement === input ? String(get()) : get() + unit;
+        if (input.value !== next) input.value = next;
     };
 
-    input.addEventListener('focus', () => { show(); input.select(); });
+    input.addEventListener('focus', () => {
+        if (onFocus) onFocus();
+        show();
+        input.select();
+    });
     input.addEventListener('blur', show);
 
     input.addEventListener('beforeinput', (e) => {
@@ -707,23 +779,26 @@ function setUpBorderField(side) {
         const clean = input.value.replace(/(?!^)-/g, '').replace(/[^\d-]/g, '');
         if (clean !== input.value) input.value = clean;
         if (clean === '' || clean === '-') return;   // mid-edit, wait for a number
-        const index = selectedIndex();
-        if (index >= 0) setBorders(index, { [side]: Number(clean) });
+        set(Number(clean));
     });
 
     input.addEventListener('keydown', (e) => {
         const dir = e.key === 'ArrowUp' ? 1 : (e.key === 'ArrowDown' ? -1 : 0);
         if (!dir) return;
         e.preventDefault();
-        const index = selectedIndex();
-        if (index < 0) return;
-        setBorders(index, { [side]: current() + dir * (e.shiftKey ? 10 : 1) });
+        set(get() + dir * (e.shiftKey ? 10 : 1));
         show();
         input.select();
     });
+
+    return show;
 }
 
-SIDES.forEach(setUpBorderField);
+const borderFields = SIDES.map((side) => numberField(
+    el('click_' + side),
+    () => clickArea(state.subjects[selectedIndex()] || {})[side],
+    (value) => { if (selectedIndex() >= 0) setBorders(selectedIndex(), { [side]: value }); },
+));
 
 // Back to the subject's own size, which is what an untouched subject has.
 ui.resetClick.addEventListener('click', () => {
@@ -734,6 +809,137 @@ ui.resetClick.addEventListener('click', () => {
     subject.clickArea = { top: 0, right: 0, bottom: 0, left: 0 };
     rebuild();
     showClickFields();
+});
+
+// ---------------------------------------------------------------- indicator positions
+
+// Instruction.pdf 5.5 puts the five indicators in the corners of the subject and
+// in its middle. The reference files nudge them from there - CC2 has subjects
+// about 52px tall, where four 45px indicators in the corners would overlap - so
+// each subject carries an offset per indicator, and they go into the file: the
+// x and y of its <use>. They are moved with the arrow keys, which is what the
+// reference files look like they were drawn with.
+
+/** Picks an indicator out, bringing its subject with it. */
+function selectIndicator(index, key) {
+    if (!state.subjects[index] || !INDICATOR_KEYS.includes(key)) return;
+    // Selecting the subject clears whatever indicator was in hand, so the new
+    // one is set afterwards.
+    if (!state.subjects[index].isOpen) selectSubject(index);
+    state.indicator = { subject: index, key };
+    paintHighlights();
+}
+
+/**
+ * Moves one indicator of one subject along one axis.
+ * @returns {number} where it ended up
+ */
+function setOffset(index, key, axis, value) {
+    const subject = state.subjects[index];
+    if (!subject) return 0;
+    if (!subject.indicatorOffsets) subject.indicatorOffsets = {};
+    const at = indicatorOffsets(subject)[key];
+    // The same range the borders take; nothing else limits an indicator, since
+    // the document grows to hold one that is nudged outside the subject.
+    const next = Math.max(-MAX_BORDER, Math.min(MAX_BORDER, Math.round(value)));
+    if (next !== at[axis]) {
+        subject.indicatorOffsets[key] = { ...at, [axis]: next };
+        rebuild();          // the <use> is in the file, so the file is built again
+    }
+    showIndicatorFields();
+    return next;
+}
+
+/** The block belongs to the selected subject, like the one above it. */
+function renderIndicators() {
+    const index = selectedIndex();
+    const on = index >= 0 && hasContent();
+    ui.indBlock.classList.toggle('is_on', on);
+
+    const chosen = state.indicator;
+    for (const fields of ui.indBlock.querySelectorAll('.ind_fields')) {
+        fields.classList.toggle('is_selected',
+            !!chosen && chosen.subject === index && fields.dataset.indicator === chosen.key);
+    }
+    if (on) showIndicatorFields();
+}
+
+function showIndicatorFields() {
+    if (selectedIndex() < 0) return;
+    for (const show of indicatorFields) show();
+}
+
+const indicatorFields = [...document.querySelectorAll('.ind_input')].map((input) => {
+    const key = input.dataset.indicator;
+    const axis = input.dataset.axis;
+    return numberField(
+        input,
+        () => indicatorOffsets(state.subjects[selectedIndex()] || {})[key][axis],
+        (value) => { if (selectedIndex() >= 0) setOffset(selectedIndex(), key, axis, value); },
+        // Reaching for a field is picking that indicator out, so the drawing
+        // marks the one the numbers belong to.
+        () => selectIndicator(selectedIndex(), key),
+    );
+});
+
+// ---- the arrow keys
+
+const ARROWS = {
+    ArrowLeft: ['x', -1],
+    ArrowRight: ['x', 1],
+    ArrowUp: ['y', -1],
+    ArrowDown: ['y', 1],
+};
+
+// With an indicator picked out in the drawing the arrows move it: 1px a press,
+// 10 with Shift. A field with the caret in it does its own arrows.
+window.addEventListener('keydown', (e) => {
+    if (!state.indicator) return;
+    if (e.key === 'Escape') { putIndicatorDown(); return; }
+
+    const move = ARROWS[e.key];
+    if (!move) return;
+    if (e.target && e.target.closest && e.target.closest('input, textarea')) return;
+    e.preventDefault();
+    const [axis, dir] = move;
+    const { subject, key } = state.indicator;
+    setOffset(subject, key, axis, indicatorOffsets(state.subjects[subject] || {})[key][axis]
+        + dir * (e.shiftKey ? 10 : 1));
+});
+
+function putIndicatorDown() {
+    if (!state.indicator) return;
+    state.indicator = null;
+    paintHighlights();
+}
+
+// A click anywhere else puts the indicator down. The listener is on the way in,
+// because the things worth clicking in the drawing stop the click on the way
+// out - and the one on an indicator picks that indicator straight back up.
+window.addEventListener('click', (e) => {
+    if (!state.indicator) return;
+    const target = e.target;
+    if (!target || !target.closest) { putIndicatorDown(); return; }
+    // The fields are the indicator's own, and reaching for one picks it out.
+    if (target.closest('.indicator_position_settings')) return;
+    const onItself = target.classList.contains('hl_ind')
+        && Number(target.dataset.index) === state.indicator.subject
+        && target.dataset.key === state.indicator.key;
+    if (!onItself) putIndicatorDown();
+}, true);
+
+// Every indicator of every subject goes back to its corner - the one button
+// that reaches past the subject in hand, because indicators are nudged a
+// fileful at a time.
+ui.resetIndicators.addEventListener('click', () => {
+    const moved = state.subjects.some((s) => {
+        const o = indicatorOffsets(s);
+        return INDICATOR_KEYS.some((key) => o[key].x || o[key].y);
+    });
+    if (!moved) return;
+    state.subjects.forEach((s) => { s.indicatorOffsets = {}; });
+    rebuild();
+    showIndicatorFields();
 });
 
 // ---------------------------------------------------------------- subject list
@@ -968,6 +1174,7 @@ function commitRowOrder() {
     if (!moved) return;
     state.subjects = order.map((from) => state.subjects[from]);
     state.hover = -1;
+    state.indicator = null;
     rebuild();
     renderSubList();
 }
@@ -1039,6 +1246,7 @@ function addSubject(index) {
     state.subjects.forEach((s) => { s.isOpen = false; });
     state.subjects.splice(index + 1, 0, { ...emptySubject(), isOpen: true });
     state.hover = -1;
+    state.indicator = null;
     rebuild();
     renderSubList();
 }
@@ -1048,6 +1256,7 @@ function removeSubject(index) {
     state.subjects.splice(index, 1);
     // The rows below shift up, so whatever was hovered is no longer that row.
     state.hover = -1;
+    state.indicator = null;
     rebuild();
     renderSubList();
 }
@@ -1058,6 +1267,7 @@ ui.sort.addEventListener('click', () => {
     state.subjects.reverse();
     state.reversed = !state.reversed;
     state.hover = -1;
+    state.indicator = null;
     ui.sort.querySelector('img').src =
         `assets/icons/sort_${state.reversed ? 'up' : 'down'}_icon.svg`;
     rebuild();
@@ -1141,6 +1351,9 @@ function setIndicators(on) {
     ui.indicatorSwitch.setAttribute('aria-checked', String(on));
     ui.indicatorSwitch.title = on ? 'Скрыть индикаторы' : 'Показать индикаторы';
     applyPreviewLayers();
+    // Indicators that are not on show answer to nothing, so what the pointer
+    // can reach changes with them.
+    paintHighlights();
 }
 
 ui.indicatorSwitch.addEventListener('click', () => setIndicators(!state.preview.indicators));
@@ -1240,7 +1453,7 @@ function setUpField({ id, key, hatch }) {
     const input = el(id);
     const min = Number(input.dataset.min);
     const max = Number(input.dataset.max);
-    const unit = input.dataset.unit;
+    const unit = input.dataset.unit || '';   // px is left unwritten
     const show = () => {
         input.value = document.activeElement === input
             ? String(state.params[key])

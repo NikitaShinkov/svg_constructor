@@ -359,6 +359,8 @@ export function detectSubjects(svgText) {
             // A freshly read subject is clicked where it is drawn; the sidebar
             // moves these borders afterwards.
             clickArea: { top: 0, right: 0, bottom: 0, left: 0 },
+            // Indicators start where Instruction.pdf 5.5 puts them.
+            indicatorOffsets: {},
             confidence,
             members: scored,
         };

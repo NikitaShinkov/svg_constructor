@@ -23,7 +23,11 @@
   a click area pulled inside its subject never crops the drawing;
 * a triangular cursor at the foot of the selected click area, switched on and
   off on the settings bar, which shows how big the area is against the drawing
-  and never reaches the file.
+  and never reaches the file;
+* the five indicators of every subject: click one in the preview and the arrow
+  keys move it (10px a press with Shift), or type its X and Y into the fields
+  below the click area. The reset button there puts every indicator of every
+  subject back into its corner.
 
 Индикаторы, состояния и штриховка резерва генерируются по шаблону — искать их
 в исходном файле не нужно. Свойства заливки и обводки из исходного файла не
@@ -106,11 +110,10 @@ node test/e2e.mjs 8099                   # реальное приложение
 
 ## Известные ограничения
 
-* **Смещения индикаторов не реализованы.** В эталонах `PG`, `CC2` и `Object`
-  индикаторы сдвинуты вручную относительно углов рамки: у `CC2` субъекты высотой
-  около 52 px, и четыре индикатора по 45 px в углах перекрывали бы друг друга.
-  Файлы, которые генерирует эта версия, соответствуют шаблону, но для низких или
-  узких субъектов индикаторы будут стоять теснее, чем в эталонах.
+* **Indicator offsets are set by hand, never read.** They can be adjusted per
+  indicator now, which is what `PG`, `CC2` and `Object` did, but a file arriving
+  from the editor always starts with every offset at 0: nothing reads the
+  positions back out of an existing KOMPAKS file.
 * **Порядок субъектов не редактируется.** В черновике `AVO_2m4v4s_R-R` имена
   слоёв идут в обратную сторону относительно эталона: группа с именем `3`
   содержит нижнюю фигуру, которую эталон называет `s0`. Чертежи из Illustrator и

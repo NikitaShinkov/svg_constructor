@@ -204,19 +204,39 @@ export function clickArea(subject) {
     return { top: px(a.top), right: px(a.right), bottom: px(a.bottom), left: px(a.left) };
 }
 
+export const INDICATOR_KEYS = ['oldRepair', 'oldLock', 'oldSost', 'fail', 'insert'];
+
 /**
- * Corner and centre placement, Instruction.pdf 5.5. It is given the subject's
- * own rectangle: the indicators belong to the subject, so moving its click
- * area leaves them where they are.
+ * How far each indicator has been nudged from the place the format puts it,
+ * in file units. A subject that has never been adjusted reads as zeros.
  */
-export function indicatorPositions(frame, p) {
+export function indicatorOffsets(subject) {
+    const o = (subject && subject.indicatorOffsets) || {};
+    const at = (v) => ({
+        x: Number.isFinite((v || {}).x) ? v.x : 0,
+        y: Number.isFinite((v || {}).y) ? v.y : 0,
+    });
+    const out = {};
+    for (const key of INDICATOR_KEYS) out[key] = at(o[key]);
+    return out;
+}
+
+/**
+ * Corner and centre placement, Instruction.pdf 5.5, plus whatever the subject's
+ * indicators have been nudged by. It is given the subject's own rectangle: the
+ * indicators belong to the subject, so moving its click area leaves them where
+ * they are.
+ */
+export function indicatorPositions(frame, p, offsets) {
     const d = p.indicatorDiameter * p.indicatorScale;
+    const o = offsets || indicatorOffsets(null);
+    const at = (key, x, y) => ({ x: x + o[key].x, y: y + o[key].y });
     return {
-        oldRepair: { x: frame.x, y: frame.y },                                     // top-left
-        oldLock: { x: frame.x + frame.w - d, y: frame.y },                         // top-right
-        oldSost: { x: frame.x, y: frame.y + frame.h - d },                         // bottom-left
-        fail: { x: frame.x + frame.w - d, y: frame.y + frame.h - d },              // bottom-right
-        insert: { x: frame.x + frame.w / 2 - d / 2, y: frame.y + frame.h / 2 - d / 2 },
+        oldRepair: at('oldRepair', frame.x, frame.y),                              // top-left
+        oldLock: at('oldLock', frame.x + frame.w - d, frame.y),                    // top-right
+        oldSost: at('oldSost', frame.x, frame.y + frame.h - d),                    // bottom-left
+        fail: at('fail', frame.x + frame.w - d, frame.y + frame.h - d),            // bottom-right
+        insert: at('insert', frame.x + frame.w / 2 - d / 2, frame.y + frame.h / 2 - d / 2),
     };
 }
 
@@ -239,8 +259,14 @@ export function computeLayout(subjects, params) {
     // and is left out of the overall bounds, so it cannot drag the viewBox around.
     const frames = subjects.map((s) => {
         const b = s.fillBBox || s.strokeBBox;
-        if (!b) return { x: 0, y: 0, w: 0, h: 0, base: { x: 0, y: 0, w: 0, h: 0 }, empty: true };
         const a = clickArea(s);
+        const o = indicatorOffsets(s);
+        // Nothing drawn yet: a zero frame, left out of the bounds below, but
+        // still carrying everything the builder reads off a frame.
+        if (!b) {
+            const zero = { x: 0, y: 0, w: 0, h: 0 };
+            return { ...zero, base: { ...zero }, indicators: indicatorPositions(zero, p, o), offsets: o, empty: true };
+        }
         const base = { x: b.x - half, y: b.y - half, w: b.w + p.stOutWidth, h: b.h + p.stOutWidth };
         return {
             x: base.x - a.left,
@@ -248,16 +274,28 @@ export function computeLayout(subjects, params) {
             w: base.w + a.left + a.right,
             h: base.h + a.top + a.bottom,
             base,
+            // Worked out here so the file and the preview cannot disagree about
+            // where an indicator is.
+            indicators: indicatorPositions(base, p, o),
+            offsets: o,
         };
     });
 
     // Both rectangles count: a click area pushed outside its subject grows the
     // document, one pulled inside it cannot shrink the document and cut the
     // drawing off, because the subject is still drawn where it always was.
+    // A nudged indicator counts too, for the same reason - at its own place it
+    // is inside the subject already, so this only ever grows.
+    const d = p.indicatorDiameter * p.indicatorScale;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const f of frames) {
         if (f.empty) continue;
-        for (const r of [f, f.base]) {
+        const boxes = [f, f.base];
+        for (const key of INDICATOR_KEYS) {
+            if (!f.offsets[key].x && !f.offsets[key].y) continue;
+            boxes.push({ x: f.indicators[key].x, y: f.indicators[key].y, w: d, h: d });
+        }
+        for (const r of boxes) {
             minX = Math.min(minX, r.x); minY = Math.min(minY, r.y);
             maxX = Math.max(maxX, r.x + r.w); maxY = Math.max(maxY, r.y + r.h);
         }
@@ -299,7 +337,7 @@ export function buildSvg(subjects, params) {
         .join('');
 
     const layers = subjects
-        .map((s, i) => subjectLayer(i, indicatorPositions(frames[i].base, p)))
+        .map((s, i) => subjectLayer(i, frames[i].indicators))
         .join('');
 
     return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="${layout.viewBox}" width="${f2(objW)}" height="${f2(viewH)}">

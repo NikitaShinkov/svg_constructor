@@ -830,7 +830,7 @@ try {
             rightOfSidebar: Math.round(r.left) >= Math.round(document.getElementById('sud_sidebloсk').getBoundingClientRect().right),
             background: cs.backgroundColor,
             rule: [cs.borderBottomWidth, cs.borderBottomColor].join(' '),
-            blocks: [...bar.querySelectorAll('.cursor_settings, .indicators_settings, .lines_settings, .hatching_settings, .layer_selection_block')]
+            blocks: [...bar.querySelectorAll('.cursor_settings, .indicators_settings, .lines_settings, .hatching_settings, .offset_settings, .layer_selection_block')]
                 .map(b => b.className.split(' ')[0]).join(','),
         };
     })()`, {
@@ -839,7 +839,7 @@ try {
         rightOfSidebar: true,
         background: 'rgb(17, 17, 28)',
         rule: '1px rgb(55, 55, 93)',
-        blocks: 'cursor_settings,indicators_settings,lines_settings,hatching_settings,layer_selection_block',
+        blocks: 'cursor_settings,indicators_settings,lines_settings,hatching_settings,offset_settings,layer_selection_block',
     });
 
     // ---- layer segments
@@ -1008,7 +1008,7 @@ try {
             circle: document.querySelector('#preview_svg #circle circle').getAttribute('r'),
             stroke: document.querySelector('#preview_svg style').textContent.includes('stroke-width:3.40'),
         };
-    })()`, { label: 'Индикаторы 45 px', atFraction: 5, circle: '20.8', stroke: true });
+    })()`, { label: 'Индикаторы Ø45', atFraction: 5, circle: '20.8', stroke: true });
 
     {
         const box = await session.evaluate(`(() => {
@@ -1032,13 +1032,13 @@ try {
             stroke: document.querySelector('#preview_svg style').textContent.includes('stroke-width:1.60'),
             noScale: document.querySelector('#preview_svg style').textContent.includes('scale(1.00)'),
             filled: Math.round(parseFloat(document.getElementById('slider_filled').style.width)),
-        }))()`, { label: 'Индикаторы 20 px', circle: '9.2', stroke: true, noScale: true, filled: 4 });
+        }))()`, { label: 'Индикаторы Ø20', circle: '9.2', stroke: true, noScale: true, filled: 4 });
 
         await mouse('mousePressed', box.left + box.width - 1, box.top);
         await mouse('mouseReleased', box.left + box.width - 1, box.top);
         await sleep(300);
         await step('and back up to the largest', `document.getElementById('indicators_label').textContent`,
-            'Индикаторы 60 px');
+            'Индикаторы Ø60');
     }
 
     // Stepping back down to 45 also puts the defaults back for what follows.
@@ -1057,7 +1057,7 @@ try {
         };
     })()`, {
         off: { on: false, showing: 0 },
-        label: 'Индикаторы 45 px',
+        label: 'Индикаторы Ø45',
         on: true,
         showing: 10,
     });
@@ -1174,6 +1174,155 @@ try {
         c.focus(); c.value = '60'; c.dispatchEvent(new Event('input', { bubbles: true })); c.blur();
         return { fewerWhenThicker: wider < before, moreWhenDenser: count() > wider };
     })()`, { fewerWhenThicker: true, moreWhenDenser: true });
+
+    // ---- the offsets around the object
+
+    // The block is the first the bar gives up, so it needs the width it was
+    // drawn for; every check here puts it back afterwards.
+    const wide = async () => {
+        await session.send('Emulation.setDeviceMetricsOverride',
+            { width: 1920, height: 900, deviceScaleFactor: 1, mobile: false });
+        await sleep(300);
+    };
+    const backToTest = async () => {
+        await session.send('Emulation.clearDeviceMetricsOverride');
+        await sleep(300);
+    };
+
+    await wide();
+
+    await step('the offsets sit after the hatching, with the one the format has', `(() => {
+        const block = document.getElementById('offset_settings');
+        const bar = document.getElementById('settings_toolbar');
+        const ids = [...bar.querySelectorAll('[data-drop]')].map(b => b.id);
+        return {
+            shown: !block.classList.contains('is_hidden'),
+            afterHatching: ids.indexOf('offset_settings') === ids.indexOf('hatching_settings') + 1,
+            // The first to be given up when the bar runs out of room.
+            drop: block.dataset.drop,
+            labels: [...block.querySelectorAll('.settings_label')].map(s => s.textContent).join('|'),
+            bottom: document.getElementById('offset_bottom').value,
+            top: document.getElementById('offset_top').value,
+            viewBox: document.querySelector('#preview_svg svg').getAttribute('viewBox'),
+        };
+    })()`, {
+        shown: true,
+        afterHatching: true,
+        drop: '1',
+        labels: 'Отступ снизу|, сверху',
+        bottom: '70',
+        top: '0',
+        viewBox: '0.00 0.00 354.00 322.00',
+    });
+
+    // Something picked out, so that reaching for an offset can put it down.
+    await session.evaluate("document.querySelector('#sub_list .sub_num').click()");
+    await sleep(200);
+    await session.evaluate(`(() => {
+        const h = [...document.querySelectorAll('.hl_ind')]
+            .find(x => x.dataset.index === '0' && x.dataset.key === 'insert');
+        h.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    })()`);
+    await sleep(200);
+    await session.evaluate("document.getElementById('offset_top').focus()");
+    await sleep(250);
+
+    await step('reaching for an offset lights its strip and the edge of the document', `(() => {
+        const band = (side) => [...document.querySelectorAll('.hl_offset')]
+            .find(b => b.dataset.side === side);
+        const bounds = document.querySelector('.hl_bounds');
+        const box = (el) => ['x', 'y', 'width', 'height'].map(a => Math.round(Number(el.getAttribute(a)))).join(',');
+        const cs = (el, p) => getComputedStyle(el)[p];
+        return {
+            lit: [...document.querySelectorAll('.hl_offset.is_on')].map(b => b.dataset.side).join(','),
+            // Nothing to see yet at 0, but it is the strip that is lit.
+            topBox: box(band('top')),
+            bottomBox: box(band('bottom')),
+            // Lit the way a selected subject is.
+            fill: [cs(band('top'), 'fill'), cs(band('top'), 'fillOpacity'), cs(band('top'), 'stroke')].join(' '),
+            boundsOn: bounds.classList.contains('is_on'),
+            boundsBox: box(bounds),
+            boundsLine: [cs(bounds, 'stroke'), cs(bounds, 'strokeDasharray')].join(' '),
+            // The offsets are about the document, so nothing else stays picked.
+            rows: document.querySelectorAll('#sub_list .sub_block.is_open').length,
+            blocks: [getComputedStyle(document.getElementById('click_area_settings')).display,
+                     getComputedStyle(document.getElementById('indicator_position_settings')).display].join(','),
+            indicator: document.querySelectorAll('.ind_fields.is_selected').length,
+        };
+    })()`, {
+        lit: 'top',
+        topBox: '0,0,354,0',
+        bottomBox: '0,252,354,70',
+        fill: 'rgb(255, 0, 251) 0.1 rgb(255, 0, 251)',
+        boundsOn: true,
+        boundsBox: '0,0,354,322',
+        boundsLine: 'rgb(255, 0, 251) 9px, 3px, 2px, 3px',
+        rows: 0,
+        blocks: 'none,none',
+        indicator: 0,
+    });
+
+    await session.evaluate(`(() => {
+        const i = document.getElementById('offset_top');
+        i.value = '40';
+        i.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+    await sleep(250);
+
+    await step('typing into it grows the document as it is typed', `(() => {
+        const svg = document.querySelector('#preview_svg svg');
+        const band = [...document.querySelectorAll('.hl_offset')].find(b => b.dataset.side === 'top');
+        const r = document.querySelector('#preview_svg #layer_o_background rect');
+        return {
+            viewBox: svg.getAttribute('viewBox'),
+            size: [svg.getAttribute('width'), svg.getAttribute('height')].join(','),
+            // layer_o covers the whole document, offsets and all.
+            layerO: ['x', 'y', 'width', 'height'].map(a => r.getAttribute(a)).join(','),
+            band: ['x', 'y', 'width', 'height'].map(a => Math.round(Number(band.getAttribute(a)))).join(','),
+            // The artwork itself has not moved.
+            s0Frame: document.querySelector('#preview_svg #layer_s0_frame rect').getAttribute('y'),
+        };
+    })()`, {
+        viewBox: '0.00 -40.00 354.00 362.00',
+        size: '354.00,362.00',
+        layerO: '0.00,-40.00,354.00,362.00',
+        band: '0,-40,354,40',
+        s0Frame: '0.00',
+    });
+
+    await session.evaluate("document.getElementById('offset_top').blur()");
+    await sleep(250);
+    await step('and letting go of the field takes the lighting away, not the offset', `(() => ({
+        bands: document.querySelectorAll('.hl_offset.is_on').length,
+        bounds: document.querySelectorAll('.hl_bounds.is_on').length,
+        top: document.getElementById('offset_top').value,
+        viewBox: document.querySelector('#preview_svg svg').getAttribute('viewBox'),
+    }))()`, { bands: 0, bounds: 0, top: '40', viewBox: '0.00 -40.00 354.00 362.00' });
+
+    // The other field lights the strip at the foot of the document.
+    await session.evaluate("document.getElementById('offset_bottom').focus()");
+    await sleep(250);
+    await step('the bottom field lights the strip under the object', `(() => {
+        const lit = [...document.querySelectorAll('.hl_offset.is_on')];
+        return {
+            lit: lit.map(b => b.dataset.side).join(','),
+            box: lit.map(b => ['x', 'y', 'width', 'height']
+                .map(a => Math.round(Number(b.getAttribute(a)))).join(',')).join(''),
+            bounds: document.querySelectorAll('.hl_bounds.is_on').length,
+        };
+    })()`, { lit: 'bottom', box: '0,252,354,70', bounds: 1 });
+
+    await session.evaluate(`(() => {
+        const i = document.getElementById('offset_top');
+        i.focus(); i.value = '0'; i.dispatchEvent(new Event('input', { bubbles: true })); i.blur();
+    })()`);
+    await sleep(250);
+    await step('back to no offset above, and the document is as it was', `(() => {
+        const svg = document.querySelector('#preview_svg svg');
+        return [svg.getAttribute('viewBox'), svg.getAttribute('height')].join(' | ');
+    })()`, '0.00 0.00 354.00 322.00 | 322.00');
+
+    await backToTest();
 
     // ---- the bar gives up its blocks in order when the window narrows
 

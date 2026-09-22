@@ -18,6 +18,7 @@ export const PARAMS = {
     hatchLineWidth: 4,
     hatchCoverage: 30,          // percent of the period covered by the grey stripe
     bottomPadding: 70,          // empty space added below the object
+    topPadding: 0,              // and above it, if the toolbar asks for any
 };
 
 const f2 = (v) => (Math.abs(v) < 0.005 ? 0 : v).toFixed(2);
@@ -304,12 +305,16 @@ export function computeLayout(subjects, params) {
 
     const objW = maxX - minX;
     const objH = maxY - minY;
-    const viewH = objH + p.bottomPadding;
+    // The document is the artwork with the two offsets around it. x/y/w/h stay
+    // the artwork's own, which is what the hatch and the offset bands are
+    // measured from; viewY/viewH are the document.
+    const viewH = objH + p.topPadding + p.bottomPadding;
+    const viewY = minY - p.topPadding;
     return {
-        p, frames, x: minX, y: minY, w: objW, h: objH, viewH,
+        p, frames, x: minX, y: minY, w: objW, h: objH, viewY, viewH,
         // The preview highlights reuse this string, so their coordinate system
         // is the file's own, down to the rounding.
-        viewBox: `${f2(minX)} ${f2(minY)} ${f2(objW)} ${f2(viewH)}`,
+        viewBox: `${f2(minX)} ${f2(viewY)} ${f2(objW)} ${f2(viewH)}`,
     };
 }
 
@@ -321,7 +326,7 @@ export function buildSvg(subjects, params) {
     const layout = computeLayout(subjects, params);
     const { p, frames, w: objW, h: objH, viewH } = layout;
     const minX = layout.x;
-    const minY = layout.y;
+    const viewY = layout.viewY;
 
     const set = indicatorSet(p);
 
@@ -356,7 +361,7 @@ ${layers}    <g id="layer_o" inkscape:label="layer_o" style="display:inline">
         <g id="layer_o_background" inkscape:label="layer_o_background" style="display:inline">
             <g id="layer_o_background_off" inkscape:label="layer_o_background_off" style="display:inline"></g>
             <g id="layer_o_background_on" inkscape:label="layer_o_background_on" style="display:inline"></g>
-            <rect width="${f2(objW)}" height="${f2(viewH)}" x="${f2(minX)}" y="${f2(minY)}" style="fill:none"></rect>
+            <rect width="${f2(objW)}" height="${f2(viewH)}" x="${f2(minX)}" y="${f2(viewY)}" style="fill:none"></rect>
         </g>
     </g>
 

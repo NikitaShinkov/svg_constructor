@@ -70,6 +70,7 @@ const state = {
         layer: 'otlichno',  // the segment last clicked
         hover: null,        // the segment under the cursor
         forced: null,       // held on "background" while the hatch is edited
+        offset: null,       // "top" or "bottom" while that offset is edited
     },
 };
 
@@ -377,8 +378,32 @@ function renderHighlights() {
         for (const side of SIDES) ui.hlFront.appendChild(edgeHandle(frame, index, side));
     }
 
+    // The empty space the offsets make, and the edge of the document they
+    // move. Last, so they lie over the drawing; they take no clicks.
+    const pad = layout.p;
+    ui.hlFront.appendChild(offsetBand('top',
+        { x: layout.x, y: layout.viewY, w: layout.w, h: pad.topPadding }, pad.stOutWidth));
+    ui.hlFront.appendChild(offsetBand('bottom',
+        { x: layout.x, y: layout.y + layout.h, w: layout.w, h: pad.bottomPadding }, pad.stOutWidth));
+
+    const bounds = rect('hl_bounds', { x: layout.x, y: layout.viewY, w: layout.w, h: layout.viewH }, -1);
+    ui.hlFront.appendChild(bounds);
+
     sizeEdgeHandles();
     paintHighlights();
+}
+
+/** The strip an offset makes, lit like a selected subject while it is edited. */
+function offsetBand(side, box, strokeWidth) {
+    const r = document.createElementNS(SVG_NS, 'rect');
+    r.setAttribute('class', 'hl_offset');
+    r.setAttribute('x', box.x);
+    r.setAttribute('y', box.y);
+    r.setAttribute('width', box.w);
+    r.setAttribute('height', Math.max(0, box.h));
+    r.setAttribute('stroke-width', strokeWidth);
+    r.dataset.side = side;
+    return r;
 }
 
 const SIDES = ['top', 'right', 'bottom', 'left'];
@@ -507,6 +532,15 @@ function paintHighlights() {
     // the highlight trading places.
     for (const r of ui.stage.querySelectorAll('.hl_ind')) {
         r.classList.toggle('is_live', state.preview.indicators);
+    }
+
+    // The offsets are shown only while one of their fields is being edited.
+    const offset = state.preview.offset;
+    for (const r of ui.stage.querySelectorAll('.hl_offset')) {
+        r.classList.toggle('is_on', r.dataset.side === offset);
+    }
+    for (const r of ui.stage.querySelectorAll('.hl_bounds')) {
+        r.classList.toggle('is_on', !!offset);
     }
 
     renderClickArea();
@@ -1388,7 +1422,7 @@ function paintSlider() {
     const at = (sizeIndex() / (INDICATOR_SIZES.length - 1)) * travel;
     ui.sliderKnob.style.left = `${at}px`;
     ui.sliderFilled.style.width = `${at + KNOB_W / 2}px`;
-    ui.indicatorLabel.textContent = `Индикаторы ${size} px`;
+    ui.indicatorLabel.textContent = `Индикаторы Ø${size}`;
     ui.slider.setAttribute('aria-valuenow', String(size));
     ui.slider.setAttribute('aria-valuetext', `${size} px`);
 }
@@ -1447,9 +1481,11 @@ const FIELDS = [
     { id: 'hatch_angle', key: 'hatchAngle', hatch: true },
     { id: 'hatch_width', key: 'hatchLineWidth', hatch: true },
     { id: 'hatch_coverage', key: 'hatchCoverage', hatch: true },
+    { id: 'offset_bottom', key: 'bottomPadding', offset: 'bottom' },
+    { id: 'offset_top', key: 'topPadding', offset: 'top' },
 ];
 
-function setUpField({ id, key, hatch }) {
+function setUpField({ id, key, hatch, offset }) {
     const input = el(id);
     const min = Number(input.dataset.min);
     const max = Number(input.dataset.max);
@@ -1471,11 +1507,20 @@ function setUpField({ id, key, hatch }) {
         // The hatch is only visible on the background layer, so reaching for
         // one of its fields brings that layer up before anything is typed.
         if (hatch) { state.preview.forced = 'background'; applyPreviewLayers(); }
+        if (offset) {
+            // The offset is about the document, not about any subject: what was
+            // picked out is put down, and the strip being changed is shown
+            // instead, inside the edge of the document it moves.
+            state.preview.offset = offset;
+            collapseAll();
+            paintHighlights();
+        }
         show();
         input.select();
     });
     input.addEventListener('blur', () => {
         if (hatch && state.preview.forced) { state.preview.forced = null; applyPreviewLayers(); }
+        if (offset && state.preview.offset) { state.preview.offset = null; paintHighlights(); }
         show();
     });
 

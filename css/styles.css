@@ -108,6 +108,7 @@ body {
 .indicators_settings,
 .lines_settings,
 .hatching_settings,
+.offset_settings,
 .layer_selection_block {
     display: flex;
     align-items: center;
@@ -806,6 +807,33 @@ body.is_edge_y { user-select: none; }
     visibility: visible;
     pointer-events: all;
 }
+
+/* The empty space above and below the object, shown while its field is being
+   edited: lit the way a selected subject is, and with the edge of the document
+   drawn round the lot, since that is what the offset is changing. */
+.hl_offset {
+    fill: var(--highlight);
+    fill-opacity: 0.1;
+    stroke: var(--highlight);
+    visibility: hidden;
+}
+
+.hl_offset.is_on { visibility: visible; }
+
+/* Stroked at double width, so the outer half falls outside the viewport and is
+   clipped and a crisp line is left inside - the same trick the drop frame uses.
+   non-scaling-stroke keeps the line and its dashes a screen measure, whatever
+   the drawing is scaled to. */
+.hl_bounds {
+    fill: none;
+    stroke: var(--highlight);
+    stroke-width: 2;
+    stroke-dasharray: 9 3 2 3;
+    vector-effect: non-scaling-stroke;
+    visibility: hidden;
+}
+
+.hl_bounds.is_on { visibility: visible; }
 
 /* Invisible, but it is what the cursor actually meets in the drawing. */
 .hl_hit {

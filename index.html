@@ -158,7 +158,7 @@
                  carry their units as text and shed them while being edited. -->
             <!-- Preview only, like the indicator switch: the triangle marks where
                  the click area is pointed at and never reaches the file. -->
-            <div class="cursor_settings" id="cursor_settings" data-drop="5">
+            <div class="cursor_settings" id="cursor_settings" data-drop="6">
                 <button type="button" class="switch is_on" id="cursor_switch"
                         role="switch" aria-checked="true" title="Скрыть курсор">
                     <span class="switch_knob"></span>
@@ -166,7 +166,7 @@
                 <span class="settings_label">Курсор</span>
             </div>
 
-            <div class="indicators_settings" id="indicators_settings" data-drop="4">
+            <div class="indicators_settings" id="indicators_settings" data-drop="5">
                 <button type="button" class="switch is_on" id="indicators_switch"
                         role="switch" aria-checked="true" title="Показать индикаторы">
                     <span class="switch_knob"></span>
@@ -180,7 +180,7 @@
                 </div>
             </div>
 
-            <div class="lines_settings" id="lines_settings" data-drop="2">
+            <div class="lines_settings" id="lines_settings" data-drop="3">
                 <span class="settings_label">Линии внешн.</span>
                 <input type="text" class="unit_input" id="line_out" inputmode="numeric"
                        data-min="0" data-max="99" aria-label="Толщина внешней линии">
@@ -189,7 +189,7 @@
                        data-min="0" data-max="99" aria-label="Толщина внутренней линии">
             </div>
 
-            <div class="hatching_settings" id="hatching_settings" data-drop="1">
+            <div class="hatching_settings" id="hatching_settings" data-drop="2">
                 <span class="settings_label">Штриховка</span>
                 <input type="text" class="unit_input" id="hatch_angle" inputmode="numeric"
                        data-unit="°" data-min="0" data-max="180" aria-label="Угол штриховки">
@@ -199,11 +199,23 @@
                        data-unit=" %" data-min="1" data-max="100" aria-label="Доля закрашенной части">
             </div>
 
+            <!-- The empty space the format leaves under the object, and as much
+                 above it as is asked for. Both are part of the document, so the
+                 file is rebuilt as they are typed. -->
+            <div class="offset_settings" id="offset_settings" data-drop="1">
+                <span class="settings_label">Отступ снизу</span>
+                <input type="text" class="unit_input" id="offset_bottom" inputmode="numeric"
+                       data-min="0" data-max="9999" aria-label="Отступ снизу">
+                <span class="settings_label">, сверху</span>
+                <input type="text" class="unit_input" id="offset_top" inputmode="numeric"
+                       data-min="0" data-max="9999" aria-label="Отступ сверху">
+            </div>
+
         </div>
 
         <!-- Picks which of the six layers the preview shows. The file keeps
              all of them whatever is chosen here. -->
-        <div class="layer_selection_block" id="layer_selection_block" data-drop="3">
+        <div class="layer_selection_block" id="layer_selection_block" data-drop="4">
             <span class="settings_label" id="layer_name">Отлично</span>
             <div class="segments" id="segments"></div>
         </div>

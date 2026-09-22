@@ -7,6 +7,12 @@
 
 * загрузка svg-файла перетаскиванием в окно или через кнопку «Загрузить svg-файл...»;
 * автоматический поиск заливки и внутренних линий для всех субъектов;
+* opening a file this application wrote earlier: it is recognised by its own
+  structure and read back as it stands, so a file can be saved, reopened and
+  carried on with instead of being drawn again. Everything it holds comes back
+  with it - the subjects, both line widths, the hatch, the two document
+  offsets, the indicator size, and each subject's click area and indicator
+  nudges;
 * построение нового svg по шаблону и его отображение в блоке предпросмотра;
 * вывод кода заливки и внутренних линий каждого субъекта в списке «Субъекты»;
 * редактирование кода в полях: после каждого изменения svg пересобирается,
@@ -23,7 +29,9 @@
   a click area pulled inside its subject never crops the drawing;
 * a triangular cursor at the foot of the selected click area, switched on and
   off on the settings bar, which shows how big the area is against the drawing
-  and never reaches the file;
+  and never reaches the file. Both switches on the bar are the whole strip they
+  sit on: the toggle, its label and the space around them all answer to a
+  click, and only the size slider keeps its own;
 * the five indicators of every subject: click one in the preview and the arrow
   keys move it (10px a press with Shift), or type its X and Y into the fields
   below the click area. The reset button there puts every indicator of every
@@ -58,6 +66,27 @@ node server.mjs
 
 В Firefox и Safari такого API нет, поэтому файл скачивается в папку загрузок
 браузера под исходным именем.
+
+## Two ways a file is read
+
+Which one is taken is decided by the file, not by the user:
+
+1. **A drawing from an editor** (Illustrator, Figma) goes through the subject
+   detection described below. Only the geometry is taken from it: everything
+   else - indicators, states, the reserve hatch - is built from the template.
+2. **A file this application wrote** is recognised by its own structure
+   (`layer_s0_frame`, `layer_s0`, `layer_o`) and read back through the same
+   formulas that wrote it: the two line widths from `<style>`, the indicator
+   set from `#circle`, the hatch angle and stripe from the gradient, each
+   subject's click area from `layer_sN_frame`, each indicator's nudge from the
+   `x`/`y` of its `<use>`, and the two document offsets from the `viewBox`.
+   The geometry is not rebuilt: the markup inside `layer_sN_fill` and
+   `layer_sN_stroke_in` is lifted out of the text as it stands, so a file that
+   is opened and saved again comes back the way it went in.
+
+The subject detection reads other people's files only, and is never asked about
+ours: everything drawable in them lives in `<defs>`, where it would find
+nothing to look at.
 
 ## Как определяются субъекты
 
@@ -108,12 +137,19 @@ node test/e2e.mjs 8099                   # реальное приложение
 | `PG_2m1v2s_S-S.svg`, `Object_1m1v1s.svg` | viewBox, рамки, градиент, число слоёв |
 | `CC2_4m7v26s_S-R-S-S.svg` | не используется: часть рамок правилась вручную |
 
+Reading one of our own files back is checked there too: every reference in
+`src_doc/examples` is restored, built again and held against itself - the
+frames, the indicator coordinates and the `viewBox` come back where the file
+has them, and a second pass gives the same file byte for byte. Then the same
+thing through the real app: `CC2` is opened with the file input (26 subjects,
+Ø32 indicators, a 6px hatch), its click areas and indicator nudges are sitting
+in the fields, and a sketch from an editor still goes through the detection.
+
 ## Известные ограничения
 
-* **Indicator offsets are set by hand, never read.** They can be adjusted per
-  indicator now, which is what `PG`, `CC2` and `Object` did, but a file arriving
-  from the editor always starts with every offset at 0: nothing reads the
-  positions back out of an existing KOMPAKS file.
+* **A drawing from an editor always starts on the defaults.** Click areas and
+  indicator nudges are read back out of a file this application wrote; a sketch
+  has nowhere to keep them, so it begins with every one of them at zero.
 * **Порядок субъектов не редактируется.** В черновике `AVO_2m4v4s_R-R` имена
   слоёв идут в обратную сторону относительно эталона: группа с именем `3`
   содержит нижнюю фигуру, которую эталон называет `s0`. Чертежи из Illustrator и

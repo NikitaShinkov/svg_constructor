@@ -1,0 +1,299 @@
+// Reads a file this application wrote and puts the editor back where it was.
+//
+// `detect.js` answers a different question - which shape in an editor's export
+// is a silhouette and which is line art - and it cannot read our own output at
+// all: everything drawable lives in <defs>, so the only shape it finds outside
+// them is the full-bleed rect of layer_o, which it throws away as a background.
+//
+// Here the structure is known, so nothing has to be guessed: the file is read
+// back through the same formulas template.js wrote it with. Everything the
+// toolbar and the sidebar can change is stored somewhere in the file, and each
+// of them is recovered by inverting the one place that wrote it:
+//
+//   .st_in / .st_out stroke-width   -> the two line widths
+//   #circle's cx, .icons_st_out     -> which prepared indicator set was used
+//   .scale                          -> the indicator scale
+//   <linearGradient> and its stops  -> hatch angle, line width and coverage
+//   layer_sN_frame's <rect>         -> that subject's click area, against the
+//                                      silhouette's own bounding box
+//   the indicator <use> x/y         -> that indicator's nudge, against the
+//                                      place Instruction.pdf 5.5 puts it
+//   viewBox against the artwork     -> the two document offsets
+//
+// Nothing here rewrites geometry: the markup inside layer_sN_fill and
+// layer_sN_stroke_in is lifted out of the text as it stands, so a file that is
+// loaded and exported again comes back the way it went in.
+
+import { parseGeometryFragment } from './detect.js';
+import {
+    PARAMS, INDICATOR_KEYS, indicatorPositions, computeLayout, hatchVector,
+} from './template.js';
+import { INDICATORS, INDICATOR_SIZES } from './indicators.js';
+
+/** The group under layer_sN that holds each indicator's <use>. */
+const INDICATOR_GROUPS = {
+    oldRepair: 'old_repair',
+    oldLock: 'old_lock',
+    oldSost: 'old_sost',
+    fail: 'fail',
+    insert: 'insert',
+};
+
+// The ranges the toolbar fields hold their numbers in (index.html data-min/max),
+// repeated here so a hand-edited file cannot put the state out of their reach.
+const RANGE = {
+    stOutWidth: [0, 99],
+    stInWidth: [0, 99],
+    hatchAngle: [0, 180],
+    hatchLineWidth: [1, 99],
+    hatchCoverage: [1, 100],
+    topPadding: [0, 9999],
+    bottomPadding: [0, 9999],
+};
+
+const MAX_BORDER = 9999;    // the same limit the sidebar fields keep
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const round2 = (v) => Math.round(v * 100) / 100;
+// The two roundings template.js writes numbers with, so a recovered value can
+// be compared against what is actually in the file.
+const f0 = (v) => Number((Math.abs(v) < 0.5 ? 0 : v).toFixed(0));
+
+function num(value, fallback) {
+    const n = parseFloat(value);
+    return Number.isFinite(n) ? n : fallback;
+}
+
+/**
+ * The text inside `<g id="...">...</g>`, taken out of the source as it stands.
+ * Serialising the parsed element instead would re-quote attributes and
+ * self-close empty tags, neither of which the format allows.
+ */
+function groupInner(text, id) {
+    const open = new RegExp(`<g\\s+id="${id}"[^>]*>`).exec(text);
+    if (!open) return null;
+    const start = open.index + open[0].length;
+    const tags = /<(\/?)g\b([^>]*)>/g;
+    tags.lastIndex = start;
+    let depth = 1;
+    let m;
+    while ((m = tags.exec(text)) !== null) {
+        if (/\/\s*$/.test(m[2])) continue;          // <g .../>, opened and closed
+        depth += m[1] ? -1 : 1;
+        if (depth === 0) return text.slice(start, m.index);
+    }
+    return null;
+}
+
+/**
+ * Drops the newline and indent the builder puts around the markup, and nothing
+ * else - trailing spaces on the markup's own line are part of what was written
+ * and are kept, so a reference file survives the round trip byte for byte.
+ */
+function stripIndent(inner) {
+    return inner.replace(/^\r?\n[ \t]*/, '').replace(/\r?\n[ \t]*$/, '');
+}
+
+/** The markup of one defs group, from the text if possible, from the DOM if not. */
+function markupOf(doc, text, id) {
+    const raw = groupInner(text, id);
+    if (raw !== null) return stripIndent(raw);
+    const el = doc.querySelector(`[id="${id}"]`);
+    if (!el) return '';
+    const ser = new XMLSerializer();
+    return Array.from(el.children).map((c) => ser.serializeToString(c)).join('');
+}
+
+/** The nearest prepared indicator size, since only those can be rebuilt. */
+function nearestSize(diameter) {
+    return INDICATOR_SIZES.reduce((a, b) =>
+        (Math.abs(b - diameter) < Math.abs(a - diameter) ? b : a));
+}
+
+/**
+ * Which set of indicator symbols the file carries. `#circle` is drawn at the
+ * size's own coordinates (cx = D/2 in every set), so it answers directly; the
+ * outline width is the fallback, since each set has its own.
+ */
+function readIndicatorSize(doc, style) {
+    const circle = doc.querySelector('[id="circle"] circle');
+    if (circle) {
+        const cx = num(circle.getAttribute('cx'), 0);
+        if (cx > 0) return nearestSize(cx * 2);
+    }
+    const sw = num((/\.icons_st_out\s*\{[^}]*stroke-width\s*:\s*([\d.]+)/.exec(style) || [])[1], 0);
+    if (sw > 0) {
+        let best = PARAMS.indicatorDiameter;
+        let gap = Infinity;
+        for (const size of INDICATOR_SIZES) {
+            const d = Math.abs(INDICATORS[size].strokeWidth - sw);
+            if (d < gap) { gap = d; best = size; }
+        }
+        return best;
+    }
+    return PARAMS.indicatorDiameter;
+}
+
+/**
+ * The hatch, read back out of the gradient it was written into.
+ *
+ * The vector is written with no decimals, so the angle is found by trying the
+ * ones the field can hold and keeping whichever writes the file's four numbers.
+ * The stops then give the stripe: the first pair ends one line width along the
+ * vector, and the second starts one full period along it.
+ */
+function readHatch(grad, width, height) {
+    if (!grad || !(width > 0) || !(height > 0)) return {};
+    const want = {
+        x1: num(grad.getAttribute('x1'), NaN),
+        y1: num(grad.getAttribute('y1'), NaN),
+        x2: num(grad.getAttribute('x2'), NaN),
+        y2: num(grad.getAttribute('y2'), NaN),
+    };
+    if (!Number.isFinite(want.x1) || !Number.isFinite(want.x2) || !Number.isFinite(want.y2)) return {};
+
+    let angle = PARAMS.hatchAngle;
+    let best = Infinity;
+    for (let a = RANGE.hatchAngle[0]; a <= RANGE.hatchAngle[1]; a++) {
+        const v = hatchVector(width, height, a);
+        const err = ['x1', 'y1', 'x2', 'y2']
+            .reduce((sum, k) => sum + (f0(v[k]) - want[k]) ** 2, 0);
+        if (err < best) { best = err; angle = a; if (!err) break; }
+    }
+
+    const out = { hatchAngle: angle };
+    const length = hatchVector(width, height, angle).length;
+    const offsets = Array.from(grad.querySelectorAll('stop'))
+        .map((s) => num(s.getAttribute('offset'), NaN));
+    if (length > 0 && offsets.length >= 2 && offsets.every(Number.isFinite)) {
+        const run = (offsets[1] / 100) * length;
+        // With coverage at 100 there is no gap and no third pair: the period is
+        // the stripe itself.
+        const period = offsets.length >= 4 ? (offsets[3] / 100) * length : run;
+        out.hatchLineWidth = clamp(Math.round(run) || 1, ...RANGE.hatchLineWidth);
+        out.hatchCoverage = period > 0
+            ? clamp(Math.round((100 * run) / period), ...RANGE.hatchCoverage)
+            : RANGE.hatchCoverage[1];
+    }
+    return out;
+}
+
+/** The four numbers of a viewBox, or null. */
+function readViewBox(svgEl) {
+    const parts = (svgEl.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
+    if (parts.length !== 4 || !parts.every(Number.isFinite)) return null;
+    return { x: parts[0], y: parts[1], w: parts[2], h: parts[3] };
+}
+
+/**
+ * True when the document is one of ours: the format's own defs and layers, not
+ * an export from a vector editor.
+ */
+export function isTemplateDocument(doc) {
+    return !!(doc.querySelector('[id="layer_s0_frame"]')
+        && doc.querySelector('[id="layer_s0"]')
+        && doc.querySelector('[id="layer_o"]'));
+}
+
+/**
+ * Reads a KOMPAKS file this application could have written.
+ *
+ * @param {string} svgText
+ * @returns {{subjects: object[], params: object}|null} null when the file is
+ *   not in our format and the editor's own detection should have it instead.
+ */
+export function restoreDocument(svgText) {
+    const doc = new DOMParser().parseFromString(svgText, 'image/svg+xml');
+    if (doc.querySelector('parsererror')) return null;
+    const svgEl = doc.documentElement;
+    if (!svgEl || svgEl.tagName.toLowerCase() !== 'svg') return null;
+    if (!isTemplateDocument(doc)) return null;
+
+    const style = (doc.querySelector('style') || {}).textContent || '';
+    const styleWidth = (cls) => {
+        const m = new RegExp(`\\.${cls}\\s*\\{[^}]*stroke-width\\s*:\\s*([\\d.]+)`).exec(style);
+        return m ? parseFloat(m[1]) : null;
+    };
+
+    const params = { ...PARAMS };
+    const out = styleWidth('st_out');
+    const inner = styleWidth('st_in');
+    if (out !== null) params.stOutWidth = clamp(out, ...RANGE.stOutWidth);
+    if (inner !== null) params.stInWidth = clamp(inner, ...RANGE.stInWidth);
+    const scale = (/\.scale\s*\{[^}]*transform\s*:\s*scale\(\s*([\d.]+)/.exec(style) || [])[1];
+    if (scale !== undefined) params.indicatorScale = parseFloat(scale) || PARAMS.indicatorScale;
+    params.indicatorDiameter = readIndicatorSize(doc, style);
+
+    const half = params.stOutWidth / 2;
+
+    const subjects = [];
+    for (let n = 0; doc.querySelector(`[id="layer_s${n}"]`); n++) {
+        const fill = markupOf(doc, svgText, `layer_s${n}_fill`);
+        const strokeIn = markupOf(doc, svgText, `layer_s${n}_stroke_in`);
+        const fillGeom = parseGeometryFragment(fill);
+        const strokeGeom = parseGeometryFragment(strokeIn);
+        const fillBBox = fillGeom ? fillGeom.bbox : null;
+        const strokeBBox = strokeGeom ? strokeGeom.bbox : null;
+
+        // The subject's own rectangle, which both the click area and the
+        // indicators are measured from - exactly as computeLayout builds it.
+        const b = fillBBox || strokeBBox;
+        const base = b
+            ? { x: b.x - half, y: b.y - half, w: b.w + params.stOutWidth, h: b.h + params.stOutWidth }
+            : null;
+
+        const clickArea = { top: 0, right: 0, bottom: 0, left: 0 };
+        const rect = doc.querySelector(`[id="layer_s${n}_frame"] rect`);
+        if (base && rect) {
+            const frame = {
+                x: num(rect.getAttribute('x'), 0),
+                y: num(rect.getAttribute('y'), 0),
+                w: num(rect.getAttribute('width'), 0),
+                h: num(rect.getAttribute('height'), 0),
+            };
+            const at = (v) => clamp(round2(v), -MAX_BORDER, MAX_BORDER);
+            clickArea.left = at(base.x - frame.x);
+            clickArea.top = at(base.y - frame.y);
+            clickArea.right = at(frame.x + frame.w - (base.x + base.w));
+            clickArea.bottom = at(frame.y + frame.h - (base.y + base.h));
+        }
+
+        // Where the format would have put each indicator, against where the
+        // file actually has it. Only a real nudge is kept, so an untouched
+        // subject reads exactly like a freshly detected one.
+        const indicatorOffsets = {};
+        if (base) {
+            const home = indicatorPositions(base, params);
+            for (const key of INDICATOR_KEYS) {
+                const use = doc.querySelector(`[id="layer_s${n}_${INDICATOR_GROUPS[key]}"] use[x]`);
+                if (!use) continue;
+                const dx = clamp(round2(num(use.getAttribute('x'), home[key].x) - home[key].x), -MAX_BORDER, MAX_BORDER);
+                const dy = clamp(round2(num(use.getAttribute('y'), home[key].y) - home[key].y), -MAX_BORDER, MAX_BORDER);
+                if (dx || dy) indicatorOffsets[key] = { x: dx, y: dy };
+            }
+        }
+
+        subjects.push({
+            fill, strokeIn, fillBBox, strokeBBox,
+            clickArea, indicatorOffsets,
+            confidence: 1,
+            isOpen: false,
+        });
+    }
+    if (!subjects.length) return null;
+
+    // The artwork as it stands now, which is what the gradient was measured on
+    // and what the viewBox was grown from. Both offsets are held at zero here:
+    // they are what this layout is about to be compared against.
+    const layout = computeLayout(subjects, { ...params, topPadding: 0, bottomPadding: 0 });
+    Object.assign(params, readHatch(doc.querySelector('[id="linear_grad"]'), layout.w, layout.h));
+
+    const view = readViewBox(svgEl);
+    if (view) {
+        const top = clamp(round2(layout.y - view.y), ...RANGE.topPadding);
+        params.topPadding = top;
+        params.bottomPadding = clamp(round2(view.h - layout.h - top), ...RANGE.bottomPadding);
+    }
+
+    return { subjects, params };
+}

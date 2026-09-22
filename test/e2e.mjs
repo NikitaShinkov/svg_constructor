@@ -2710,6 +2710,286 @@ try {
         firstScreenGone: true, preview: true, upload: 'rgba(0, 0, 0, 0)', download: true, copy: true,
     });
 
+    // ---- reading back a file this app wrote ---------------------------------
+
+    // Every file in src_doc/examples is in the format the app writes, so each
+    // one is a file that could have come out of it - including what a sketch
+    // never carries: the hand-edited click areas of CC2, the nudged indicators
+    // of PK, the 32px indicator set, a hatch six pixels wide.
+    //
+    // The modules are imported into the page rather than driven through the
+    // interface: what is checked here is that a file goes in and the same file
+    // comes back out, which the sidebar can only show a corner of.
+    const roundTrip = (name) => `(async () => {
+        const [restore, template] = await Promise.all([
+            import('/js/restore.js'), import('/js/template.js'),
+        ]);
+        const text = await (await fetch('/src_doc/examples/${name}')).text();
+        const first = restore.restoreDocument(text);
+        if (!first) return { restored: false };
+
+        const built = template.buildSvg(first.subjects, first.params);
+        // Reading our own output back has to give the same state again, or
+        // something in the file is not being read.
+        const again = restore.restoreDocument(built);
+        const rebuilt = template.buildSvg(again.subjects, again.params);
+
+        const parse = (svg) => new DOMParser().parseFromString(svg, 'image/svg+xml');
+        const numbers = (svg, selector, attrs) => [...parse(svg).querySelectorAll(selector)]
+            .map((el) => attrs.map((a) => Number(el.getAttribute(a))));
+        // The file's numbers are written to two decimals, so a border read back
+        // out of one can land half a hundredth from where it was.
+        const same = (a, b) => a.length === b.length
+            && a.every((row, i) => row.every((v, j) => Math.abs(v - b[i][j]) <= 0.01));
+        const viewBox = (svg) => [(parse(svg).documentElement.getAttribute('viewBox') || '')
+            .trim().split(/[\\s,]+/).map(Number)];
+
+        return {
+            restored: true,
+            subjects: first.subjects.length,
+            diameter: first.params.indicatorDiameter,
+            lineWidths: [first.params.stOutWidth, first.params.stInWidth],
+            hatch: [first.params.hatchAngle, first.params.hatchLineWidth, first.params.hatchCoverage],
+            padding: [first.params.topPadding, first.params.bottomPadding],
+            // What the file says, against what we build from what we read.
+            frames: same(numbers(text, '[id$="_frame"] rect', ['x', 'y', 'width', 'height']),
+                         numbers(built, '[id$="_frame"] rect', ['x', 'y', 'width', 'height'])),
+            indicators: same(numbers(text, 'use[x]', ['x', 'y']),
+                             numbers(built, 'use[x]', ['x', 'y'])),
+            viewBox: same(viewBox(text), viewBox(built)),
+            stable: built === rebuilt,
+        };
+    })()`;
+
+    await step('PV comes back as it went in', roundTrip('PV_3m4v6s_R-RS-S.svg'), {
+        restored: true, subjects: 6, diameter: 45, lineWidths: [2, 2], hatch: [45, 4, 30],
+        padding: [0, 70], frames: true, indicators: true, viewBox: true, stable: true,
+    });
+    await step('PK comes back with the indicators it was drawn with', roundTrip('PK_3m4v7s_R-R-R.svg'), {
+        restored: true, subjects: 7, diameter: 45, lineWidths: [2, 2], hatch: [45, 4, 30],
+        padding: [0, 70], frames: true, indicators: true, viewBox: true, stable: true,
+    });
+    await step('CC2 comes back with its click areas and its 32px indicators', roundTrip('CC2_4m7v26s_S-R-S-S.svg'), {
+        restored: true, subjects: 26, diameter: 32, lineWidths: [2, 2], hatch: [45, 6, 30],
+        padding: [0, 70], frames: true, indicators: true, viewBox: true, stable: true,
+    });
+
+    // A drawing from an editor still goes through the detection: which of the
+    // two ways a file is read is decided by the file, not by the user.
+    await step('a drawing from an editor is not mistaken for one of ours', `(async () => {
+        const { restoreDocument } = await import('/js/restore.js');
+        const text = await (await fetch('/src_doc/files/PG_2m1v2s_S-S_figma_draft.svg')).text();
+        return { restored: restoreDocument(text) };
+    })()`, { restored: null });
+
+    // Now the app itself, through the file input it always uses. This is the
+    // file the detection could only say "no shapes but the background" about.
+    await session.send('Page.navigate', { url: `http://localhost:${appPort}/index.html` });
+    await waitUntil(session, `document.body.dataset.ready === 'true'`);
+    {
+        const doc = await session.send('DOM.getDocument');
+        const { nodeId } = await session.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: '#file_input' });
+        await session.send('DOM.setFileInputFiles', {
+            nodeId, files: [path.join(root, 'src_doc', 'examples', 'CC2_4m7v26s_S-R-S-S.svg')],
+        });
+        await waitUntil(session, `document.body.dataset.loaded === 'true'`);
+        await sleep(400);
+    }
+
+    await step('a file of ours loads, where the detection saw only a background', `(() => ({
+        subjects: document.querySelectorAll('#sub_list .sub_block').length,
+        errorShown: document.getElementById('error_bar').classList.contains('is_visible'),
+        preview: !!document.querySelector('#preview_svg svg'),
+        toolbar: getComputedStyle(document.getElementById('settings_toolbar')).display !== 'none',
+    }))()`, { subjects: 26, errorShown: false, preview: true, toolbar: true });
+
+    await step('the settings on the bar are the ones the file was written with', `(() => {
+        const at = (id) => document.getElementById(id).value;
+        return {
+            out: at('line_out'), in: at('line_in'),
+            angle: at('hatch_angle'), hatchWidth: at('hatch_width'), coverage: at('hatch_coverage'),
+            bottom: at('offset_bottom'), top: at('offset_top'),
+            size: document.getElementById('indicators_label').textContent,
+        };
+    })()`, {
+        out: '2', in: '2', angle: '45°', hatchWidth: '6', coverage: '30 %',
+        bottom: '70', top: '0', size: 'Индикаторы Ø32',
+    });
+
+    // s6 is one of the subjects whose frame was narrowed by hand and whose
+    // indicators were pushed off their corners: the two things the sidebar
+    // holds, and both have to be sitting in its fields.
+    await session.evaluate(`[...document.querySelectorAll('#sub_list .sub_num')][6].click()`);
+    await sleep(300);
+    await step('the click area and the indicator nudges are in the sidebar', `(() => {
+        const at = (id) => document.getElementById(id).value;
+        return {
+            left: at('click_left'), top: at('click_top'), right: at('click_right'), bottom: at('click_bottom'),
+            oldRepairX: at('ind_old_repair_x'), oldRepairY: at('ind_old_repair_y'),
+            insertX: at('ind_insert_x'), failX: at('ind_fail_x'),
+        };
+    })()`, {
+        left: '-53', top: '0', right: '-1', bottom: '0',
+        oldRepairX: '32', oldRepairY: '0', insertX: '16', failX: '0',
+    });
+
+    // And the journey the user actually makes: a sketch loaded, the settings
+    // changed, the file written, the file opened again. The preview holds the
+    // copy of what would be exported, so it stands in for the disk.
+    await session.send('Page.navigate', { url: `http://localhost:${appPort}/index.html` });
+    await waitUntil(session, `document.body.dataset.ready === 'true'`);
+    {
+        const doc = await session.send('DOM.getDocument');
+        const { nodeId } = await session.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: '#file_input' });
+        await session.send('DOM.setFileInputFiles', {
+            nodeId, files: [path.join(root, 'src_doc', 'files', 'PG_2m1v2s_S-S_figma_draft.svg')],
+        });
+        await waitUntil(session, `document.body.dataset.loaded === 'true'`);
+        await sleep(400);
+    }
+
+    await session.evaluate(`(() => {
+        const type = (id, value) => {
+            const input = document.getElementById(id);
+            input.focus();
+            input.value = value;
+            input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+            input.blur();
+        };
+        type('line_out', '6');
+        type('line_in', '3');
+        type('hatch_angle', '60');
+        type('hatch_width', '7');
+        type('hatch_coverage', '25');
+        type('offset_top', '40');
+        type('offset_bottom', '120');
+        document.querySelector('#sub_list .sub_num').click();       // s0, for the sidebar
+        type('click_left', '18');
+        type('click_bottom', '-5');
+        type('ind_insert_x', '12');
+        type('ind_insert_y', '-9');
+    })()`);
+    await sleep(400);
+
+    await step('what was set here is what comes back out of the file', `(async () => {
+        const { restoreDocument } = await import('/js/restore.js');
+        const r = restoreDocument(document.getElementById('preview_svg').innerHTML);
+        if (!r) return { restored: false };
+        const s = r.subjects[0];
+        return {
+            subjects: r.subjects.length,
+            out: r.params.stOutWidth, inner: r.params.stInWidth,
+            hatch: [r.params.hatchAngle, r.params.hatchLineWidth, r.params.hatchCoverage],
+            padding: [r.params.topPadding, r.params.bottomPadding],
+            click: [s.clickArea.left, s.clickArea.bottom, s.clickArea.top, s.clickArea.right],
+            insert: [s.indicatorOffsets.insert.x, s.indicatorOffsets.insert.y],
+            untouched: JSON.stringify(r.subjects[1].clickArea),
+        };
+    })()`, {
+        subjects: 2, out: 6, inner: 3, hatch: [60, 7, 25], padding: [40, 120],
+        click: [18, -5, 0, 0], insert: [12, -9],
+        untouched: '{"top":0,"right":0,"bottom":0,"left":0}',
+    });
+
+    // ---- the two switch strips ----------------------------------------------
+
+    // A 26px toggle is a small thing to hit, so the whole strip answers: the
+    // switch, its label and the space around them. The slider shares the
+    // indicators' strip and keeps its own clicks.
+    await session.send('Page.navigate', { url: `http://localhost:${appPort}/index.html` });
+    await waitUntil(session, `document.body.dataset.ready === 'true'`);
+    {
+        const doc = await session.send('DOM.getDocument');
+        const { nodeId } = await session.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: '#file_input' });
+        await session.send('DOM.setFileInputFiles', {
+            nodeId, files: [path.join(root, 'src_doc', 'files', 'PG_2m1v2s_S-S_figma_draft.svg')],
+        });
+        await waitUntil(session, `document.body.dataset.loaded === 'true'`);
+        await sleep(400);
+    }
+
+    {
+        const mouse = async (type, x, y) => session.send('Input.dispatchMouseEvent', {
+            type, x, y, button: 'left', buttons: type === 'mouseReleased' ? 0 : 1, clickCount: 1, pointerType: 'mouse',
+        });
+        const clickAt = async (at) => {
+            await mouse('mousePressed', at.x, at.y);
+            await mouse('mouseReleased', at.x, at.y);
+            await sleep(200);
+        };
+        // The middle of an element, and the middle of the gap between two.
+        const middle = (selector) => `(() => {
+            const r = document.querySelector('${selector}').getBoundingClientRect();
+            return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+        })()`;
+        const between = (left, right) => `(() => {
+            const a = document.querySelector('${left}').getBoundingClientRect();
+            const b = document.querySelector('${right}').getBoundingClientRect();
+            return { x: Math.round((a.right + b.left) / 2), y: Math.round(a.top + a.height / 2) };
+        })()`;
+        const switches = `(() => ({
+            indicators: document.getElementById('indicators_switch').classList.contains('is_on'),
+            cursor: document.getElementById('cursor_switch').classList.contains('is_on'),
+            size: document.getElementById('indicators_label').textContent,
+            drawn: [...document.querySelectorAll('.hl_cursor')]
+                .filter(m => getComputedStyle(m).visibility === 'visible').length,
+        }))()`;
+
+        await step('both strips start switched on', switches,
+            { indicators: true, cursor: true, size: 'Индикаторы Ø45', drawn: 0 });
+
+        await clickAt(await session.evaluate(middle('#indicators_label')));
+        await step('the indicators label is the switch', switches,
+            { indicators: false, cursor: true, size: 'Индикаторы Ø45', drawn: 0 });
+
+        await clickAt(await session.evaluate(between('#indicators_switch', '#indicators_label')));
+        await step('and so is the space between the switch and the label', switches,
+            { indicators: true, cursor: true, size: 'Индикаторы Ø45', drawn: 0 });
+
+        await clickAt(await session.evaluate(middle('#indicators_switch')));
+        await step('the switch itself still answers once, not twice', switches,
+            { indicators: false, cursor: true, size: 'Индикаторы Ø45', drawn: 0 });
+        await clickAt(await session.evaluate(middle('#indicators_switch')));
+
+        // The slider sits on the same strip. A click on it picks a size - and
+        // a size the indicators are not showing at is worth showing, so it
+        // turns them on - but it is never the strip being clicked.
+        await clickAt(await session.evaluate(`(() => {
+            const r = document.getElementById('indicators_slider').getBoundingClientRect();
+            return { x: Math.round(r.left + r.width * 0.2), y: Math.round(r.top + r.height / 2) };
+        })()`));
+        await step('the slider keeps its own clicks', switches,
+            { indicators: true, cursor: true, size: 'Индикаторы Ø24', drawn: 0 });
+
+        // Dragged off the slider and let go over the label: the pointer is the
+        // slider's until it comes up, so the strip must not hear about it.
+        {
+            const from = await session.evaluate(`(() => {
+                const r = document.getElementById('indicators_slider').getBoundingClientRect();
+                return { x: Math.round(r.left + r.width * 0.8), y: Math.round(r.top + r.height / 2) };
+            })()`);
+            const onto = await session.evaluate(middle('#indicators_label'));
+            await mouse('mousePressed', from.x, from.y);
+            await mouse('mouseMoved', onto.x, onto.y);
+            await mouse('mouseReleased', onto.x, onto.y);
+            await sleep(200);
+            await step('a drag that ends on the label is still the slider', switches,
+                { indicators: true, cursor: true, size: 'Индикаторы Ø20', drawn: 0 });
+        }
+
+        // The cursor strip has nothing on it but the switch and its label, so
+        // all of it answers. The triangle only shows with a subject picked out.
+        await session.evaluate(`document.querySelector('#sub_list .sub_num').click()`);
+        await sleep(200);
+        await clickAt(await session.evaluate(middle('#cursor_settings .settings_label')));
+        await step('the cursor label is the switch', switches,
+            { indicators: true, cursor: false, size: 'Индикаторы Ø20', drawn: 0 });
+
+        await clickAt(await session.evaluate(between('#cursor_switch', '#cursor_settings .settings_label')));
+        await step('and so is the space beside it', switches,
+            { indicators: true, cursor: true, size: 'Индикаторы Ø20', drawn: 1 });
+    }
+
     if (errors.length) {
         failures++;
         console.log('\nPage errors:');

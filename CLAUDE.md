@@ -38,6 +38,7 @@ index.html            точка входа (в корне — этого тре
 css/styles.css
 js/geometry.js        разбор путей, матрицы, аналитические bbox (чистый модуль, без DOM)
 js/detect.js          поиск субъектов и ролей fill/stroke во входном файле
+js/restore.js         reads a file this app wrote back into subjects + params
 js/template.js        сборка выходного svg по шаблону КОМПАКС
 js/indicators.js      7 наборов индикаторов (20..60 px), вынуты из старых шаблонов
 js/app.js             связывание: загрузка → разбор → сборка → предпросмотр → экспорт
@@ -93,6 +94,7 @@ the window would hang around after the browser opens.
 | Indicator positions | `indicator_position_settings` under the click area block, for the selected subject: an X and a Y field per indicator, in the same three columns (old_repair over old_sost, insert, old_lock over fail). Clicking an indicator in the drawing picks it out - which shows on its pair of fields, outlined in `--accent`, and nowhere in the drawing itself - and the arrow keys then move it, 1px a press and 10 with Shift. Every indicator on show can be clicked, on any subject, selected or not; being switched off on the toolbar is the one thing that takes their hit areas away. Shift and a click gathers a group: the indicator clicked joins the ones already picked, or leaves them if it was one of them, and the arrows then move all of them at once. The subject with the say stays the first one's - that is the one the sidebar is showing - and the subjects of the others are only lit. Alt and a letter lines a group up, read by where the key sits rather than by which letter it types, since the layout may be Cyrillic: `KeyA`/`KeyD`/`KeyW`/`KeyS` put their left, right, top or bottom edges on the outermost of the group, and `KeyH`/`KeyV` put their middles on the first one picked - `KeyH` on one vertical line, `KeyV` on one horizontal. Every indicator is the same square, so lining up an edge and lining up a middle are the same move - only the line drawn afterwards differs. That line is the one the snapping uses (`hl_guide`), and it stays until the next click or arrow. The group is put down by Esc, by a click on anything that is not an indicator, or by a click on one without Shift, which starts a new group (a listener on the way in, since the drawing stops its clicks on the way out). The offsets are part of the file: they are the `x`/`y` of the `<use>`. Its `reset_button` puts the five indicators of the subject on show back in their corners, and reaches no further than that subject |
 | Undo, and R | Ctrl+Z puts back the last change to a click area or an indicator, and only that one: there is no history, and nothing to redo. What counts as one change is a gesture, not a keystroke - a whole border drag, a whole number typed into one field, a whole group moved by one arrow press or lined up by one alignment - which `keep(token, before)` does by ignoring a second snapshot from a gesture that already has one. The step is a copy of every subject's `clickArea` and `indicatorOffsets`, dropped when a subject is added, removed or reordered, since it could no longer be put back. R gives the selected subject both its click area and its five indicators back at once; neither key reaches past a field being typed into, where the browser's own undo is the one wanted |
 | Offsets | `offset_settings` on the bar, after the hatching: the empty space under the object (70px, which the format has always had) and as much above it as is asked for. Both are part of the document - the viewBox grows and its y moves up - and the file is rebuilt as they are typed. While one of the two fields has the focus, its strip is lit the way a selected subject is and the edge of the whole document is drawn round it in `#FF00FB`, 14px of line and 14px of gap as on the drop frame (`non-scaling-stroke`, stroked at double width so the outer half is clipped away). An offset is about the document, not about a subject, so reaching for one of these fields puts down whatever subject and indicator were picked; letting go of the field takes the lighting away and leaves the offset |
+| Switch strips | A 26px toggle is a small thing to aim at, so the whole strip is the switch: `cursor_settings` answers to a click anywhere on it, and so does `indicators_settings` - the switch, the label and the space around them. The slider shares the indicators' strip and keeps its own clicks (`#indicators_slider` is let through), which a drag let go of over the label proves: the pointer is the slider's until it comes up |
 | Cursor | A triangle to the proportions of `design/icons/pointer.svg`, drawn on the highlight layer at the foot of the selected subject's click area: a third of the average subject's width, 0.8 of that in height, its tip a third of its own height inside the bottom border. The switch in `cursor_settings` (before `indicators_settings`, `data-drop="6"`) changes the preview only |
 | Объём | Не переносить функциональность старого конструктора, пока не попросят |
 | Язык интерфейса | Русский |
@@ -101,6 +103,7 @@ the window would hang around after the browser opens.
 | Проверка ввода | **Нет никакой.** Что пользователь ввёл в поле, то и попадает в файл |
 | Первый экран | Пока ни в одном поле ничего нет: в списке один раскрытый `s0`, залитый `upload_button`, `download_button` и `copy_button` скрыты, вместо предпросмотра — зона перетаскивания, панель настроек тоже спрятана (настраивать нечего). Как только в поле появляется текст (или загружается файл), экран становится обычным |
 | Удаление субъекта | Последний субъект удалить нельзя: при единственной строке `delete_sub_button` не рисуется вовсе |
+| Opening one of our own files | A file already in the KOMPAKS format is read back as it stands rather than detected: the same file comes out again, with every setting it was written with. Which of the two readings a file gets is decided by the file (`js/restore.js`, `isTemplateDocument`), never by the user, and **`detect.js` is not touched for it** - it answers a different question and answers it correctly |
 
 **Ограничение браузера:** сохранение в исходную папку работает только в Chrome и
 Edge (File System Access API). В Firefox и Safari файл скачивается в папку
@@ -218,6 +221,13 @@ PG → `x1=354 x2=51 y2=303`, `L=428.51`, **130 стопов**.
 
 ## 5. Как распознаются субъекты
 
+This is for a drawing from an editor. A file this application wrote never
+reaches any of it: `restore.js` recognises the format first (see section 5a),
+and the detection would find nothing anyway - everything drawable lives in
+`<defs>`, so the only shape outside them is the full-bleed rect of `layer_o`,
+which it throws away as a background. That is the "В файле нет фигур, кроме
+фона." the app used to answer one of its own files with.
+
 Три стратегии, побеждает первая подходящая:
 
 1. **По именам слоёв.** Illustrator экранирует имена, начинающиеся с цифры:
@@ -244,6 +254,38 @@ PG → `x1=354 x2=51 y2=303`, `L=428.51`, **130 стопов**.
 поэтому чтение атрибутов не годится: файл монтируется в shadow root и читается
 через `getComputedStyle`. Shadow root нужен, чтобы классы `.st0`/`.st1` из
 чужого файла не протекли в стили приложения.
+
+---
+
+## 5a. How a file of our own is read back
+
+`js/restore.js`. The file is recognised by `layer_s0_frame` + `layer_s0` +
+`layer_o`; anything else is a drawing and goes to `detect.js`. Nothing is
+guessed - every number is read back through the one formula that wrote it:
+
+| what | where it is read from |
+|---|---|
+| `stOutWidth`, `stInWidth` | `.st_out` / `.st_in` `stroke-width` in `<style>` |
+| `indicatorDiameter` | `cx` of `#circle`, which is D/2 in every prepared set; `.icons_st_out` width is the fallback. Snapped to a prepared size, since only those can be rebuilt |
+| `indicatorScale` | `.scale {transform:scale(...)}` |
+| `hatchAngle` | tried against the gradient vector: it is written with no decimals, so the angle is whichever integer 0..180 writes the file's four numbers |
+| `hatchLineWidth`, `hatchCoverage` | the first four stops - the first pair ends one line width along the vector, the second starts one full period along it |
+| `clickArea` | `layer_sN_frame`'s rect against the subject's own rectangle (the fill bbox grown by the outer stroke) |
+| `indicatorOffsets` | the `x`/`y` of each indicator's `<use>` against where Instruction.pdf 5.5 puts it |
+| `topPadding`, `bottomPadding` | the `viewBox` against the artwork bounds `computeLayout` works out from the subjects just read |
+
+Geometry is **not** rebuilt: the markup inside `layer_sN_fill` and
+`layer_sN_stroke_in` is cut out of the source text, not serialised from the
+parsed DOM, which would re-quote attributes and self-close empty tags. Only the
+newline and indent the builder put around it are stripped - trailing spaces on
+the markup's own line are part of what was written and are kept, which is why a
+reference file survives the round trip byte for byte.
+
+Everything read is rounded to two decimals, which is what the file holds, and
+clamped to the range of the field that shows it. A difference below 0.01 is
+therefore noise from `toFixed(2)` and reads as 0: with five of the six
+references, every click area comes back at exactly 0, and `CC2` - the one whose
+frames were edited by hand - is the only one that comes back with any.
 
 ---
 
@@ -303,6 +345,27 @@ reaching for a field lights its strip and the edge of the document and puts down
 whatever was picked, typing grows the document without moving the artwork, and
 letting go leaves the offset but not the lighting.
 
+Reading our own files back has a section of its own at the end. The three
+references with something to say - `PV`, `PK` and `CC2` - are restored and built
+again inside the page (the modules are imported into it, since what is being
+checked is a file going in and the same file coming out, which the sidebar can
+only show a corner of): the frames, the indicator coordinates and the `viewBox`
+come back where the file has them, the parameters read are the ones the file was
+written with, and a second pass gives the same file byte for byte. A sketch from
+an editor is checked to be left to the detection. Then the app itself: `CC2`
+goes in through the real file input - 26 subjects, no error bar, Ø32 indicators
+and a 6px hatch on the toolbar - and the click area and indicator fields of s6,
+whose frame was narrowed by hand, hold what the file has. Last, the journey the
+user makes: a sketch is loaded, seven settings, two borders and one indicator
+are typed in, and what the preview holds - the copy of what would be exported -
+is read back and has to say what was typed.
+
+The two switch strips have a short section of their own at the very end: the
+label toggles, the gap between the switch and the label toggles, the switch
+still toggles once and not twice now that its click bubbles to the strip, a
+click on the slider changes the size and leaves the switch alone, and a drag
+started on the slider and let go of over the label does the same.
+
 Окно браузера в тесте — 1600×900: панель настроек нарисована под 1920, и в узком
 окне её элементы обрезаются, а клики по ним попадают в сегменты слоёв. Проверки,
 которым нужна другая ширина, ставят её через `Emulation.setDeviceMetricsOverride`
@@ -330,11 +393,12 @@ letting go leaves the offset but not the lighting.
 
 ## 7. Известные ограничения и что делать дальше
 
-1. **Offsets are set by hand, never read.** Indicators can now be nudged one by
-   one, which is what the `PG`, `CC2` and `Object` references did, but a file
-   arriving from the editor always starts with every offset at 0: nothing reads
-   the positions back out of an existing KOMPAKS file. Rebuilding one of those
-   references means moving its indicators again by hand.
+1. **A drawing from an editor always starts on the defaults.** Click areas and
+   indicator nudges come back out of a file this application wrote (section 5a),
+   but a sketch has nowhere to keep them, so it begins with every one of them at
+   zero. Rebuilding a reference such as `PG` or `CC2` from its own draft still
+   means moving its indicators by hand - though the reference itself can now be
+   opened, and it arrives with every nudge it was drawn with.
 2. **Наборы индикаторов временные.** В `js/indicators.js` лежат семь наборов из
    старого конструктора (20…60 px) — пользователь сказал, что настоящие шаблоны
    подготовит позже. Заменяются целиком: формат таблицы (`strokeWidth` + `icons`)
@@ -358,6 +422,15 @@ letting go leaves the offset but not the lighting.
 
 ## 8. Чего не делать
 
+* Do not touch `detect.js` for a file of our own. It answers a different
+  question - which shape in a sketch is a silhouette and which is line art -
+  and it answers it correctly. A file already in the format is a different job,
+  and it lives in `restore.js`.
+* Do not rebuild the geometry when reading one of our files: the markup in the
+  two defs groups is cut out of the text as it stands. Serialising the parsed
+  DOM instead would re-quote attributes and self-close empty tags, and the
+  format allows neither; the code fields would also stop showing exactly what
+  the user pasted in.
 * Не брать вёрстку и поведение из `src_doc/svg_constructor` — только формулы и
   шаблонные строки.
 * Не собирать выходной svg через сериализацию живого DOM: старая версия так

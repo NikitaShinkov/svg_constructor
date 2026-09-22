@@ -1,6 +1,7 @@
 // Wiring: upload -> detect -> build -> preview / subject list / download.
 
 import { detectSubjects, parseGeometryFragment } from './detect.js';
+import { restoreDocument } from './restore.js';
 import { buildSvg, computeLayout, PARAMS, clickArea, indicatorOffsets, INDICATOR_KEYS } from './template.js';
 import { INDICATOR_SIZES } from './indicators.js';
 
@@ -23,6 +24,7 @@ const ui = {
     overlay: el('drop_overlay'),
     errorBar: el('error_bar'),
     indicatorSwitch: el('indicators_switch'),
+    indicatorsBlock: el('indicators_settings'),
     indicatorLabel: el('indicators_label'),
     slider: el('indicators_slider'),
     sliderFilled: el('slider_filled'),
@@ -32,6 +34,7 @@ const ui = {
     segments: el('segments'),
     layerName: el('layer_name'),
     cursorSwitch: el('cursor_switch'),
+    cursorBlock: el('cursor_settings'),
     clickBlock: el('click_area_settings'),
     resetClick: el('reset_button'),
     indBlock: el('indicator_position_settings'),
@@ -180,8 +183,14 @@ async function load(file, handle) {
     }
     try {
         const text = await file.text();
-        const { subjects } = detectSubjects(text);
+        // A file this application wrote is read back as it stands - every
+        // subject, every border and every indicator where the file has it -
+        // and only a drawing from an editor goes through the detection.
+        const restored = restoreDocument(text);
+        const subjects = restored ? restored.subjects : detectSubjects(text).subjects;
         if (!subjects.length) throw new Error('Не удалось найти субъекты в файле.');
+        // The settings are the file's own, so the toolbar shows what it says.
+        if (restored) state.params = restored.params;
 
         state.fileName = file.name;
         state.fileHandle = handle;
@@ -195,6 +204,7 @@ async function load(file, handle) {
         // A single subject is shown expanded; with several, start collapsed.
         subjects.forEach((s) => { s.isOpen = subjects.length === 1; });
 
+        if (restored) syncParamControls();
         clearError();
         rebuild();
         renderSubList();
@@ -1684,7 +1694,13 @@ function setIndicators(on) {
     paintHighlights();
 }
 
-ui.indicatorSwitch.addEventListener('click', () => setIndicators(!state.preview.indicators));
+// The whole strip is the switch: the label and the space around it answer to a
+// click too, which is a far bigger target than a 26px toggle. The slider is a
+// control of its own and keeps its own clicks.
+ui.indicatorsBlock.addEventListener('click', (e) => {
+    if (e.target.closest('#indicators_slider')) return;
+    setIndicators(!state.preview.indicators);
+});
 
 // ---- cursor switch
 
@@ -1698,7 +1714,8 @@ function setCursor(on) {
     paintHighlights();
 }
 
-ui.cursorSwitch.addEventListener('click', () => setCursor(!state.preview.cursor));
+// The strip is the switch here as well, and there is nothing else on it.
+ui.cursorBlock.addEventListener('click', () => setCursor(!state.preview.cursor));
 
 // ---- indicator size slider
 
@@ -1779,6 +1796,7 @@ const FIELDS = [
     { id: 'offset_top', key: 'topPadding', offset: 'top' },
 ];
 
+/** @returns {() => void} puts what the parameters say into the field. */
 function setUpField({ id, key, hatch, offset }) {
     const input = el(id);
     const min = Number(input.dataset.min);
@@ -1841,9 +1859,17 @@ function setUpField({ id, key, hatch, offset }) {
     });
 
     show();
+    return show;
 }
 
-FIELDS.forEach(setUpField);
+const paramFields = FIELDS.map(setUpField);
+
+/** Puts what the parameters say into the toolbar - after a file brought its own. */
+function syncParamControls() {
+    paramFields.forEach((show) => show());
+    paintSlider();
+    layoutToolbar();    // the size label grows and shrinks with the number in it
+}
 
 // ---------------------------------------------------------------- sidebar resize
 

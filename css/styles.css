@@ -118,6 +118,14 @@ body {
 
 .settings_label { white-space: nowrap; }
 
+/* Both switch strips answer to a click anywhere on them, bar the slider, which
+   carries its own cursor and keeps its own clicks (see app.js). */
+.cursor_settings,
+.indicators_settings {
+    cursor: pointer;
+    user-select: none;
+}
+
 /* Dropped whole when the bar runs out of room, in the order set in app.js. */
 .settings_toolbar .is_hidden { display: none; }
 

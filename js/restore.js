@@ -18,7 +18,7 @@
 //                                      silhouette's own bounding box
 //   the indicator <use> x/y         -> that indicator's nudge, against the
 //                                      place Instruction.pdf 5.5 puts it
-//   viewBox against the artwork     -> the two document offsets
+//   viewBox and the layers' offset  -> the two document offsets
 //
 // Nothing here rewrites geometry: the markup inside layer_sN_fill and
 // layer_sN_stroke_in is lifted out of the text as it stands, so a file that is
@@ -178,6 +178,23 @@ function readHatch(grad, width, height) {
     return out;
 }
 
+/**
+ * How far the layers were pushed down, or null when nothing pushed them.
+ *
+ * KOMPAKS ignores a negative viewBox origin, so the space above the object is
+ * written as an inline transform on a group around the layers rather than into
+ * the box (template.js). A file written before that carried it in the origin
+ * instead, and reads back as no transform at all.
+ */
+function readTopShift(svgEl) {
+    for (const el of Array.from(svgEl.children)) {
+        if (el.tagName.toLowerCase() !== 'g' || el.getAttribute('id')) continue;
+        const m = /translate\(\s*[-\d.]+[\s,]+([-\d.]+)/.exec(el.getAttribute('transform') || '');
+        if (m) return num(m[1], 0);
+    }
+    return null;
+}
+
 /** The four numbers of a viewBox, or null. */
 function readViewBox(svgEl) {
     const parts = (svgEl.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
@@ -290,7 +307,11 @@ export function restoreDocument(svgText) {
 
     const view = readViewBox(svgEl);
     if (view) {
-        const top = clamp(round2(layout.y - view.y), ...RANGE.topPadding);
+        // The space above the object is whatever moved the layers down, plus
+        // whatever the box starts above the artwork. One of the two is always
+        // zero: the transform is what the builder writes now, the origin is
+        // what it used to write, and this reads either.
+        const top = clamp(round2((readTopShift(svgEl) || 0) + layout.y - view.y), ...RANGE.topPadding);
         params.topPadding = top;
         params.bottomPadding = clamp(round2(view.h - layout.h - top), ...RANGE.bottomPadding);
     }

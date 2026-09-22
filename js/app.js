@@ -241,7 +241,7 @@ function rebuild() {
 // state.output alone.
 const LAYERS = ['otlichno', 'norm', 'tpm', 'ndp', 'repair', 'background'];
 const LAYER_NAMES = {
-    otlichno: 'Отлично',
+    otlichno: 'ХОР',
     norm: 'ДОП',
     tpm: 'ТПМ',
     ndp: 'НДП',

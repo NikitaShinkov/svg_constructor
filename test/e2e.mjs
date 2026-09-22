@@ -869,7 +869,7 @@ try {
     })()`, {
         order: 'otlichno,norm,tpm,ndp,repair,background',
         chosen: 'otlichno',
-        name: 'Отлично',
+        name: 'ХОР',
         ring: '2px rgb(255, 255, 255) solid',
         raised: '1',
         showing: 'otlichno',
@@ -900,7 +900,7 @@ try {
     await step('leaving the segments falls back to the one last clicked', `(() => {
         document.getElementById('segments').dispatchEvent(new MouseEvent('mouseleave'));
         return { showing: ${shownLayers}, name: document.getElementById('layer_name').textContent };
-    })()`, { showing: 'otlichno', name: 'Отлично' });
+    })()`, { showing: 'otlichno', name: 'ХОР' });
 
     await step('clicking a segment keeps it after the cursor leaves', `(() => {
         const seg = document.querySelector('#segments [data-layer="repair"]');
@@ -1162,7 +1162,7 @@ try {
             showing: ${shownLayers},
             name: document.getElementById('layer_name').textContent,
         };
-    })()`, { value: '46°', showing: 'otlichno', name: 'Отлично' });
+    })()`, { value: '46°', showing: 'otlichno', name: 'ХОР' });
 
     await step('hatch width and coverage change the stripes', `(() => {
         const count = () => document.querySelectorAll('#preview_svg #linear_grad stop').length;
@@ -1273,19 +1273,36 @@ try {
         const svg = document.querySelector('#preview_svg svg');
         const band = [...document.querySelectorAll('.hl_offset')].find(b => b.dataset.side === 'top');
         const r = document.querySelector('#preview_svg #layer_o_background rect');
+        // The offset is the group the layers sit in, not the origin of the
+        // box: KOMPAKS reads the height but ignores a negative origin, and
+        // would leave the space at the foot of the object instead.
+        const wrap = [...svg.children].find(el => el.tagName === 'g' && !el.id);
         return {
             viewBox: svg.getAttribute('viewBox'),
             size: [svg.getAttribute('width'), svg.getAttribute('height')].join(','),
-            // layer_o covers the whole document, offsets and all.
+            // An inline attribute: the stylesheet is not read for this one.
+            transform: wrap ? wrap.getAttribute('transform') : null,
+            wraps: wrap ? [...wrap.children].map(el => el.id).join(',') : '',
+            // layer_o covers the whole document, offsets and all, and is not
+            // in the group: its rect is the box, not the object inside it.
             layerO: ['x', 'y', 'width', 'height'].map(a => r.getAttribute(a)).join(','),
+            outside: r.closest('g[transform]') === null,
+            // And nothing in the file sits above the origin any more.
+            // Nothing in this file is drawn above or left of the origin, so
+            // no attribute in it may begin with a minus.
+            negatives: document.getElementById('preview_svg').innerHTML.includes('="-'),
             band: ['x', 'y', 'width', 'height'].map(a => Math.round(Number(band.getAttribute(a)))).join(','),
             // The artwork itself has not moved.
             s0Frame: document.querySelector('#preview_svg #layer_s0_frame rect').getAttribute('y'),
         };
     })()`, {
-        viewBox: '0.00 -40.00 354.00 362.00',
+        viewBox: '0.00 0.00 354.00 362.00',
         size: '354.00,362.00',
-        layerO: '0.00,-40.00,354.00,362.00',
+        transform: 'translate(0 40.00)',
+        wraps: 'layer_s0,layer_s1',
+        layerO: '0.00,0.00,354.00,362.00',
+        outside: true,
+        negatives: false,
         band: '0,-40,354,40',
         s0Frame: '0.00',
     });
@@ -1297,7 +1314,7 @@ try {
         bounds: document.querySelectorAll('.hl_bounds.is_on').length,
         top: document.getElementById('offset_top').value,
         viewBox: document.querySelector('#preview_svg svg').getAttribute('viewBox'),
-    }))()`, { bands: 0, bounds: 0, top: '40', viewBox: '0.00 -40.00 354.00 362.00' });
+    }))()`, { bands: 0, bounds: 0, top: '40', viewBox: '0.00 0.00 354.00 362.00' });
 
     // The other field lights the strip at the foot of the document.
     await session.evaluate("document.getElementById('offset_bottom').focus()");
@@ -1319,8 +1336,10 @@ try {
     await sleep(250);
     await step('back to no offset above, and the document is as it was', `(() => {
         const svg = document.querySelector('#preview_svg svg');
-        return [svg.getAttribute('viewBox'), svg.getAttribute('height')].join(' | ');
-    })()`, '0.00 0.00 354.00 322.00 | 322.00');
+        // And the group goes with the offset that called for it.
+        const wrap = [...svg.children].find(el => el.tagName === 'g' && !el.id);
+        return [svg.getAttribute('viewBox'), svg.getAttribute('height'), String(!wrap)].join(' | ');
+    })()`, '0.00 0.00 354.00 322.00 | 322.00 | true');
 
     await backToTest();
 
@@ -2891,6 +2910,20 @@ try {
         untouched: '{"top":0,"right":0,"bottom":0,"left":0}',
     });
 
+    // A file exported before the offset moved out of the viewBox: the space
+    // above the object was the origin of the box then, and is still read.
+    await step('an offset written the old way is read where it used to be', `(async () => {
+        const { restoreDocument } = await import('/js/restore.js');
+        const now = document.getElementById('preview_svg').innerHTML;
+        // The same document as it would have been written before: nothing on
+        // the group, the box starting above the artwork, and layer_o with it.
+        const then = now
+            .split('translate(0 40.00)').join('translate(0 0)')
+            .split('viewBox="0.00 0.00').join('viewBox="0.00 -40.00')
+            .split('x="0.00" y="0.00" style="fill:none"').join('x="0.00" y="-40.00" style="fill:none"');
+        const r = restoreDocument(then);
+        return r ? { top: r.params.topPadding, bottom: r.params.bottomPadding } : { top: null, bottom: null };
+    })()`, { top: 40, bottom: 120 });
     // ---- the two switch strips ----------------------------------------------
 
     // A 26px toggle is a small thing to hit, so the whole strip answers: the

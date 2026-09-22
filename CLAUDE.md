@@ -83,7 +83,7 @@ the window would hang around after the browser opens.
 | Подсветка субъекта | Строка списка и фигура в предпросмотре подсвечивают друг друга: рамка `#FF00FB` толщиной во внешнюю обводку поверх фигуры и та же рамка заливкой 10 % под ней. Рисуется двумя отдельными слоями над и под предпросмотром — **в выгружаемый файл ничего не добавляется**. Щелчок мимо субъектов — и в предпросмотре, и в пустой части списка — сворачивает все строки |
 | Сохранение файла | `showSaveFilePicker` с `startIn` на исходный файл: то же имя, та же папка, пользователь подтверждает. Исходник не перезаписывается молча |
 | Параметры генерации | `settings_toolbar` над предпросмотром: размер индикаторов (ползунок по готовым шаблонам), толщина внешней и внутренней линий, угол, толщина и заполнение штриховки, отступы снизу и сверху. Поля показывают число без единиц: пиксели не подписываются нигде — ни здесь, ни в `click_area_settings`, ни в `indicator_position_settings`. Подписаны только `°` и ` %`, и на время правки они прячутся. Принимают только цифры; стрелки меняют на 1, с Shift — на 10 |
-| Подписи состояний | В интерфейсе слои называются «Отлично», «ДОП», «ТПМ», «НДП», «Ремонт», «Резерв». Это **только подписи**: слой с подписью «ДОП» — это `norm` (`layer_sN_norm`), и переименовывать его в коде или в файле нельзя |
+| Подписи состояний | В интерфейсе слои называются «ХОР», «ДОП», «ТПМ», «НДП», «Ремонт», «Резерв». Это **только подписи**: слой с подписью «ДОП» — это `norm` (`layer_sN_norm`), и переименовывать его в коде или в файле нельзя |
 | Что показывает предпросмотр | Выключатель индикаторов и `layer_selection_block` (6 сегментов состояний) **меняют только предпросмотр**: группы прячутся инлайновым `display` уже во вставленной копии, `state.output` не трогается. По умолчанию выбран `otlichno`. Наведение на сегмент показывает его слой, уход возвращает последний нажатый. Фокус в любом поле штриховки переключает на `background`, потеря фокуса возвращает прежний сегмент. Ползунок размера сам включает выключенные индикаторы: менять размер того, чего не видно, незачем |
 | Тесная панель | Панель настроек нарисована под 1920. Когда места не хватает, сначала ужимается ползунок, потом блоки убираются целиком — по возрастанию `data-drop` в разметке (сейчас `offset_settings` 1, `hatching_settings` 2, `lines_settings` 3, `layer_selection_block` 4, `indicators_settings` 5, `cursor_settings` 6). **Пороговых ширин нигде нет:** признак нехватки — `scrollWidth` против `clientWidth`, пересчёт по `ResizeObserver`. Новый блок достаточно дописать в html со своим `data-drop` |
 | Масштаб предпросмотра | Колесо мыши над `svg_privew_block`. Максимум — как сейчас, по размеру блока; минимум — 150 px по большей стороне. Хранится не размер, а место в диапазоне (`state.zoom`, 1 — максимум), поэтому при изменении ширины окна оба конца пересчитываются, а уровень остаётся прежним. Масштабируется `transform` всего `preview_stage`, чтобы слои подсветки не разъехались с рисунком |
@@ -93,7 +93,7 @@ the window would hang around after the browser opens.
 | Dragging a border | A 9px grab band on screen whatever the zoom, `ns-resize`/`ew-resize` under the cursor, and the file is rebuilt as the border travels. The bands belong to any lit subject, hovered or selected, and pressing one selects that subject, so a border can be taken hold of straight away. Alt mirrors the border across the middle of the area, so both sides travel together and the centre stays put. Within 3% of the subject's own width or height, a border takes the nearest line worth landing on: its own subject's edge (where the field reads 0), every other subject's shape and click area, and the four edges of the document. The line it is on is drawn right across the document, 1px in `#FF00FB` whatever the zoom, and goes as soon as the border leaves its reach; when the line is another subject's click area, that subject lights up as though the pointer were on it. The lines are worked out once, when the border is picked up - the document grows as a border travels, and a line that moved with it would be something to chase rather than to land on - and where two fall together (a click area and the shape inside it) the click area is the one kept, because it is the one that lights up. A typed number is left as typed. A border in hand owns the pointer until it is let go: no other subject lights up as it is carried over them, and the cursor stays the resize one (`cursor: inherit !important` on everything, because the hit areas under it carry cursors of their own and say so more specifically). What is under the pointer when it is let go is asked for with `elementFromPoint`, since resting on something is not an event |
 | Indicator positions | `indicator_position_settings` under the click area block, for the selected subject: an X and a Y field per indicator, in the same three columns (old_repair over old_sost, insert, old_lock over fail). Clicking an indicator in the drawing picks it out - which shows on its pair of fields, outlined in `--accent`, and nowhere in the drawing itself - and the arrow keys then move it, 1px a press and 10 with Shift. Every indicator on show can be clicked, on any subject, selected or not; being switched off on the toolbar is the one thing that takes their hit areas away. Shift and a click gathers a group: the indicator clicked joins the ones already picked, or leaves them if it was one of them, and the arrows then move all of them at once. The subject with the say stays the first one's - that is the one the sidebar is showing - and the subjects of the others are only lit. Alt and a letter lines a group up, read by where the key sits rather than by which letter it types, since the layout may be Cyrillic: `KeyA`/`KeyD`/`KeyW`/`KeyS` put their left, right, top or bottom edges on the outermost of the group, and `KeyH`/`KeyV` put their middles on the first one picked - `KeyH` on one vertical line, `KeyV` on one horizontal. Every indicator is the same square, so lining up an edge and lining up a middle are the same move - only the line drawn afterwards differs. That line is the one the snapping uses (`hl_guide`), and it stays until the next click or arrow. The group is put down by Esc, by a click on anything that is not an indicator, or by a click on one without Shift, which starts a new group (a listener on the way in, since the drawing stops its clicks on the way out). The offsets are part of the file: they are the `x`/`y` of the `<use>`. Its `reset_button` puts the five indicators of the subject on show back in their corners, and reaches no further than that subject |
 | Undo, and R | Ctrl+Z puts back the last change to a click area or an indicator, and only that one: there is no history, and nothing to redo. What counts as one change is a gesture, not a keystroke - a whole border drag, a whole number typed into one field, a whole group moved by one arrow press or lined up by one alignment - which `keep(token, before)` does by ignoring a second snapshot from a gesture that already has one. The step is a copy of every subject's `clickArea` and `indicatorOffsets`, dropped when a subject is added, removed or reordered, since it could no longer be put back. R gives the selected subject both its click area and its five indicators back at once; neither key reaches past a field being typed into, where the browser's own undo is the one wanted |
-| Offsets | `offset_settings` on the bar, after the hatching: the empty space under the object (70px, which the format has always had) and as much above it as is asked for. Both are part of the document - the viewBox grows and its y moves up - and the file is rebuilt as they are typed. While one of the two fields has the focus, its strip is lit the way a selected subject is and the edge of the whole document is drawn round it in `#FF00FB`, 14px of line and 14px of gap as on the drop frame (`non-scaling-stroke`, stroked at double width so the outer half is clipped away). An offset is about the document, not about a subject, so reaching for one of these fields puts down whatever subject and indicator were picked; letting go of the field takes the lighting away and leaves the offset |
+| Offsets | `offset_settings` on the bar, after the hatching: the empty space under the object (70px, which the format has always had) and as much above it as is asked for. Both are part of the document - the viewBox grows - and the file is rebuilt as they are typed. While one of the two fields has the focus, its strip is lit the way a selected subject is and the edge of the whole document is drawn round it in `#FF00FB`, 14px of line and 14px of gap as on the drop frame (`non-scaling-stroke`, stroked at double width so the outer half is clipped away). An offset is about the document, not about a subject, so reaching for one of these fields puts down whatever subject and indicator were picked; letting go of the field takes the lighting away and leaves the offset. The space above the object goes into the file as a shift of the group around the layers, never as the origin of the viewBox (section 4) |
 | Switch strips | A 26px toggle is a small thing to aim at, so the whole strip is the switch: `cursor_settings` answers to a click anywhere on it, and so does `indicators_settings` - the switch, the label and the space around them. The slider shares the indicators' strip and keeps its own clicks (`#indicators_slider` is let through), which a drag let go of over the label proves: the pointer is the slider's until it comes up |
 | Cursor | A triangle to the proportions of `design/icons/pointer.svg`, drawn on the highlight layer at the foot of the selected subject's click area: a third of the average subject's width, 0.8 of that in height, its tip a third of its own height inside the bottom border. The switch in `cursor_settings` (before `indicators_settings`, `data-drop="6"`) changes the preview only |
 | Объём | Не переносить функциональность старого конструктора, пока не попросят |
@@ -130,13 +130,20 @@ Edge (File System Access API). В Firefox и Safari файл скачивает�
    `_old_sost` → `_old_repair` → `_old_lock` → `_insert`
 5. `<g id="layer_o">` с пустыми `_background_off` / `_background_on` и `<rect>` на весь viewBox
 
+When there is space above the object, the `layer_sN` groups of step 4 - and
+only those - are wrapped in one unnamed `<g transform="translate(0 N)">`.
+`layer_o` stays outside it: its rect is the document, not the object being
+moved inside it. With no space above, there is no group and the file is what
+it always was.
+
 Обязательные правила:
 
 * каждая группа от `layer_sN` и ниже несёт `id` + такой же `inkscape:label` + `style="display:inline"`;
 * внутренние линии **чёрные** (`st_in st_b`) только для `norm` и `tpm`, во всех остальных белые (`st_in st_w`);
 * индикаторы позиционируются атрибутами `x`/`y` у `<use>`, **никогда** не `transform`;
 * `width` и `height` равны ширине и высоте `viewBox`;
-* к высоте `viewBox` прибавляется **+70 px** снизу (`bottomPadding`), к ширине — ничего. Сверху по умолчанию не прибавляется ничего (`topPadding` = 0), но оба отступа правятся на панели, и тогда `viewBox` растёт, а его `y` уходит вверх;
+* к высоте `viewBox` прибавляется **+70 px** снизу (`bottomPadding`), к ширине — ничего. Сверху по умолчанию не прибавляется ничего (`topPadding` = 0), но оба отступа правятся на панели, и тогда `viewBox` растёт;
+* **the `viewBox` never starts above the artwork.** KOMPAKS reads the height but ignores the origin: with `y="-70"` it draws the subjects from the top of the box and the offset ends up under the object instead of above it. The origin therefore stays the artwork's own top (`max(0, minY)`), and the space above is made by moving the object down - `transform="translate(0 N)"` on a group around the layers, **an attribute and not a class**, since the stylesheet is not read for this. Neither the `viewBox` nor `layer_o` ever holds a negative coordinate;
 * самозакрывающихся тегов нет: `<use ...></use>`;
 * числа `.toFixed(2)`; концы градиента `.toFixed(0)`; смещения стопов `.toFixed(2) + "%"`;
 * по п. 6.1 в файле **не допускается ничего**, чего нет в спецификации.
@@ -200,9 +207,19 @@ PG s1 `(227,1,126,250)` → `(226,0,128,252)`, Object s0 `(1,1,170,250)` → `(0
 | `_fail` | низ-право | `x + w − D` | `y + h − D` |
 | `_insert` | центр | `x + w/2 − D/2` | `y + h/2 − D/2` |
 
-`viewBox` = объединение рамок, расширенное отступами: `y = minY − topPadding`,
-высота `= objH + topPadding + bottomPadding`. Градиент считается по размеру
-объекта **до** отступов.
+`viewBox` = объединение рамок, расширенное отступами: высота
+`= objH + topPadding + bottomPadding`. Градиент считается по размеру объекта
+**до** отступов.
+
+The file and the app put the origin in different places, and that is the only
+thing they differ in. `computeLayout` hands out both: `viewY = minY −
+topPadding` and `viewBox` are the document's own coordinates, which the
+highlights, the offset bands and the border drags all work in;
+`fileViewY = max(0, minY)`, `fileViewBox` and
+`topShift = fileViewY + topPadding − minY` are what goes into the file. They
+differ by exactly `topShift`, which is why the highlight layers and the
+injected file line up to the pixel: the two boxes are the same width and
+height, so a point of the artwork lands on the same place on screen.
 
 ### Штриховка
 
@@ -272,7 +289,8 @@ guessed - every number is read back through the one formula that wrote it:
 | `hatchLineWidth`, `hatchCoverage` | the first four stops - the first pair ends one line width along the vector, the second starts one full period along it |
 | `clickArea` | `layer_sN_frame`'s rect against the subject's own rectangle (the fill bbox grown by the outer stroke) |
 | `indicatorOffsets` | the `x`/`y` of each indicator's `<use>` against where Instruction.pdf 5.5 puts it |
-| `topPadding`, `bottomPadding` | the `viewBox` against the artwork bounds `computeLayout` works out from the subjects just read |
+| `topPadding` | the `translate` on the group around the layers, plus however far the `viewBox` starts above the artwork - a file written before the transform carried it there instead, and one of the two is always zero |
+| `bottomPadding` | what is left of the `viewBox` height once the artwork and the top offset are taken off it |
 
 Geometry is **not** rebuilt: the markup inside `layer_sN_fill` and
 `layer_sN_stroke_in` is cut out of the source text, not serialised from the
@@ -343,7 +361,14 @@ The offsets have a handful of checks of their own, run at 1920 because the block
 is the first the bar gives up: the bottom field starts at the 70 the format has,
 reaching for a field lights its strip and the edge of the document and puts down
 whatever was picked, typing grows the document without moving the artwork, and
-letting go leaves the offset but not the lighting.
+letting go leaves the offset but not the lighting. Typing into the top one is
+also held to how the space above the object is written: the box still starts at
+the artwork, the layers are wrapped in a group carrying an inline
+`translate(0 40.00)`, `layer_o` is not in that group and still covers the whole
+document, no attribute in the file begins with a minus, and the group goes when
+the offset does. Reading it back has a check of its own beside the restore
+ones: the same file with the offset put where it used to be - in the origin of
+the box - still reads as the same 40.
 
 Reading our own files back has a section of its own at the end. The three
 references with something to say - `PV`, `PK` and `CC2` - are restored and built
@@ -422,6 +447,11 @@ started on the slider and let go of over the label does the same.
 
 ## 8. Чего не делать
 
+* Do not put the space above the object into the origin of the `viewBox`, and
+  do not make it a class. KOMPAKS reads the height of the box but ignores
+  where it starts, and does not read the stylesheet for this: the top offset
+  is a `transform` attribute on a group around the layers, and `layer_o` is
+  not in that group.
 * Do not touch `detect.js` for a file of our own. It answers a different
   question - which shape in a sketch is a silhouette and which is line art -
   and it answers it correctly. A file already in the format is a different job,

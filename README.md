@@ -37,6 +37,14 @@
   below the click area. The reset button there puts every indicator of every
   subject back into its corner.
 
+The space above the object is written as a shift of the group the subject
+layers are wrapped in (`transform="translate(0 N)"`, as an attribute - KOMPAKS
+does not read the stylesheet for this), not as the origin of the `viewBox`.
+The box grows upwards, but its `y` stays the artwork's own top: KOMPAKS
+ignores a negative origin, and the space would end up under the object
+instead of above it. `layer_o` stays outside that group - its rect describes
+the document, not the object being moved inside it.
+
 Индикаторы, состояния и штриховка резерва генерируются по шаблону — искать их
 в исходном файле не нужно. Свойства заливки и обводки из исходного файла не
 сохраняются: из него берётся только геометрия.
@@ -79,7 +87,8 @@ Which one is taken is decided by the file, not by the user:
    formulas that wrote it: the two line widths from `<style>`, the indicator
    set from `#circle`, the hatch angle and stripe from the gradient, each
    subject's click area from `layer_sN_frame`, each indicator's nudge from the
-   `x`/`y` of its `<use>`, and the two document offsets from the `viewBox`.
+   `x`/`y` of its `<use>`, and the two document offsets from the `viewBox`
+   and the group the layers sit in.
    The geometry is not rebuilt: the markup inside `layer_sN_fill` and
    `layer_sN_stroke_in` is lifted out of the text as it stands, so a file that
    is opened and saved again comes back the way it went in.

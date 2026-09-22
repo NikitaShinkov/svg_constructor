@@ -23,6 +23,8 @@ export const PARAMS = {
 
 const f2 = (v) => (Math.abs(v) < 0.005 ? 0 : v).toFixed(2);
 const f0 = (v) => (Math.abs(v) < 0.5 ? 0 : v).toFixed(0);
+// One more level in, for the block that goes inside the offset group.
+const indent = (block) => block.replace(/^(?=[^\n])/gm, '    ');
 
 /** Gradient vector for the hatched "Reserve" background. */
 export function hatchVector(width, height, angleDeg) {
@@ -310,11 +312,27 @@ export function computeLayout(subjects, params) {
     // measured from; viewY/viewH are the document.
     const viewH = objH + p.topPadding + p.bottomPadding;
     const viewY = minY - p.topPadding;
+
+    // The same document, written down the way KOMPAKS reads it. It takes the
+    // height of the viewBox but ignores its origin, so a box that starts above
+    // the artwork draws the subjects from the top of itself and leaves the
+    // empty space at the foot - the offset above the object arrives below it.
+    // The file therefore never starts its box above zero: it starts at the
+    // artwork's own top, and the space above the object is made by moving the
+    // object down instead, which buildSvg writes as an inline transform on a
+    // group around the layers. `topShift` is how far down, and it is never
+    // negative - an artwork that begins above zero is rebased the same way.
+    const fileViewY = Math.max(0, minY);
+    const topShift = fileViewY + p.topPadding - minY;
     return {
         p, frames, x: minX, y: minY, w: objW, h: objH, viewY, viewH,
-        // The preview highlights reuse this string, so their coordinate system
-        // is the file's own, down to the rounding.
+        // The document's own coordinates: what the preview highlights, the
+        // offset bands and the border drags all work in, and what the file
+        // used to be written in as well.
         viewBox: `${f2(minX)} ${f2(viewY)} ${f2(objW)} ${f2(viewH)}`,
+        // The file's, which differ by `topShift` and only ever by that.
+        fileViewY, topShift,
+        fileViewBox: `${f2(minX)} ${f2(fileViewY)} ${f2(objW)} ${f2(viewH)}`,
     };
 }
 
@@ -324,9 +342,11 @@ export function computeLayout(subjects, params) {
  */
 export function buildSvg(subjects, params) {
     const layout = computeLayout(subjects, params);
-    const { p, frames, w: objW, h: objH, viewH } = layout;
+    const { p, frames, w: objW, h: objH, viewH, topShift } = layout;
     const minX = layout.x;
-    const viewY = layout.viewY;
+    // The file's box, not the document's: see computeLayout. Everything written
+    // below is in the file's coordinates.
+    const viewY = layout.fileViewY;
 
     const set = indicatorSet(p);
 
@@ -345,7 +365,18 @@ export function buildSvg(subjects, params) {
         .map((s, i) => subjectLayer(i, frames[i].indicators))
         .join('');
 
-    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="${layout.viewBox}" width="${f2(objW)}" height="${f2(viewH)}">
+    // The space above the object, as an inline transform - a class would not do,
+    // KOMPAKS does not read the stylesheet for this. layer_o stays outside the
+    // group: its rect is the whole document, so it belongs to the box rather
+    // than to the object being moved inside it.
+    const body = topShift > 0
+        ? `    <g transform="translate(0 ${f2(topShift)})">
+${indent(layers)}    </g>
+
+`
+        : layers;
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="${layout.fileViewBox}" width="${f2(objW)}" height="${f2(viewH)}">
 ${styleBlock(p, set)}
 
     <defs>
@@ -357,7 +388,7 @@ ${stops}
 ${defs}${set.icons}
     </defs>
 
-${layers}    <g id="layer_o" inkscape:label="layer_o" style="display:inline">
+${body}    <g id="layer_o" inkscape:label="layer_o" style="display:inline">
         <g id="layer_o_background" inkscape:label="layer_o_background" style="display:inline">
             <g id="layer_o_background_off" inkscape:label="layer_o_background_off" style="display:inline"></g>
             <g id="layer_o_background_on" inkscape:label="layer_o_background_on" style="display:inline"></g>

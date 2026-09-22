@@ -1256,7 +1256,7 @@ try {
         fill: 'rgb(255, 0, 251) 0.1 rgb(255, 0, 251)',
         boundsOn: true,
         boundsBox: '0,0,354,322',
-        boundsLine: 'rgb(255, 0, 251) 9px, 3px, 2px, 3px',
+        boundsLine: 'rgb(255, 0, 251) 14px, 14px',
         rows: 0,
         blocks: 'none,none',
         indicator: 0,
@@ -1755,7 +1755,7 @@ try {
         await sleep(300);
         const band = await bandAt('.hl_edge_right.is_live[data-index="0"]');
         const state = `(() => {
-            const g = document.querySelector('.hl_snap');
+            const g = document.querySelector('.hl_guide');
             const cs = getComputedStyle(g);
             const doc = document.querySelector('#preview_svg svg').viewBox.baseVal;
             return {
@@ -1829,7 +1829,7 @@ try {
         for (let i = 1; i <= 5; i++) await mouse('mouseMoved', foot.x, foot.y + (i * 70 * foot.scale) / 5);
         await sleep(200);
         await step('the foot of the document is one as well, and belongs to nobody', `(() => {
-            const g = document.querySelector('.hl_snap');
+            const g = document.querySelector('.hl_guide');
             const doc = document.querySelector('#preview_svg svg').viewBox.baseVal;
             return {
                 on: g.classList.contains('is_on'),
@@ -2141,31 +2141,243 @@ try {
         })(),
     }))()`, { insertY: '25', failX: '0', s1Insert: '128.50' });
 
-    await session.evaluate("document.getElementById('reset_indicators_button').click()");
-    await sleep(300);
-    await step('reset puts every indicator of every subject back', `(() => {
+    const everything = `(() => {
         const use = (id) => {
             const u = document.querySelector('#preview_svg #' + id + ' use');
             return [u.getAttribute('x'), u.getAttribute('y')].join(',');
         };
         return {
-            fields: [...document.querySelectorAll('.ind_input')].map(i => i.value).join(','),
+            indFields: [...document.querySelectorAll('.ind_input')].map(i => i.value).join(','),
+            clickFields: [...document.querySelectorAll('.click_input input')].map(i => i.value).join(','),
             s0Fail: use('layer_s0_fail'),
             s0OldRepair: use('layer_s0_old_repair'),
             s1Insert: use('layer_s1_insert'),
             viewBox: document.querySelector('#preview_svg svg').getAttribute('viewBox'),
         };
-    })()`, {
-        fields: '0,0,0,0,0,0,0,0,0,0',
+    })()`;
+
+    await session.evaluate("document.getElementById('reset_indicators_button').click()");
+    await sleep(300);
+    // s1 is the one on show, and the only one the button reaches: s0 keeps the
+    // nudges it was given, and the document it grew for them.
+    await step('the reset button puts back the subject on show, and no other', everything, {
+        indFields: '0,0,0,0,0,0,0,0,0,0',
+        clickFields: '0,0,0,0',
+        s0Fail: '175.00,197.00',
+        s0OldRepair: '-40.00,0.00',
+        s1Insert: '267.50,103.50',
+        viewBox: '-40.00 0.00 394.00 322.00',
+    });
+
+    // Back to s0, with a border moved as well, so that R has both to undo.
+    await session.evaluate("document.querySelectorAll('#sub_list .sub_num')[0].click()");
+    await sleep(300);
+    await type('click_left', '30');
+    await sleep(250);
+
+    const press = async (code, modifiers = 0) => {
+        const codes = { KeyR: 82, KeyZ: 90 };
+        for (const kind of ['rawKeyDown', 'keyUp']) {
+            await session.send('Input.dispatchKeyEvent', {
+                type: kind, key: code.slice(3).toLowerCase(), code,
+                windowsVirtualKeyCode: codes[code], modifiers,
+            });
+        }
+        await sleep(250);
+    };
+
+    await press('KeyR');
+    await step('R gives the selected subject its indicators and its click area back', everything, {
+        indFields: '0,0,0,0,0,0,0,0,0,0',
+        clickFields: '0,0,0,0',
         s0Fail: '177.00,207.00',
+        s0OldRepair: '0.00,0.00',
+        // s1 is not the selected subject, so R does not reach it either.
+        s1Insert: '267.50,103.50',
+        viewBox: '0.00 0.00 354.00 322.00',
+    });
+
+    // ---- one step back, and no further
+
+    await session.evaluate("document.getElementById('ind_fail_x').focus()");
+    await session.evaluate(`(() => {
+        const i = document.getElementById('ind_fail_x');
+        i.value = '12';
+        i.dispatchEvent(new Event('input', { bubbles: true }));
+        i.blur();
+    })()`);
+    await sleep(250);
+    await type('click_top', '8');
+    await sleep(250);
+    await press('KeyZ', 2);   // Ctrl
+    await step('Ctrl+Z puts the last change back, the border and not the number before it', everything, {
+        indFields: '0,0,0,0,0,0,0,0,12,0',
+        clickFields: '0,0,0,0',
+        s0Fail: '189.00,207.00',
         s0OldRepair: '0.00,0.00',
         s1Insert: '267.50,103.50',
         viewBox: '0.00 0.00 354.00 322.00',
     });
 
-    // Back to s0 for the checks that follow.
-    await session.evaluate("document.querySelectorAll('#sub_list .sub_num')[0].click()");
-    await sleep(300);
+    await press('KeyZ', 2);
+    await step('and a second Ctrl+Z puts nothing else back', everything, {
+        indFields: '0,0,0,0,0,0,0,0,12,0',
+        clickFields: '0,0,0,0',
+        s0Fail: '189.00,207.00',
+        s0OldRepair: '0.00,0.00',
+        s1Insert: '267.50,103.50',
+        viewBox: '0.00 0.00 354.00 322.00',
+    });
+
+    await press('KeyR');
+    await sleep(250);
+
+    // ---- several indicators at once
+
+    {
+        const clickIndicator = async (subject, key, shift) => {
+            const spot = await session.evaluate(`(() => {
+                const h = [...document.querySelectorAll('.hl_ind')]
+                    .find(x => x.dataset.index === '${subject}' && x.dataset.key === '${key}');
+                const r = h.getBoundingClientRect();
+                return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+            })()`);
+            const mod = shift ? 8 : 0;
+            await mouse('mouseMoved', spot.x, spot.y, mod);
+            await mouse('mousePressed', spot.x, spot.y, mod);
+            await mouse('mouseReleased', spot.x, spot.y, mod);
+            await sleep(250);
+        };
+        // Alt and a letter, by where the key sits: the app reads e.code, so a
+        // Cyrillic layout lines a group up just the same.
+        const alt = async (code) => {
+            const codes = { KeyA: 65, KeyD: 68, KeyS: 83, KeyW: 87, KeyH: 72, KeyV: 86 };
+            for (const type of ['rawKeyDown', 'keyUp']) {
+                await session.send('Input.dispatchKeyEvent', {
+                    type, key: code.slice(3).toLowerCase(), code,
+                    windowsVirtualKeyCode: codes[code], modifiers: 1,
+                });
+            }
+            await sleep(250);
+        };
+        const group = `(() => {
+            const use = (id) => {
+                const u = document.querySelector('#preview_svg #' + id + ' use');
+                return [u.getAttribute('x'), u.getAttribute('y')].join(',');
+            };
+            const g = document.querySelector('.hl_guide');
+            return {
+                // The fields belong to the subject on show, so only its own
+                // members of the group are marked on them.
+                fields: [...document.querySelectorAll('.ind_fields.is_selected')]
+                    .map(f => f.dataset.indicator).join(','),
+                lit: [...document.querySelectorAll('.hl_outline.is_on')].map(o => o.dataset.index).join(','),
+                selected: [...document.querySelectorAll('#sub_list .sub_block')]
+                    .findIndex(b => b.classList.contains('is_open')),
+                s0repair: use('layer_s0_old_repair'),
+                s0fail: use('layer_s0_fail'),
+                s1insert: use('layer_s1_insert'),
+                guide: g.classList.contains('is_on')
+                    ? ['x1', 'y1', 'x2', 'y2'].map(a => Math.round(Number(g.getAttribute(a)))).join(',')
+                    : 'off',
+            };
+        })()`;
+
+        await clickIndicator(0, 'oldRepair');
+        await clickIndicator(0, 'fail', true);
+        await clickIndicator(1, 'insert', true);
+        await step('Shift gathers indicators into a group, across subjects', group, {
+            fields: 'oldRepair,fail',
+            // s1 is lit because one of its indicators is in the group; the
+            // subject with the say is still the first one's.
+            lit: '0,1',
+            selected: 0,
+            s0repair: '0.00,0.00',
+            s0fail: '177.00,207.00',
+            s1insert: '267.50,103.50',
+            guide: 'off',
+        });
+
+        await arrow('ArrowRight');
+        await arrow('ArrowDown', true);
+        await step('the arrows move the whole group, 1px and 10 with Shift', group, {
+            fields: 'oldRepair,fail',
+            lit: '0,1',
+            selected: 0,
+            s0repair: '1.00,10.00',
+            s0fail: '178.00,217.00',
+            s1insert: '268.50,113.50',
+            guide: 'off',
+        });
+
+        // Tops to the highest of them, which is old_repair at 10.
+        await alt('KeyW');
+        await step('Alt+W lines their top edges up and draws the line', group, {
+            fields: 'oldRepair,fail',
+            lit: '0,1',
+            selected: 0,
+            s0repair: '1.00,10.00',
+            s0fail: '178.00,10.00',
+            // Offsets are whole pixels, and this one sits on a half.
+            s1insert: '268.50,10.50',
+            guide: '0,10,354,10',
+        });
+
+        // Left edges to the leftmost, old_repair at 1.
+        await alt('KeyA');
+        await step('Alt+A lines their left edges up', group, {
+            fields: 'oldRepair,fail',
+            lit: '0,1',
+            selected: 0,
+            s0repair: '1.00,10.00',
+            s0fail: '1.00,10.00',
+            s1insert: '1.50,10.50',
+            guide: '1,0,1,322',
+        });
+
+        // The middles go to the first one picked, not to an edge of the group.
+        // Alt+V is the horizontal line through them; Alt+H the vertical one.
+        await alt('KeyV');
+        await step('Alt+V puts their middles on the first one picked', group, {
+            fields: 'oldRepair,fail',
+            lit: '0,1',
+            selected: 0,
+            s0repair: '1.00,10.00',
+            s0fail: '1.00,10.00',
+            s1insert: '1.50,10.50',
+            // 10 + 45/2, the middle of the indicator the group was started from.
+            guide: '0,33,354,33',
+        });
+
+        await arrow('ArrowRight');
+        await step('moving them on puts the line away', `document.querySelector('.hl_guide').classList.contains('is_on')`, false);
+
+        // Lined up, the three of them are sitting on top of each other, so they
+        // go back to their corners before anything is aimed at one of them.
+        await session.evaluate("document.getElementById('reset_indicators_button').click()");
+        await sleep(250);
+
+        // A click without Shift starts again from one indicator.
+        await clickIndicator(0, 'fail');
+        await step('a plain click starts a new group', `(() => ({
+            fields: [...document.querySelectorAll('.ind_fields.is_selected')]
+                .map(f => f.dataset.indicator).join(','),
+            lit: [...document.querySelectorAll('.hl_outline.is_on')].map(o => o.dataset.index).join(','),
+        }))()`, { fields: 'fail', lit: '0' });
+
+        // And a click on anything else puts the group down altogether.
+        await mouse('mouseMoved', 20, 800);
+        await mouse('mousePressed', 20, 800);
+        await mouse('mouseReleased', 20, 800);
+        await sleep(250);
+        await step('a click away puts the group down', `(() => ({
+            fields: document.querySelectorAll('.ind_fields.is_selected').length,
+            lit: [...document.querySelectorAll('.hl_outline.is_on')].map(o => o.dataset.index).join(','),
+            // The subject the group was started from is still the selected one.
+            selected: [...document.querySelectorAll('#sub_list .sub_block')]
+                .findIndex(b => b.classList.contains('is_open')),
+        }))()`, { fields: 0, lit: '0', selected: 0 });
+    }
 
     // ---- the pointer at the foot of the click area
 

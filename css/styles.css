@@ -828,23 +828,24 @@ body.is_edge_y { user-select: none; }
     fill: none;
     stroke: var(--highlight);
     stroke-width: 2;
-    stroke-dasharray: 9 3 2 3;
+    stroke-dasharray: 14 14;
     vector-effect: non-scaling-stroke;
     visibility: hidden;
 }
 
 .hl_bounds.is_on { visibility: visible; }
 
-/* The line a dragged border has landed on: one screen pixel, whatever the
-   drawing is scaled to, and only there while the border is on it. */
-.hl_snap {
+/* The line a dragged border has landed on, or the one a group of indicators
+   was lined up on: one screen pixel, whatever the drawing is scaled to, and
+   only there while it has something to say. */
+.hl_guide {
     stroke: var(--highlight);
     stroke-width: 1;
     vector-effect: non-scaling-stroke;
     visibility: hidden;
 }
 
-.hl_snap.is_on { visibility: visible; }
+.hl_guide.is_on { visibility: visible; }
 
 /* Invisible, but it is what the cursor actually meets in the drawing. */
 .hl_hit {

@@ -58,8 +58,9 @@ const state = {
     output: '',
     reversed: false,    // which way round the sort button's arrow points
     hover: -1,          // subject the cursor is on, from either side
-    indicator: null,    // {subject, key} of the indicator the arrow keys move
-    snap: null,         // {axis, at, subject} of the line a dragged border is on
+    indicators: [],     // the indicators the arrow keys move; the first has the say
+    guide: null,        // {axis, at, subject} of the line a drag landed on, or an alignment used
+    undo: null,         // {token, before} - one step back, and no more
     docBox: null,       // the document as the preview last drew it
     zoom: 1,            // 1 fills the preview block, 0 is 150px on the longer side
     docSize: { w: 0, h: 0 },
@@ -187,7 +188,8 @@ async function load(file, handle) {
         state.subjects = subjects;
         // A fresh file arrives in its own order, so the arrow points down again.
         state.hover = -1;
-        state.indicator = null;
+        state.indicators = [];
+        state.undo = null;
         state.reversed = false;
         ui.sort.querySelector('img').src = 'assets/icons/sort_down_icon.svg';
         // A single subject is shown expanded; with several, start collapsed.
@@ -373,7 +375,7 @@ function renderHighlights() {
             hit.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (edge.justDragged) return;
-                selectIndicator(index, key);
+                selectIndicator(index, key, e.shiftKey);
             });
             ui.hlFront.appendChild(hit);
         }
@@ -395,7 +397,7 @@ function renderHighlights() {
     // and no further. Painting moves it; it is not there the rest of the time.
     state.docBox = { x: layout.x, y: layout.viewY, w: layout.w, h: layout.viewH };
     const guide = document.createElementNS(SVG_NS, 'line');
-    guide.setAttribute('class', 'hl_snap');
+    guide.setAttribute('class', 'hl_guide');
     ui.hlFront.appendChild(guide);
 
     sizeEdgeHandles();
@@ -513,16 +515,19 @@ function sizeEdgeHandles() {
 
 /** A subject is lit while its row is expanded or either side is hovered. */
 function paintHighlights() {
-    const snap = state.snap;
+    const snap = state.guide;
+    // Lit: the subject under the pointer, the selected one, one a border has
+    // landed on, and the subject of every indicator in the group - the first
+    // one's subject is the selected one, the rest are only lit.
+    const withIndicators = new Set(state.indicators.map((p) => p.subject));
     for (const r of ui.stage.querySelectorAll('.hl_tint, .hl_outline')) {
         const index = Number(r.dataset.index);
-        // A click area a border has landed on is lit like one under the pointer.
         const on = state.hover === index || !!(state.subjects[index] || {}).isOpen
-            || (!!snap && snap.subject === index);
+            || (!!snap && snap.subject === index) || withIndicators.has(index);
         r.classList.toggle('is_on', on);
     }
 
-    const guide = ui.hlFront.querySelector('.hl_snap');
+    const guide = ui.hlFront.querySelector('.hl_guide');
     const box = state.docBox;
     if (guide && box) {
         if (snap) {
@@ -598,9 +603,10 @@ function centreInList(block) {
 /** Expands one subject and closes the rest. */
 function selectSubject(index) {
     if (!state.subjects[index]) return;
-    // The arrow keys move an indicator of the subject in hand, so picking a
-    // different subject puts the old one down.
-    if (state.indicator && state.indicator.subject !== index) state.indicator = null;
+    // The arrow keys move indicators of the subject in hand, so picking a
+    // different subject puts the whole group down.
+    state.indicators = [];
+    state.undo = null;
     state.subjects.forEach((s, i) => { s.isOpen = i === index; });
     renderSubList();
     paintHighlights();
@@ -616,7 +622,8 @@ function toggleSubject(index) {
 
 /** Nothing is expanded and nothing is lit. */
 function collapseAll() {
-    state.indicator = null;
+    state.indicators = [];
+    state.undo = null;
     if (!state.subjects.some((s) => s.isOpen)) return;
     state.subjects.forEach((s) => { s.isOpen = false; });
     renderSubList();
@@ -635,6 +642,83 @@ ui.preview.addEventListener('mouseleave', () => setHover(-1, false));
 ui.subList.addEventListener('click', (e) => {
     if (e.target.closest('.sub_block') || drag.justDropped) return;
     collapseAll();
+});
+
+// ---------------------------------------------------------------- undo
+
+// One step deep and no further, as asked: the state of everything the fields,
+// the arrows and the drags can change, kept from just before the last of them.
+// A gesture that arrives in pieces - a drag, the digits of a number - keeps the
+// state from before its first piece, so undoing it undoes the whole gesture.
+
+let gestures = 0;
+const nextGesture = () => `g${++gestures}`;
+
+/** A copy of what can be undone: the click areas and the indicator offsets. */
+function snapshot() {
+    return state.subjects.map((s) => ({
+        clickArea: { ...clickArea(s) },
+        indicators: JSON.parse(JSON.stringify(s.indicatorOffsets || {})),
+    }));
+}
+
+/** Keeps a step, unless the gesture that made it already has one kept. */
+function keep(token, before) {
+    if (state.undo && state.undo.token === token) return;
+    state.undo = { token, before };
+}
+
+function undo() {
+    const step = state.undo;
+    // A subject added or taken away since leaves nothing to put back.
+    if (!step || step.before.length !== state.subjects.length) return;
+    state.subjects.forEach((s, i) => {
+        s.clickArea = { ...step.before[i].clickArea };
+        s.indicatorOffsets = JSON.parse(JSON.stringify(step.before[i].indicators));
+    });
+    state.undo = null;      // one step, and nothing to redo
+    // A line drawn by an alignment that has just been undone says nothing.
+    forgetGuide();
+    rebuild();
+    showClickFields();
+    showIndicatorFields();
+}
+
+/** Everything the selected subject has been given back, in one go. */
+function resetSubject(index) {
+    const subject = state.subjects[index];
+    if (!subject) return;
+    const area = clickArea(subject);
+    const offsets = indicatorOffsets(subject);
+    const moved = SIDES.some((side) => area[side] !== 0)
+        || INDICATOR_KEYS.some((key) => offsets[key].x || offsets[key].y);
+    if (!moved) return;
+
+    keep(nextGesture(), snapshot());
+    subject.clickArea = { top: 0, right: 0, bottom: 0, left: 0 };
+    subject.indicatorOffsets = {};
+    rebuild();
+    showClickFields();
+    showIndicatorFields();
+}
+
+// Ctrl+Z puts the last change back; R gives the selected subject both its own
+// click area and its own indicators back. Neither reaches past a field being
+// typed into, where the browser's own undo is the one wanted.
+window.addEventListener('keydown', (e) => {
+    if (e.target && e.target.closest && e.target.closest('input, textarea')) return;
+
+    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ') {
+        e.preventDefault();
+        undo();
+        return;
+    }
+    if (e.code === 'KeyR' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        const index = selectedIndex();
+        if (index < 0 || !hasContent()) return;
+        e.preventDefault();
+        resetSubject(index);
+    }
 });
 
 // ---------------------------------------------------------------- click area
@@ -673,14 +757,16 @@ function clampBorder(subject, side, value) {
  * Moves one or both of a subject's borders at once.
  * @param {number} index the subject
  * @param {Object<string, number>} wanted the borders to move, by side
+ * @param {string} [token] the gesture this is a piece of, for the undo
  * @returns {Object<string, number>} where each ended up, which is not always where it was sent
  */
-function setBorders(index, wanted) {
+function setBorders(index, wanted, token) {
     const applied = {};
     const subject = state.subjects[index];
     if (!subject) return applied;
     if (!subject.clickArea) subject.clickArea = { top: 0, right: 0, bottom: 0, left: 0 };
 
+    const before = snapshot();
     let moved = false;
     for (const side of Object.keys(wanted)) {
         // Clamped against the borders as they stand, so a pair moving together
@@ -692,7 +778,10 @@ function setBorders(index, wanted) {
             moved = true;
         }
     }
-    if (moved) rebuild();   // the frame is part of the file, so the file is built again
+    if (moved) {
+        keep(token || nextGesture(), before);
+        rebuild();          // the frame is part of the file, so the file is built again
+    }
     showClickFields();
     return applied;
 }
@@ -811,6 +900,7 @@ function startEdgeDrag(e, index, side) {
     // line it lands on is drawn from.
     const { anchor, targets } = snapTargets(index, side);
 
+    const gesture = nextGesture();      // the whole drag undoes in one go
     let last = across ? e.clientX : e.clientY;
     // Kept as a fraction so slow travel is not lost to rounding, and reined
     // back in whenever the border cannot go where it is being taken.
@@ -840,7 +930,7 @@ function startEdgeDrag(e, index, side) {
         // travel the same distance and the centre stays where it is.
         if (ev.altKey) borders[opposite] = start[opposite] + (wanted - start[side]);
 
-        const applied = setBorders(index, borders);
+        const applied = setBorders(index, borders, gesture);
         // Only a border that was stopped short is worth resyncing to: the snap
         // is where the border was sent, and forgetting that would pin it there.
         if (applied[side] !== wanted) value = applied[side];
@@ -852,8 +942,8 @@ function startEdgeDrag(e, index, side) {
             : null;
         const same = (a, b) => (!a && !b)
             || (a && b && a.at === b.at && a.subject === b.subject && a.axis === b.axis);
-        if (!same(line, state.snap)) {
-            state.snap = line;
+        if (!same(line, state.guide)) {
+            state.guide = line;
             paintHighlights();      // the value alone may not have changed
         }
     };
@@ -863,7 +953,7 @@ function startEdgeDrag(e, index, side) {
         window.removeEventListener('pointerup', onUp);
         window.removeEventListener('pointercancel', onUp);
         edge.active = false;
-        state.snap = null;
+        state.guide = null;
         document.body.classList.remove('is_edge_x', 'is_edge_y');
         // Nothing has answered for the pointer while the border was in hand,
         // and staying still over an element is not something the browser
@@ -940,7 +1030,7 @@ function numberField(input, get, set, onFocus) {
 const borderFields = SIDES.map((side) => numberField(
     el('click_' + side),
     () => clickArea(state.subjects[selectedIndex()] || {})[side],
-    (value) => { if (selectedIndex() >= 0) setBorders(selectedIndex(), { [side]: value }); },
+    (value) => { if (selectedIndex() >= 0) setBorders(selectedIndex(), { [side]: value }, `field:${side}`); },
 ));
 
 // Back to the subject's own size, which is what an untouched subject has.
@@ -949,6 +1039,7 @@ ui.resetClick.addEventListener('click', () => {
     if (!subject) return;
     const a = clickArea(subject);
     if (!SIDES.some((side) => a[side] !== 0)) return;
+    keep(nextGesture(), snapshot());
     subject.clickArea = { top: 0, right: 0, bottom: 0, left: 0 };
     rebuild();
     showClickFields();
@@ -963,21 +1054,39 @@ ui.resetClick.addEventListener('click', () => {
 // x and y of its <use>. They are moved with the arrow keys, which is what the
 // reference files look like they were drawn with.
 
-/** Picks an indicator out, bringing its subject with it. */
-function selectIndicator(index, key) {
+/** True while this indicator is one of the ones picked out. */
+function isPicked(index, key) {
+    return state.indicators.some((p) => p.subject === index && p.key === key);
+}
+
+/**
+ * Picks an indicator out, bringing its subject with it.
+ *
+ * @param {boolean} [withOthers] Shift: add to the group, or take this one back
+ * out of it. The subject with the say stays the first one's, so a group can be
+ * gathered across subjects without the sidebar moving on.
+ */
+function selectIndicator(index, key, withOthers) {
     if (!state.subjects[index] || !INDICATOR_KEYS.includes(key)) return;
-    // Selecting the subject clears whatever indicator was in hand, so the new
-    // one is set afterwards.
-    if (!state.subjects[index].isOpen) selectSubject(index);
-    state.indicator = { subject: index, key };
+
+    if (withOthers && state.indicators.length) {
+        const at = state.indicators.findIndex((p) => p.subject === index && p.key === key);
+        if (at >= 0) state.indicators.splice(at, 1);
+        else state.indicators.push({ subject: index, key });
+    } else {
+        // Selecting the subject empties the group, so the new one is set after.
+        if (!state.subjects[index].isOpen) selectSubject(index);
+        state.indicators = [{ subject: index, key }];
+    }
     paintHighlights();
 }
 
 /**
  * Moves one indicator of one subject along one axis.
+ * @param {string} [token] the gesture this is a piece of, for the undo
  * @returns {number} where it ended up
  */
-function setOffset(index, key, axis, value) {
+function setOffset(index, key, axis, value, token) {
     const subject = state.subjects[index];
     if (!subject) return 0;
     if (!subject.indicatorOffsets) subject.indicatorOffsets = {};
@@ -986,7 +1095,9 @@ function setOffset(index, key, axis, value) {
     // the document grows to hold one that is nudged outside the subject.
     const next = Math.max(-MAX_BORDER, Math.min(MAX_BORDER, Math.round(value)));
     if (next !== at[axis]) {
+        const before = snapshot();
         subject.indicatorOffsets[key] = { ...at, [axis]: next };
+        keep(token || nextGesture(), before);
         rebuild();          // the <use> is in the file, so the file is built again
     }
     showIndicatorFields();
@@ -999,10 +1110,8 @@ function renderIndicators() {
     const on = index >= 0 && hasContent();
     ui.indBlock.classList.toggle('is_on', on);
 
-    const chosen = state.indicator;
     for (const fields of ui.indBlock.querySelectorAll('.ind_fields')) {
-        fields.classList.toggle('is_selected',
-            !!chosen && chosen.subject === index && fields.dataset.indicator === chosen.key);
+        fields.classList.toggle('is_selected', isPicked(index, fields.dataset.indicator));
     }
     if (on) showIndicatorFields();
 }
@@ -1018,7 +1127,7 @@ const indicatorFields = [...document.querySelectorAll('.ind_input')].map((input)
     return numberField(
         input,
         () => indicatorOffsets(state.subjects[selectedIndex()] || {})[key][axis],
-        (value) => { if (selectedIndex() >= 0) setOffset(selectedIndex(), key, axis, value); },
+        (value) => { if (selectedIndex() >= 0) setOffset(selectedIndex(), key, axis, value, `field:${key}:${axis}`); },
         // Reaching for a field is picking that indicator out, so the drawing
         // marks the one the numbers belong to.
         () => selectIndicator(selectedIndex(), key),
@@ -1034,53 +1143,125 @@ const ARROWS = {
     ArrowDown: ['y', 1],
 };
 
-// With an indicator picked out in the drawing the arrows move it: 1px a press,
-// 10 with Shift. A field with the caret in it does its own arrows.
+// Which line a group is lined up on. The edges go to the outermost indicator of
+// the group - the way every drawing program lines things up - and the two
+// middles to the first one picked, which is the one with the say. The keys are
+// read as places on the keyboard, not as letters: the interface is Russian, and
+// on a Cyrillic layout Alt+S is Alt+ы.
+const ALIGN = {
+    KeyA: { axis: 'x', to: 'min' },      // left edges
+    KeyD: { axis: 'x', to: 'max' },      // right edges
+    KeyW: { axis: 'y', to: 'min' },      // top edges
+    KeyS: { axis: 'y', to: 'max' },      // bottom edges
+    KeyH: { axis: 'x', to: 'first' },    // one vertical line through the middles
+    KeyV: { axis: 'y', to: 'first' },    // one horizontal line through them
+};
+
+/**
+ * Moves every picked indicator onto one line, and draws that line.
+ * Every indicator is the same square, so lining up an edge and lining up a
+ * middle are the same move - only the line drawn afterwards differs.
+ */
+function alignIndicators(axis, to) {
+    const group = state.indicators;
+    if (group.length < 2) return;
+    const layout = computeLayout(state.subjects, state.params);
+    const d = layout.p.indicatorDiameter * layout.p.indicatorScale;
+    const at = (p) => {
+        const f = layout.frames[p.subject];
+        return f && !f.empty ? f.indicators[p.key][axis] : null;
+    };
+
+    const places = group.map(at);
+    if (places.some((v) => v === null)) return;
+    const target = to === 'min' ? Math.min(...places)
+        : to === 'max' ? Math.max(...places)
+            : places[0];
+
+    const gesture = nextGesture();      // the group lines up and undoes as one
+    group.forEach((p, i) => {
+        if (places[i] === target) return;
+        const was = indicatorOffsets(state.subjects[p.subject])[p.key][axis];
+        setOffset(p.subject, p.key, axis, was + (target - places[i]), gesture);
+    });
+
+    // The line they were lined up on: the edge itself, or the middle.
+    state.guide = {
+        axis,
+        at: to === 'min' ? target : to === 'max' ? target + d : target + d / 2,
+        subject: -1,
+    };
+    paintHighlights();
+}
+
+// With indicators picked out in the drawing the arrows move them: 1px a press,
+// 10 with Shift, all of them at once. A field with the caret in it does its own
+// arrows. Alt and a letter lines the group up instead.
 window.addEventListener('keydown', (e) => {
-    if (!state.indicator) return;
-    if (e.key === 'Escape') { putIndicatorDown(); return; }
+    if (!state.indicators.length) return;
+    if (e.key === 'Escape') { putIndicatorsDown(); return; }
+
+    const align = e.altKey && ALIGN[e.code];
+    if (align) {
+        e.preventDefault();
+        alignIndicators(align.axis, align.to);
+        return;
+    }
 
     const move = ARROWS[e.key];
     if (!move) return;
     if (e.target && e.target.closest && e.target.closest('input, textarea')) return;
     e.preventDefault();
     const [axis, dir] = move;
-    const { subject, key } = state.indicator;
-    setOffset(subject, key, axis, indicatorOffsets(state.subjects[subject] || {})[key][axis]
-        + dir * (e.shiftKey ? 10 : 1));
+    const step = dir * (e.shiftKey ? 10 : 1);
+    // Moving them is done with: whatever line they were lined up on is history.
+    forgetGuide();
+    const gesture = nextGesture();      // one press, one step back
+    for (const p of state.indicators) {
+        setOffset(p.subject, p.key, axis,
+            indicatorOffsets(state.subjects[p.subject] || {})[p.key][axis] + step, gesture);
+    }
 });
 
-function putIndicatorDown() {
-    if (!state.indicator) return;
-    state.indicator = null;
+/** The line an alignment left behind stays until something else is done. */
+function forgetGuide() {
+    if (!state.guide) return;
+    state.guide = null;
     paintHighlights();
 }
 
-// A click anywhere else puts the indicator down. The listener is on the way in,
-// because the things worth clicking in the drawing stop the click on the way
-// out - and the one on an indicator picks that indicator straight back up.
+function putIndicatorsDown() {
+    if (!state.indicators.length) return;
+    state.indicators = [];
+    state.undo = null;
+    paintHighlights();
+}
+
+// A click anywhere puts the line an alignment drew away, and a click on
+// anything but an indicator puts the group down with it. The listener is on the
+// way in, because the things worth clicking in the drawing stop the click on
+// the way out - and an indicator's own handler decides what to do with it:
+// plain, it starts a new group; with Shift, it joins or leaves this one.
 window.addEventListener('click', (e) => {
-    if (!state.indicator) return;
+    forgetGuide();
+    if (!state.indicators.length) return;
     const target = e.target;
-    if (!target || !target.closest) { putIndicatorDown(); return; }
-    // The fields are the indicator's own, and reaching for one picks it out.
+    if (!target || !target.closest) { putIndicatorsDown(); return; }
+    // The fields are the indicators' own, and reaching for one picks it out.
     if (target.closest('.indicator_position_settings')) return;
-    const onItself = target.classList.contains('hl_ind')
-        && Number(target.dataset.index) === state.indicator.subject
-        && target.dataset.key === state.indicator.key;
-    if (!onItself) putIndicatorDown();
+    if (!target.classList.contains('hl_ind')) putIndicatorsDown();
 }, true);
 
-// Every indicator of every subject goes back to its corner - the one button
-// that reaches past the subject in hand, because indicators are nudged a
-// fileful at a time.
+// The five indicators of the selected subject go back to their corners. Only
+// that subject's: the block belongs to the subject on show, like the one above
+// it, and R gives that subject its click area back as well.
 ui.resetIndicators.addEventListener('click', () => {
-    const moved = state.subjects.some((s) => {
-        const o = indicatorOffsets(s);
-        return INDICATOR_KEYS.some((key) => o[key].x || o[key].y);
-    });
-    if (!moved) return;
-    state.subjects.forEach((s) => { s.indicatorOffsets = {}; });
+    const subject = state.subjects[selectedIndex()];
+    if (!subject) return;
+    const o = indicatorOffsets(subject);
+    if (!INDICATOR_KEYS.some((key) => o[key].x || o[key].y)) return;
+    keep(nextGesture(), snapshot());
+    subject.indicatorOffsets = {};
     rebuild();
     showIndicatorFields();
 });
@@ -1317,7 +1498,8 @@ function commitRowOrder() {
     if (!moved) return;
     state.subjects = order.map((from) => state.subjects[from]);
     state.hover = -1;
-    state.indicator = null;
+    state.indicators = [];
+    state.undo = null;
     rebuild();
     renderSubList();
 }
@@ -1389,7 +1571,8 @@ function addSubject(index) {
     state.subjects.forEach((s) => { s.isOpen = false; });
     state.subjects.splice(index + 1, 0, { ...emptySubject(), isOpen: true });
     state.hover = -1;
-    state.indicator = null;
+    state.indicators = [];
+    state.undo = null;
     rebuild();
     renderSubList();
 }
@@ -1399,7 +1582,8 @@ function removeSubject(index) {
     state.subjects.splice(index, 1);
     // The rows below shift up, so whatever was hovered is no longer that row.
     state.hover = -1;
-    state.indicator = null;
+    state.indicators = [];
+    state.undo = null;
     rebuild();
     renderSubList();
 }
@@ -1410,7 +1594,8 @@ ui.sort.addEventListener('click', () => {
     state.subjects.reverse();
     state.reversed = !state.reversed;
     state.hover = -1;
-    state.indicator = null;
+    state.indicators = [];
+    state.undo = null;
     ui.sort.querySelector('img').src =
         `assets/icons/sort_${state.reversed ? 'up' : 'down'}_icon.svg`;
     rebuild();

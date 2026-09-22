@@ -59,6 +59,8 @@ const state = {
     reversed: false,    // which way round the sort button's arrow points
     hover: -1,          // subject the cursor is on, from either side
     indicator: null,    // {subject, key} of the indicator the arrow keys move
+    snap: null,         // {axis, at, subject} of the line a dragged border is on
+    docBox: null,       // the document as the preview last drew it
     zoom: 1,            // 1 fills the preview block, 0 is 150px on the longer side
     docSize: { w: 0, h: 0 },
     params: { ...PARAMS },
@@ -389,6 +391,13 @@ function renderHighlights() {
     const bounds = rect('hl_bounds', { x: layout.x, y: layout.viewY, w: layout.w, h: layout.viewH }, -1);
     ui.hlFront.appendChild(bounds);
 
+    // The line a dragged border has landed on, drawn right across the document
+    // and no further. Painting moves it; it is not there the rest of the time.
+    state.docBox = { x: layout.x, y: layout.viewY, w: layout.w, h: layout.viewH };
+    const guide = document.createElementNS(SVG_NS, 'line');
+    guide.setAttribute('class', 'hl_snap');
+    ui.hlFront.appendChild(guide);
+
     sizeEdgeHandles();
     paintHighlights();
 }
@@ -504,10 +513,26 @@ function sizeEdgeHandles() {
 
 /** A subject is lit while its row is expanded or either side is hovered. */
 function paintHighlights() {
+    const snap = state.snap;
     for (const r of ui.stage.querySelectorAll('.hl_tint, .hl_outline')) {
         const index = Number(r.dataset.index);
-        const on = state.hover === index || !!(state.subjects[index] || {}).isOpen;
+        // A click area a border has landed on is lit like one under the pointer.
+        const on = state.hover === index || !!(state.subjects[index] || {}).isOpen
+            || (!!snap && snap.subject === index);
         r.classList.toggle('is_on', on);
+    }
+
+    const guide = ui.hlFront.querySelector('.hl_snap');
+    const box = state.docBox;
+    if (guide && box) {
+        if (snap) {
+            const across = snap.axis === 'x';
+            guide.setAttribute('x1', across ? snap.at : box.x);
+            guide.setAttribute('x2', across ? snap.at : box.x + box.w);
+            guide.setAttribute('y1', across ? box.y : snap.at);
+            guide.setAttribute('y2', across ? box.y + box.h : snap.at);
+        }
+        guide.classList.toggle('is_on', !!snap);
     }
     for (const block of ui.subList.children) {
         block.classList.toggle('is_hover', Number(block.dataset.index) === state.hover);
@@ -689,9 +714,72 @@ function showClickFields() {
 
 const edge = { active: false, justDragged: false };
 
-// Within this much of the subject's own edge - a share of the subject's width
-// or height - a dragged border is taken to mean that edge, and reads 0.
-const SNAP_SHARE = 0.05;
+// Within this much of a line worth landing on - a share of the dragged
+// subject's own width or height - a border is taken to mean that line.
+const SNAP_SHARE = 0.03;
+
+/**
+ * Everything a border can land on, as offsets of the border being dragged: its
+ * own subject's edge (where the field reads 0), every other subject's shape and
+ * click area, and the edges of the document. Worked out once, when the border is
+ * picked up: the document grows as the border travels, and a line that moved
+ * with it would be something to chase rather than to land on.
+ *
+ * @returns {{anchor:number, targets:{value:number, subject:number}[]}} anchor is
+ * where the border sits with its offset at 0; subject is the one to light up, or
+ * -1 for a line that belongs to nobody
+ */
+function snapTargets(index, side) {
+    const layout = computeLayout(state.subjects, state.params);
+    const mine = layout.frames[index];
+    if (!mine || mine.empty) return { anchor: 0, targets: [] };
+
+    const across = side === 'left' || side === 'right';
+    // Where the border is when its offset is 0, and which way the offset runs.
+    const anchor = {
+        left: mine.base.x,
+        right: mine.base.x + mine.base.w,
+        top: mine.base.y,
+        bottom: mine.base.y + mine.base.h,
+    }[side];
+    const away = side === 'left' || side === 'top' ? -1 : 1;
+
+    const lines = [];
+    layout.frames.forEach((f, i) => {
+        if (f.empty || i === index) return;
+        const add = (at, subject) => lines.push({ at, subject });
+        if (across) {
+            add(f.base.x, -1);
+            add(f.base.x + f.base.w, -1);
+            // The click areas are the ones that light up when a border lands on
+            // them, the way they do when the pointer is on them.
+            add(f.x, i);
+            add(f.x + f.w, i);
+        } else {
+            add(f.base.y, -1);
+            add(f.base.y + f.base.h, -1);
+            add(f.y, i);
+            add(f.y + f.h, i);
+        }
+    });
+    lines.push({ at: across ? layout.x : layout.viewY, subject: -1 });
+    lines.push({ at: across ? layout.x + layout.w : layout.viewY + layout.viewH, subject: -1 });
+    lines.push({ at: anchor, subject: -1 });        // the subject's own edge
+
+    // Lines that fall on the same place are one line. A click area and the shape
+    // inside it coincide until a border is moved, and it is the click area that
+    // lights up when a border lands on it, so that is the one kept.
+    const byValue = new Map();
+    for (const line of lines) {
+        const value = away * (line.at - anchor);
+        const key = Math.round(value);
+        const had = byValue.get(key);
+        if (!had || (had.subject < 0 && line.subject >= 0)) {
+            byValue.set(key, { value, subject: line.subject });
+        }
+    }
+    return { anchor, targets: [...byValue.values()] };
+}
 
 function startEdgeDrag(e, index, side) {
     if (e.button !== 0) return;
@@ -718,7 +806,10 @@ function startEdgeDrag(e, index, side) {
     const opposite = OPPOSITE[side];
     const start = clickArea(subject);
     const base = subjectBase(subject);
-    const snap = (across ? base.w : base.h) * SNAP_SHARE;
+    const reach = (across ? base.w : base.h) * SNAP_SHARE;
+    // anchor is where the border sits with its offset at 0, which is what the
+    // line it lands on is drawn from.
+    const { anchor, targets } = snapTargets(index, side);
 
     let last = across ? e.clientX : e.clientY;
     // Kept as a fraction so slow travel is not lost to rounding, and reined
@@ -736,9 +827,14 @@ function startEdgeDrag(e, index, side) {
         value += ((now - last) / scale) * away;
         last = now;
 
-        // Near the edge of the subject the border takes it: that is the one
-        // place where the area is the shape again and the field reads 0.
-        const wanted = Math.abs(value) <= snap ? 0 : Math.round(value);
+        // The nearest line within reach takes the border.
+        let landed = null;
+        for (const t of targets) {
+            const d = Math.abs(t.value - value);
+            if (d > reach) continue;
+            if (!landed || d < Math.abs(landed.value - value)) landed = t;
+        }
+        const wanted = landed ? Math.round(landed.value) : Math.round(value);
         const borders = { [side]: wanted };
         // Alt mirrors the border across the middle of the area, so both sides
         // travel the same distance and the centre stays where it is.
@@ -748,6 +844,18 @@ function startEdgeDrag(e, index, side) {
         // Only a border that was stopped short is worth resyncing to: the snap
         // is where the border was sent, and forgetting that would pin it there.
         if (applied[side] !== wanted) value = applied[side];
+
+        // The line it landed on is drawn where the border now is, right across
+        // the document, and goes as soon as the border leaves its reach.
+        const line = landed
+            ? { axis: across ? 'x' : 'y', at: anchor + away * applied[side], subject: landed.subject }
+            : null;
+        const same = (a, b) => (!a && !b)
+            || (a && b && a.at === b.at && a.subject === b.subject && a.axis === b.axis);
+        if (!same(line, state.snap)) {
+            state.snap = line;
+            paintHighlights();      // the value alone may not have changed
+        }
     };
 
     const onUp = (ev) => {
@@ -755,6 +863,7 @@ function startEdgeDrag(e, index, side) {
         window.removeEventListener('pointerup', onUp);
         window.removeEventListener('pointercancel', onUp);
         edge.active = false;
+        state.snap = null;
         document.body.classList.remove('is_edge_x', 'is_edge_y');
         // Nothing has answered for the pointer while the border was in hand,
         // and staying still over an element is not something the browser

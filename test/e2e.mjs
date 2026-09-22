@@ -1728,9 +1728,9 @@ try {
         await type('click_left', '40');
         await sleep(300);
         const band = await bandAt('.hl_edge_left[data-index="0"]');
-        // Back inwards by nearly all of the 40px, leaving the border inside the
-        // snapping range - 5% of the subject's 222px width, so 11px either way.
-        const travel = Math.round(38 * band.scale);
+        // Back inwards by the whole 40px, which is the shape's own edge; the
+        // reach is 3% of the subject's 222px width, so 6px either way.
+        const travel = Math.round(40 * band.scale);
         await mouse('mousePressed', band.x, band.y);
         for (let i = 1; i <= 6; i++) await mouse('mouseMoved', band.x + (travel * i) / 6, band.y);
         await mouse('mouseReleased', band.x + travel, band.y);
@@ -1743,6 +1743,109 @@ try {
             viewBox: '0.00 0.00 354.00 322.00',
             fields: '0,0,0,0',
         });
+    }
+
+    // What else a border can land on: the next subject along, and the edge of
+    // the document. s0 is 222 wide, s1 starts at 226, the document ends at 354.
+    {
+        await session.evaluate(`(() => {
+            const row = document.querySelectorAll('#sub_list .sub_block')[0];
+            if (!row.classList.contains('is_open')) row.querySelector('.sub_num').click();
+        })()`);
+        await sleep(300);
+        const band = await bandAt('.hl_edge_right.is_live[data-index="0"]');
+        const state = `(() => {
+            const g = document.querySelector('.hl_snap');
+            const cs = getComputedStyle(g);
+            const doc = document.querySelector('#preview_svg svg').viewBox.baseVal;
+            return {
+                on: g.classList.contains('is_on'),
+                at: Math.round(Number(g.getAttribute('x1'))),
+                // Across the document and no further.
+                spans: Math.round(Number(g.getAttribute('y1'))) === Math.round(doc.y)
+                    && Math.round(Number(g.getAttribute('y2'))) === Math.round(doc.y + doc.height)
+                    && g.getAttribute('x1') === g.getAttribute('x2'),
+                line: [cs.stroke, cs.strokeWidth].join(' '),
+                lit: [...document.querySelectorAll('.hl_outline.is_on')].map(o => o.dataset.index).join(','),
+                right: document.getElementById('click_right').value,
+            };
+        })()`;
+
+        await mouse('mousePressed', band.x, band.y);
+        for (let i = 1; i <= 4; i++) await mouse('mouseMoved', band.x + i * band.scale, band.y);
+        await sleep(200);
+        await step('a border landing on the next subject takes its edge and lights it', state, {
+            on: true,
+            at: 226,
+            spans: true,
+            line: 'rgb(255, 0, 251) 1px',
+            // s0 is the one being adjusted, s1 the one its border landed on.
+            lit: '0,1',
+            right: '4',
+        });
+
+        await mouse('mouseMoved', band.x + 40 * band.scale, band.y);
+        await sleep(200);
+        await step('carried past it, the line goes and so does the lighting', state, {
+            on: false,
+            at: 226,
+            spans: true,
+            line: 'rgb(255, 0, 251) 1px',
+            lit: '0',
+            right: '40',
+        });
+
+        await mouse('mouseMoved', band.x + 131 * band.scale, band.y);
+        await sleep(200);
+        // 354 is where the document ends - and, in this file, where s1 ends
+        // too, so it is s1's click area that answers for the line.
+        await step('and the edge of the document is a line to land on too', state, {
+            on: true,
+            at: 354,
+            spans: true,
+            line: 'rgb(255, 0, 251) 1px',
+            lit: '0,1',
+            right: '132',
+        });
+
+        await mouse('mouseReleased', band.x + 131 * band.scale, band.y);
+        await sleep(200);
+        await step('letting go leaves the border where it landed, without the line', state, {
+            on: false,
+            at: 354,
+            spans: true,
+            line: 'rgb(255, 0, 251) 1px',
+            lit: '0',
+            right: '132',
+        });
+
+        await session.evaluate("document.getElementById('reset_button').click()");
+        await sleep(200);
+
+        // The foot of the document belongs to nobody: it is the offset below
+        // the object, 70px under s0's own bottom edge at 252.
+        const foot = await bandAt('.hl_edge_bottom.is_live[data-index="0"]');
+        await mouse('mousePressed', foot.x, foot.y);
+        for (let i = 1; i <= 5; i++) await mouse('mouseMoved', foot.x, foot.y + (i * 70 * foot.scale) / 5);
+        await sleep(200);
+        await step('the foot of the document is one as well, and belongs to nobody', `(() => {
+            const g = document.querySelector('.hl_snap');
+            const doc = document.querySelector('#preview_svg svg').viewBox.baseVal;
+            return {
+                on: g.classList.contains('is_on'),
+                at: Math.round(Number(g.getAttribute('y1'))),
+                spans: g.getAttribute('y1') === g.getAttribute('y2')
+                    && Math.round(Number(g.getAttribute('x1'))) === Math.round(doc.x)
+                    && Math.round(Number(g.getAttribute('x2'))) === Math.round(doc.x + doc.width),
+                lit: [...document.querySelectorAll('.hl_outline.is_on')].map(o => o.dataset.index).join(','),
+                bottom: document.getElementById('click_bottom').value,
+            };
+        })()`, { on: true, at: 322, spans: true, lit: '0', bottom: '70' });
+
+        await mouse('mouseReleased', foot.x, foot.y + 70 * foot.scale);
+        await sleep(200);
+        await session.evaluate("document.getElementById('reset_button').click()");
+        await sleep(200);
     }
 
     // A border being carried owns the pointer until it is let go: the subjects it

@@ -835,6 +835,17 @@ body.is_edge_y { user-select: none; }
 
 .hl_bounds.is_on { visibility: visible; }
 
+/* The line a dragged border has landed on: one screen pixel, whatever the
+   drawing is scaled to, and only there while the border is on it. */
+.hl_snap {
+    stroke: var(--highlight);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+    visibility: hidden;
+}
+
+.hl_snap.is_on { visibility: visible; }
+
 /* Invisible, but it is what the cursor actually meets in the drawing. */
 .hl_hit {
     fill: transparent;

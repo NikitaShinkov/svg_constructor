@@ -29,13 +29,20 @@
   a click area pulled inside its subject never crops the drawing;
 * a triangular cursor at the foot of the selected click area, switched on and
   off on the settings bar, which shows how big the area is against the drawing
-  and never reaches the file. Both switches on the bar are the whole strip they
-  sit on: the toggle, its label and the space around them all answer to a
-  click, and only the size slider keeps its own;
+  and never reaches the file. It is allowed outside the drawing - a subject at
+  the foot of the document would otherwise cut it in half - but nothing is
+  added to the document to make room for it, so at the largest zoom it is cut
+  off by the edge of the preview instead. Both switches on the bar are the
+  whole strip they sit on: the toggle, its label and the space around them
+  all answer to a click, and only the size slider keeps its own;
 * the five indicators of every subject: click one in the preview and the arrow
   keys move it (10px a press with Shift), or type its X and Y into the fields
   below the click area. The reset button there puts every indicator of every
-  subject back into its corner.
+  subject back into its corner;
+* twelve prepared indicator sizes on the slider, 6 to 100px across - the
+  diameter is the outer one, with the outline counted in. KOMPAKS does not
+  read a `scale`, so each size is its own set of paths rather than one set
+  scaled, and all twelve are embedded in `js/indicators.js`.
 
 The space above the object is written as a shift of the group the subject
 layers are wrapped in (`transform="translate(0 N)"`, as an attribute - KOMPAKS

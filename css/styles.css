@@ -118,6 +118,16 @@ body {
 
 .settings_label { white-space: nowrap; }
 
+/* The size in the indicator label keeps the width of the widest of the
+   prepared sizes, so stepping from 6 to 100 cannot push the rest of the bar
+   about. The width itself is measured and set by app.js: `ch` is the width of
+   a "0" without the tabular figures asked for here, and "100" does not fit in
+   three of those. */
+.label_num {
+    display: inline-block;
+    font-variant-numeric: tabular-nums;
+}
+
 /* Both switch strips answer to a click anywhere on them, bar the slider, which
    carries its own cursor and keeps its own clicks (see app.js). */
 .cursor_settings,
@@ -692,6 +702,10 @@ body.is_empty .upload_button:hover {
 
 .svg_privew_block {
     position: relative;
+    /* The pointer is allowed out of the drawing but not out of the preview:
+       at the largest zoom it is cut off here rather than drawn over the
+       sidebar. */
+    overflow: hidden;
     flex: 1 1 auto;
     min-width: 0;
     min-height: 0;
@@ -789,6 +803,14 @@ body.is_edge_x *,
 body.is_edge_y * { cursor: inherit !important; }
 body.is_edge_x,
 body.is_edge_y { user-select: none; }
+
+/* The pointer stands at the foot of the click area and hangs below it, which
+   puts it outside the document when the subject is at the bottom of the
+   drawing. The layer it is on therefore does not clip: the document is what
+   the zoom is measured on, and nothing is added to it to make room for a mark
+   that is not in the file. Everything else on the layer is inside the
+   document anyway. */
+#highlight_front { overflow: visible; }
 
 /* Drawn to the proportions of design/icons/pointer.svg: a triangle as wide as
    a third of the average subject, pointing at the click area it belongs to. */

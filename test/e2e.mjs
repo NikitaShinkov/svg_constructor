@@ -1003,12 +1003,12 @@ try {
         const slider = document.getElementById('indicators_slider');
         return {
             label: document.getElementById('indicators_label').textContent,
-            // 45 is the sixth of the seven prepared sizes.
-            atFraction: Math.round((parseFloat(knob.style.left) / (slider.clientWidth - 8)) * 6),
+            // 45 is the ninth of the twelve prepared sizes.
+            atFraction: Math.round((parseFloat(knob.style.left) / (slider.clientWidth - 8)) * 11),
             circle: document.querySelector('#preview_svg #circle circle').getAttribute('r'),
             stroke: document.querySelector('#preview_svg style').textContent.includes('stroke-width:3.40'),
         };
-    })()`, { label: 'Индикаторы Ø45', atFraction: 5, circle: '20.8', stroke: true });
+    })()`, { label: 'Индикаторы Ø45', atFraction: 8, circle: '20.8', stroke: true });
 
     {
         const box = await session.evaluate(`(() => {
@@ -1029,16 +1029,22 @@ try {
             label: document.getElementById('indicators_label').textContent,
             circle: document.querySelector('#preview_svg #circle circle').getAttribute('r'),
             // Each size brings its own outer stroke; nothing is scaled.
-            stroke: document.querySelector('#preview_svg style').textContent.includes('stroke-width:1.60'),
+            stroke: document.querySelector('#preview_svg style').textContent.includes('stroke-width:0.50'),
             noScale: document.querySelector('#preview_svg style').textContent.includes('scale(1.00)'),
             filled: Math.round(parseFloat(document.getElementById('slider_filled').style.width)),
-        }))()`, { label: 'Индикаторы Ø20', circle: '9.2', stroke: true, noScale: true, filled: 4 });
+        }))()`, { label: 'Индикаторы Ø6', circle: '2.75', stroke: true, noScale: true, filled: 4 });
 
-        await mouse('mousePressed', box.left + box.width - 1, box.top);
-        await mouse('mouseReleased', box.left + box.width - 1, box.top);
+        // Measured again: the label is shorter at Ø6 than it was at Ø45, so the
+        // bar has laid itself out afresh and the slider is not where it was.
+        const now = await session.evaluate(`(() => {
+            const r = document.getElementById('indicators_slider').getBoundingClientRect();
+            return { left: Math.round(r.left), top: Math.round(r.top + r.height / 2), width: Math.round(r.width) };
+        })()`);
+        await mouse('mousePressed', now.left + now.width - 1, now.top);
+        await mouse('mouseReleased', now.left + now.width - 1, now.top);
         await sleep(300);
         await step('and back up to the largest', `document.getElementById('indicators_label').textContent`,
-            'Индикаторы Ø60');
+            'Индикаторы Ø100');
     }
 
     // Stepping back down to 45 also puts the defaults back for what follows.
@@ -1047,7 +1053,10 @@ try {
         const off = { on: document.getElementById('indicators_switch').classList.contains('is_on'), showing: ${indicatorsShown} };
         const s = document.getElementById('indicators_slider');
         s.focus();
-        s.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+        // 100 -> 82 -> 60 -> 45, one prepared size a press.
+        for (let i = 0; i < 3; i++) {
+            s.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+        }
         return {
             off,
             // Arrow keys step through the sizes as dragging does.
@@ -2992,7 +3001,7 @@ try {
             return { x: Math.round(r.left + r.width * 0.2), y: Math.round(r.top + r.height / 2) };
         })()`));
         await step('the slider keeps its own clicks', switches,
-            { indicators: true, cursor: true, size: 'Индикаторы Ø24', drawn: 0 });
+            { indicators: true, cursor: true, size: 'Индикаторы Ø16', drawn: 0 });
 
         // Dragged off the slider and let go over the label: the pointer is the
         // slider's until it comes up, so the strip must not hear about it.
@@ -3007,7 +3016,7 @@ try {
             await mouse('mouseReleased', onto.x, onto.y);
             await sleep(200);
             await step('a drag that ends on the label is still the slider', switches,
-                { indicators: true, cursor: true, size: 'Индикаторы Ø20', drawn: 0 });
+                { indicators: true, cursor: true, size: 'Индикаторы Ø6', drawn: 0 });
         }
 
         // The cursor strip has nothing on it but the switch and its label, so
@@ -3016,12 +3025,159 @@ try {
         await sleep(200);
         await clickAt(await session.evaluate(middle('#cursor_settings .settings_label')));
         await step('the cursor label is the switch', switches,
-            { indicators: true, cursor: false, size: 'Индикаторы Ø20', drawn: 0 });
+            { indicators: true, cursor: false, size: 'Индикаторы Ø6', drawn: 0 });
 
         await clickAt(await session.evaluate(between('#cursor_switch', '#cursor_settings .settings_label')));
         await step('and so is the space beside it', switches,
-            { indicators: true, cursor: true, size: 'Индикаторы Ø20', drawn: 1 });
+            { indicators: true, cursor: true, size: 'Индикаторы Ø6', drawn: 1 });
     }
+
+    // ---- the bar keeps still, and the preview block answers as a whole ------
+
+    await session.send('Page.navigate', { url: `http://localhost:${appPort}/index.html` });
+    await waitUntil(session, `document.body.dataset.ready === 'true'`);
+    {
+        const doc = await session.send('DOM.getDocument');
+        const { nodeId } = await session.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: '#file_input' });
+        await session.send('DOM.setFileInputFiles', {
+            nodeId, files: [path.join(root, 'src_doc', 'files', 'PG_2m1v2s_S-S_figma_draft.svg')],
+        });
+        await waitUntil(session, `document.body.dataset.loaded === 'true'`);
+        await sleep(400);
+    }
+
+    {
+        // The size in the label is as wide as the widest of the prepared sizes
+        // from the start, so stepping from one end of the slider to the other
+        // leaves everything after it on the bar where it was.
+        const stepTo = async (steps) => {
+            await session.evaluate(`(() => {
+                const el = document.getElementById('indicators_slider');
+                el.focus();
+                for (let i = 0; i < ${Math.abs(steps)}; i++) {
+                    el.dispatchEvent(new KeyboardEvent('keydown', {
+                        key: '${steps > 0 ? 'ArrowUp' : 'ArrowDown'}', bubbles: true, cancelable: true }));
+                }
+            })()`);
+            await sleep(250);
+        };
+        // Every block that is on the bar, and where its left edge is.
+        const bar = `(() => {
+            const blocks = [...document.querySelectorAll('#settings_toolbar [data-drop]')]
+                .filter(b => !b.classList.contains('is_hidden'));
+            return {
+                size: document.getElementById('indicators_label').textContent,
+                shown: blocks.map(b => b.id).join(','),
+                lefts: blocks.map(b => Math.round(b.getBoundingClientRect().left)).join(','),
+            };
+        })()`;
+
+        const at45 = await session.evaluate(bar);
+        await stepTo(-8);                       // the smallest prepared size
+        const at6 = await session.evaluate(bar);
+        await stepTo(11);                       // and the largest
+        const at100 = await session.evaluate(bar);
+        await stepTo(-3);                       // back to 45 for what follows
+
+        // Worked out here, over three states of the page, and handed to the
+        // same reporting as everything else.
+        await step('the size label holds its width from 6 to 100', `(${JSON.stringify({
+            sizes: [at45.size, at6.size, at100.size].join(' '),
+            sameBlocks: at6.shown === at45.shown && at100.shown === at45.shown,
+            sameLefts: at6.lefts === at45.lefts && at100.lefts === at45.lefts,
+            measured: at45.shown.split(',').length,
+        })})`, {
+            sizes: 'Индикаторы Ø45 Индикаторы Ø6 Индикаторы Ø100',
+            sameBlocks: true,
+            sameLefts: true,
+            measured: at45.shown.split(',').length,
+        });
+    }
+
+    // The pointer stands at the foot of the click area and hangs below it, so a
+    // subject at the bottom of the drawing puts it outside the document. The
+    // document is what the zoom is measured on, and nothing is added to it to
+    // make room for a mark that is not in the file - so at the largest zoom the
+    // pointer is cut off by the block, and zooming out brings it into view.
+    await session.evaluate(`(() => {
+        const i = document.getElementById('offset_bottom');
+        i.focus(); i.value = '0';
+        i.dispatchEvent(new InputEvent('input', { bubbles: true }));
+        i.blur();
+        document.querySelector('#sub_list .sub_num').click();
+    })()`);
+    await sleep(400);
+
+    const pointerReach = `(() => {
+        const layer = document.getElementById('highlight_front');
+        const box = layer.getBoundingClientRect();
+        const vb = layer.viewBox.baseVal;
+        // Where the foot of the document is on screen, the drawing being
+        // letterboxed inside the layer.
+        const fit = Math.min(box.width / vb.width, box.height / vb.height);
+        const documentBottom = box.top + box.height / 2 + (vb.height * fit) / 2;
+        const mark = document.querySelector('.hl_cursor.is_selected').getBoundingClientRect();
+        const block = document.getElementById('svg_privew_block').getBoundingClientRect();
+        return {
+            belowTheDocument: mark.bottom > documentBottom + 1,
+            insideTheBlock: mark.bottom <= block.bottom + 0.5,
+            layerClips: getComputedStyle(layer).overflow,
+            blockClips: getComputedStyle(document.getElementById('svg_privew_block')).overflow,
+        };
+    })()`;
+
+    await step('at the largest zoom the pointer hangs out of the drawing', pointerReach, {
+        belowTheDocument: true, insideTheBlock: false,
+        layerClips: 'visible', blockClips: 'hidden',
+    });
+
+    {
+        const at = await session.evaluate(`(() => {
+            const r = document.getElementById('svg_privew_block').getBoundingClientRect();
+            return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+        })()`);
+        for (let i = 0; i < 4; i++) {
+            await session.send('Input.dispatchMouseEvent', {
+                type: 'mouseWheel', x: at.x, y: at.y, deltaX: 0, deltaY: 120, pointerType: 'mouse',
+            });
+        }
+        await sleep(300);
+    }
+
+    await step('zoomed out it is outside the drawing and still drawn', pointerReach, {
+        belowTheDocument: true, insideTheBlock: true,
+        layerClips: 'visible', blockClips: 'hidden',
+    });
+
+    // A click anywhere in the block puts the selection down, the padding round
+    // the drawing included - the drawing itself stops the clicks that belong to
+    // something in it before they get here.
+    await step('the subject is still the one picked', `(() => ({
+        open: document.querySelectorAll('#sub_list .sub_block.is_open').length,
+        block: getComputedStyle(document.getElementById('click_area_settings')).display !== 'none',
+    }))()`, { open: 1, block: true });
+
+    {
+        const at = await session.evaluate(`(() => {
+            const r = document.getElementById('svg_privew_block').getBoundingClientRect();
+            // In the padding, outside the stage the drawing is scaled into.
+            return { x: Math.round(r.left + 5), y: Math.round(r.top + r.height / 2) };
+        })()`);
+        await session.send('Input.dispatchMouseEvent', {
+            type: 'mousePressed', x: at.x, y: at.y, button: 'left', buttons: 1, clickCount: 1, pointerType: 'mouse',
+        });
+        await session.send('Input.dispatchMouseEvent', {
+            type: 'mouseReleased', x: at.x, y: at.y, button: 'left', buttons: 0, clickCount: 1, pointerType: 'mouse',
+        });
+        await sleep(300);
+    }
+
+    await step('a click beside the drawing puts it down all the same', `(() => ({
+        open: document.querySelectorAll('#sub_list .sub_block.is_open').length,
+        block: getComputedStyle(document.getElementById('click_area_settings')).display !== 'none',
+        pointer: [...document.querySelectorAll('.hl_cursor')]
+            .filter(m => getComputedStyle(m).visibility === 'visible').length,
+    }))()`, { open: 0, block: false, pointer: 0 });
 
     if (errors.length) {
         failures++;

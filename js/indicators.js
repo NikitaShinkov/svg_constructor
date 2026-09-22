@@ -1,13 +1,122 @@
 // Indicator symbol libraries, one per prepared size.
 //
 // KOMPAKS does not read a `scale` transform, so indicators cannot be resized by
-// scaling: each size is its own set of paths. These were lifted verbatim from
-// src_doc/svg_constructor/scripts for different indicators sizes, whose 45px
-// set is byte-identical to the reference files.
-
-export const INDICATOR_SIZES = [20, 24, 28, 32, 38, 45, 60];
+// scaling: each size is its own set of paths rather than one set scaled.
+//
+// The drawings came from src_doc/indicators - one file per size, named
+// ind_<diameter>_<stroke>.svg, the diameter being the outer one with the stroke
+// counted in. Each of them holds a circle and the four icons; every one is
+// embedded below, since that folder is going away. Rebuilding this file means
+// reading those five elements out of each drawing and dropping them into the
+// eight symbols the format asks for (Instruction.pdf 6.2), which is all the
+// groups here do - no geometry is touched on the way. The 45px set is
+// byte-identical to the reference files in src_doc/examples.
+//
+// A size is added by adding its entry: the slider reads the list off the keys.
 
 export const INDICATORS = {
+    6: {
+        strokeWidth: 0.5,
+        icons: `        <!--indicators-->
+        <g id="circle" class="scale">
+            <circle cx="3" cy="3" r="2.75" class="icons_st_out"></circle>
+        </g>
+        <g id="fail">
+            <use xlink:href="#circle" class="fail"></use>
+            <path class="icon_w scale" d="M2.43,4.64c0-.34.23-.58.58-.58.33,0,.56.23.56.58,0,.32-.23.58-.56.58-.35,0-.58-.25-.58-.58ZM2.64,3.74h0l-.14-2.88h1.01l-.14,2.88h-.72Z"></path>
+        </g>
+        <g id="old_repair">
+            <use xlink:href="#circle" class="repair"></use>
+            <path class="icon_w scale" d="M3.8,3.18l-.76-.16-.16-.74.78-.76c-.12-.02-.21-.04-.33-.06-.72,0-1.4.68-1.4,1.4,0,.16.04.3.08.44l-1.3,1.25c.23.34.54.62.89.83l1.28-1.25.02-.02c.1.02.19.04.31.04.72,0,1.4-.68,1.4-1.4.02-.1,0-.2-.04-.32l-.77.76Z"></path>
+        </g>
+        <g id="old_lock_icon" class="scale">
+            <path d="M1.62,1.4v3.12h2.99v.24H1.38V1.4h.24ZM3.66,2.54c-.07.91-.94,1.52-1.85,1.37v.47c1.18.14,2.19-.68,2.29-1.78.21.03.31.05.55.08l-.3-.72-.3-.72-.48.62-.48.62c.25.03.3.04.55.08h0Z"></path>
+        </g>
+        <g id="old_lock_norm">
+            <use xlink:href="#circle" class="norm"></use>
+            <use xlink:href="#old_lock_icon" class="icon_b"></use>
+        </g>
+        <g id="old_lock_tpm">
+            <use xlink:href="#circle" class="tpm"></use>
+            <use xlink:href="#old_lock_icon" class="icon_b"></use>
+        </g>
+        <g id="old_lock_ndp">
+            <use xlink:href="#circle" class="ndp"></use>
+            <use xlink:href="#old_lock_icon" class="icon_w"></use>
+        </g>
+        <g id="insert">
+            <use xlink:href="#circle" class="insert"></use>
+            <path class="icon_w scale" d="M3.09,2.99l-1.41,1.13V1.87l1.41,1.13ZM4.71,2.99l-1.42,1.13V1.87l1.42,1.13Z"></path>
+        </g>`,
+    },
+    10: {
+        strokeWidth: 0.8,
+        icons: `        <!--indicators-->
+        <g id="circle" class="scale">
+            <circle cx="5" cy="5" r="4.6" class="icons_st_out"></circle>
+        </g>
+        <g id="fail">
+            <use xlink:href="#circle" class="fail"></use>
+            <path class="icon_w scale" d="M4.05,7.74c0-.57.38-.96.97-.96.55,0,.93.39.93.96,0,.54-.38.96-.93.96-.59,0-.97-.43-.97-.96ZM4.4,6.24h0l-.24-4.82h1.69l-.24,4.82h-1.21Z"></path>
+        </g>
+        <g id="old_repair">
+            <use xlink:href="#circle" class="repair"></use>
+            <path class="icon_w scale" d="M6.34,5.29l-1.27-.27-.26-1.24,1.3-1.28c-.19-.03-.36-.07-.55-.1-1.2,0-2.34,1.14-2.34,2.35,0,.27.07.5.13.74l-2.17,2.09c.39.57.9,1.04,1.49,1.39l2.14-2.1.03-.03c.16.03.33.07.52.07,1.2,0,2.34-1.14,2.34-2.35.03-.17,0-.34-.07-.54l-1.3,1.28Z"></path>
+        </g>
+        <g id="old_lock_icon" class="scale">
+            <path d="M2.69,2.32v5.22h5v.4H2.29V2.32h.4ZM6.1,4.22c-.12,1.52-1.57,2.54-3.09,2.29v.79c1.97.24,3.67-1.13,3.83-2.98.35.05.52.08.92.13l-.49-1.21-.49-1.21-.8,1.04-.8,1.03c.41.06.51.07.92.13h0Z"></path>
+        </g>
+        <g id="old_lock_norm">
+            <use xlink:href="#circle" class="norm"></use>
+            <use xlink:href="#old_lock_icon" class="icon_b"></use>
+        </g>
+        <g id="old_lock_tpm">
+            <use xlink:href="#circle" class="tpm"></use>
+            <use xlink:href="#old_lock_icon" class="icon_b"></use>
+        </g>
+        <g id="old_lock_ndp">
+            <use xlink:href="#circle" class="ndp"></use>
+            <use xlink:href="#old_lock_icon" class="icon_w"></use>
+        </g>
+        <g id="insert">
+            <use xlink:href="#circle" class="insert"></use>
+            <path class="icon_w scale" d="M5.15,4.99l-2.37,1.88v-3.77l2.37,1.88ZM7.86,4.99l-2.37,1.88v-3.77l2.37,1.88Z"></path>
+        </g>`,
+    },
+    16: {
+        strokeWidth: 1.2,
+        icons: `        <!--indicators-->
+        <g id="circle" class="scale">
+            <circle cx="8" cy="8" r="7.4" class="icons_st_out"></circle>
+        </g>
+        <g id="fail">
+            <use xlink:href="#circle" class="fail"></use>
+            <path class="icon_w scale" d="M6.48,12.4c0-.92.61-1.55,1.56-1.55.89,0,1.5.63,1.5,1.55,0,.86-.61,1.55-1.5,1.55-.95,0-1.56-.69-1.56-1.55ZM7.03,9.99h0l-.39-7.75h2.72l-.39,7.75h-1.94Z"></path>
+        </g>
+        <g id="old_repair">
+            <use xlink:href="#circle" class="repair"></use>
+            <path class="icon_w scale" d="M10.16,8.47l-2.04-.43-.42-2,2.09-2.05c-.31-.06-.57-.11-.89-.16-1.93,0-3.76,1.84-3.76,3.78,0,.43.1.81.21,1.19l-3.49,3.36c.62.91,1.44,1.67,2.4,2.23l3.44-3.37.05-.05c.26.05.52.11.83.11,1.93,0,3.76-1.84,3.76-3.78.06-.27,0-.54-.1-.87l-2.08,2.05Z"></path>
+        </g>
+        <g id="old_lock_icon" class="scale">
+            <path d="M4.28,3.69v8.4h8.05v.64H3.64V3.68h.64ZM9.77,6.75c-.19,2.44-2.52,4.08-4.97,3.69v1.26c3.17.39,5.9-1.82,6.17-4.8.57.08.84.12,1.48.21l-.8-1.94-.8-1.95-1.29,1.67-1.29,1.66c.66.09.82.11,1.48.2h0Z"></path>
+        </g>
+        <g id="old_lock_norm">
+            <use xlink:href="#circle" class="norm"></use>
+            <use xlink:href="#old_lock_icon" class="icon_b"></use>
+        </g>
+        <g id="old_lock_tpm">
+            <use xlink:href="#circle" class="tpm"></use>
+            <use xlink:href="#old_lock_icon" class="icon_b"></use>
+        </g>
+        <g id="old_lock_ndp">
+            <use xlink:href="#circle" class="ndp"></use>
+            <use xlink:href="#old_lock_icon" class="icon_w"></use>
+        </g>
+        <g id="insert">
+            <use xlink:href="#circle" class="insert"></use>
+            <path class="icon_w scale" d="M8.24,7.98l-3.8,3.03v-6.06l3.8,3.03ZM12.6,7.98l-3.81,3.03v-6.06l3.81,3.03Z"></path>
+        </g>`,
+    },
     20: {
         strokeWidth: 1.6,
         icons: `        <!--indicators-->
@@ -246,4 +355,75 @@ export const INDICATORS = {
             <path class="icon_w scale" d="M30.57,30l-15.21,12.1v-24.21l15.21,12.1ZM48,30l-15.22,12.1v-24.21l15.22,12.1Z"></path>
         </g>`,
     },
+    82: {
+        strokeWidth: 6,
+        icons: `        <!--indicators-->
+        <g id="circle" class="scale">
+            <circle cx="41" cy="41" r="38" class="icons_st_out"></circle>
+        </g>
+        <g id="fail">
+            <use xlink:href="#circle" class="fail"></use>
+            <path class="icon_w scale" d="M33.34,62.6c0-4.49,2.97-7.56,7.6-7.56,4.33,0,7.31,3.08,7.31,7.56,0,4.21-2.97,7.56-7.31,7.56-4.62,0-7.6-3.35-7.6-7.56ZM36.06,50.83h0l-1.9-37.82h13.27l-1.9,37.82h-9.46Z"></path>
+        </g>
+        <g id="old_repair">
+            <use xlink:href="#circle" class="repair"></use>
+            <path class="icon_w scale" d="M53.57,42.61l-11.16-2.37-2.3-10.94,11.45-11.25c-1.7-.31-3.14-.59-4.86-.9-10.59,0-20.6,10.07-20.6,20.71,0,2.37.57,4.45,1.15,6.51l-18.07,17.39c3.31,5.06,7.8,9.29,13.07,12.28l17.86-17.53.29-.29c1.44.29,2.87.59,4.58.59,10.59,0,20.6-10.07,20.6-20.71.31-1.51,0-2.98-.57-4.75l-11.43,11.25Z"></path>
+        </g>
+        <g id="old_lock_icon" class="scale">
+            <path d="M22.12,19.51v42.12h40.36l-.03,3.21H18.89V19.46l3.23.05ZM49.66,34.85c-.96,12.22-12.64,20.45-24.89,18.48v6.34c15.88,1.95,29.58-9.11,30.91-24.06,2.84.4,4.19.62,7.43,1.06l-3.99-9.74-3.99-9.76-6.45,8.35-6.45,8.33c3.33.47,4.09.57,7.43,1.01h0Z"></path>
+        </g>
+        <g id="old_lock_norm">
+            <use xlink:href="#circle" class="norm"></use>
+            <use xlink:href="#old_lock_icon" class="icon_b"></use>
+        </g>
+        <g id="old_lock_tpm">
+            <use xlink:href="#circle" class="tpm"></use>
+            <use xlink:href="#old_lock_icon" class="icon_b"></use>
+        </g>
+        <g id="old_lock_ndp">
+            <use xlink:href="#circle" class="ndp"></use>
+            <use xlink:href="#old_lock_icon" class="icon_w"></use>
+        </g>
+        <g id="insert">
+            <use xlink:href="#circle" class="insert"></use>
+            <path class="icon_w scale" d="M41.78,41l-20.86,16.61V24.39l20.86,16.61ZM65.69,41l-20.88,16.61V24.39l20.88,16.61Z"></path>
+        </g>`,
+    },
+    100: {
+        strokeWidth: 8,
+        icons: `        <!--indicators-->
+        <g id="circle" class="scale">
+            <circle cx="49.97" cy="49.97" r="45.97" class="icons_st_out"></circle>
+        </g>
+        <g id="fail">
+            <use xlink:href="#circle" class="fail"></use>
+            <path class="icon_w scale" d="M40.7,76.1c0-5.43,3.6-9.15,9.19-9.15,5.24,0,8.84,3.72,8.84,9.15,0,5.1-3.6,9.15-8.84,9.15-5.59,0-9.19-4.05-9.19-9.15ZM43.99,61.85h0l-2.3-45.75h16.05l-2.3,45.75h-11.45Z"></path>
+        </g>
+        <g id="old_repair">
+            <use xlink:href="#circle" class="repair"></use>
+            <path class="icon_w scale" d="M65.17,51.92l-13.5-2.87-2.78-13.24,13.85-13.61c-2.04-.52-3.36-.99-5.88-1.09-12.81,0-24.92,12.18-24.92,25.05,0,2.86.69,5.38,1.39,7.88l-21.85,21.04c4.01,6.13,9.43,11.23,15.81,14.86l21.6-21.21.35-.35c1.74.35,3.47.72,5.53.72,12.81,0,25.08-12.17,25.08-25.04.09-2.01-.17-3.61-.86-5.76l-13.83,13.61Z"></path>
+        </g>
+        <g id="old_lock_icon" class="scale">
+            <path d="M27.13,23.98v50.95h48.82l-.04,3.88H23.22V23.92l3.9.06ZM60.44,42.52c-1.17,14.79-15.29,24.74-30.11,22.35v7.66c19.21,2.35,35.79-11.02,37.4-29.11,3.44.48,5.07.74,8.99,1.29l-4.83-11.79-4.83-11.81-7.8,10.1-7.8,10.08c4.02.56,4.95.68,8.99,1.23h0Z"></path>
+        </g>
+        <g id="old_lock_norm">
+            <use xlink:href="#circle" class="norm"></use>
+            <use xlink:href="#old_lock_icon" class="icon_b"></use>
+        </g>
+        <g id="old_lock_tpm">
+            <use xlink:href="#circle" class="tpm"></use>
+            <use xlink:href="#old_lock_icon" class="icon_b"></use>
+        </g>
+        <g id="old_lock_ndp">
+            <use xlink:href="#circle" class="ndp"></use>
+            <use xlink:href="#old_lock_icon" class="icon_w"></use>
+        </g>
+        <g id="insert">
+            <use xlink:href="#circle" class="insert"></use>
+            <path class="icon_w scale" d="M50.91,49.97l-25.23,20.09V29.88l25.23,20.09ZM79.84,49.97l-25.26,20.09V29.88l25.26,20.09Z"></path>
+        </g>`,
+    },
 };
+
+/** Every prepared size, smallest first - what the slider steps through. */
+export const INDICATOR_SIZES = Object.keys(INDICATORS).map(Number).sort((a, b) => a - b);

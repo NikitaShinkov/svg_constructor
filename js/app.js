@@ -26,6 +26,7 @@ const ui = {
     indicatorSwitch: el('indicators_switch'),
     indicatorsBlock: el('indicators_settings'),
     indicatorLabel: el('indicators_label'),
+    indicatorSize: el('indicators_size'),
     slider: el('indicators_slider'),
     sliderFilled: el('slider_filled'),
     sliderKnob: el('slider_knob'),
@@ -640,9 +641,11 @@ function collapseAll() {
     paintHighlights();
 }
 
-// Anywhere in the preview that is not a subject means "none of them", and so
-// does the empty space under the last row.
-ui.stage.addEventListener('click', () => { if (!edge.justDragged) collapseAll(); });
+// Anywhere in the preview that is not a subject means "none of them" - the
+// whole block, not only the part the drawing is scaled into - and so does the
+// empty space under the last row. What is in the drawing stops its own clicks
+// before they reach here.
+ui.preview.addEventListener('click', () => { if (!edge.justDragged) collapseAll(); });
 
 // Rebuilding the file replaces the hit areas under the cursor, and an element
 // that is taken out of the document cannot report that the pointer left it. The
@@ -1727,13 +1730,46 @@ function sizeIndex() {
     return i < 0 ? INDICATOR_SIZES.indexOf(PARAMS.indicatorDiameter) : i;
 }
 
+/**
+ * Room in the label for the widest of the prepared sizes, so that stepping
+ * through them cannot shuffle the rest of the bar sideways. Measured rather
+ * than written down: it depends on the font, and `ch` will not do - it is the
+ * width of a "0" without the tabular figures the label asks for, and "100"
+ * does not fit in three of those.
+ *
+ * The probe is measured off to the side of the page rather than inside the
+ * label: the bar is not on screen until something has been loaded, and an
+ * element that is not displayed measures zero.
+ */
+function reserveSizeWidth() {
+    const probe = ui.indicatorSize.cloneNode(false);
+    probe.removeAttribute('id');
+    probe.style.cssText = 'position:absolute;left:-10000px;top:0;visibility:hidden;min-width:0';
+    document.body.appendChild(probe);
+    let widest = 0;
+    for (const size of INDICATOR_SIZES) {
+        probe.textContent = String(size);
+        widest = Math.max(widest, probe.getBoundingClientRect().width);
+    }
+    probe.remove();
+    if (widest > 0) ui.indicatorSize.style.minWidth = `${Math.ceil(widest)}px`;
+}
+
+// Inter is fetched with `display=swap`, so the first measurement is of the
+// fallback; the real one is worth taking again when the font lands.
+if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => { reserveSizeWidth(); layoutToolbar(); });
+}
+
 function paintSlider() {
     const size = state.params.indicatorDiameter;
     const travel = ui.slider.clientWidth - KNOB_W;
     const at = (sizeIndex() / (INDICATOR_SIZES.length - 1)) * travel;
     ui.sliderKnob.style.left = `${at}px`;
     ui.sliderFilled.style.width = `${at + KNOB_W / 2}px`;
-    ui.indicatorLabel.textContent = `Индикаторы Ø${size}`;
+    ui.indicatorSize.textContent = String(size);
+    ui.slider.setAttribute('aria-valuemin', String(INDICATOR_SIZES[0]));
+    ui.slider.setAttribute('aria-valuemax', String(INDICATOR_SIZES[INDICATOR_SIZES.length - 1]));
     ui.slider.setAttribute('aria-valuenow', String(size));
     ui.slider.setAttribute('aria-valuetext', `${size} px`);
 }
@@ -1747,7 +1783,6 @@ function setIndicatorSize(index) {
     // Resizing something invisible says the user wants to see it.
     if (!state.preview.indicators) setIndicators(true);
     paintSlider();
-    layoutToolbar();   // the label grows and shrinks with the number in it
     rebuild();
 }
 
@@ -1868,7 +1903,7 @@ const paramFields = FIELDS.map(setUpField);
 function syncParamControls() {
     paramFields.forEach((show) => show());
     paintSlider();
-    layoutToolbar();    // the size label grows and shrinks with the number in it
+    layoutToolbar();
 }
 
 // ---------------------------------------------------------------- sidebar resize
@@ -1948,6 +1983,7 @@ ui.copy.addEventListener('click', async () => {
 
 // First paint: the empty s0, expanded and ready to be typed into.
 state.subjects[0].isOpen = true;
+reserveSizeWidth();
 paintSlider();
 rebuild();
 renderSubList();

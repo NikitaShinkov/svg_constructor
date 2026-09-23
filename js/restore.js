@@ -27,6 +27,7 @@
 import { parseGeometryFragment } from './detect.js';
 import {
     PARAMS, INDICATOR_KEYS, indicatorPositions, computeLayout, hatchVector,
+    STATIC_DOC, alignArea, alignOffset,
 } from './template.js';
 import { INDICATORS, INDICATOR_SIZES } from './indicators.js';
 
@@ -187,12 +188,75 @@ function readHatch(grad, width, height) {
  * instead, and reads back as no transform at all.
  */
 function readTopShift(svgEl) {
+    const shift = readShift(svgEl);
+    return shift ? shift.y : null;
+}
+
+/** Both numbers of that same transform, or null when there is no group. */
+function readShift(svgEl) {
     for (const el of Array.from(svgEl.children)) {
         if (el.tagName.toLowerCase() !== 'g' || el.getAttribute('id')) continue;
-        const m = /translate\(\s*[-\d.]+[\s,]+([-\d.]+)/.exec(el.getAttribute('transform') || '');
-        if (m) return num(m[1], 0);
+        const m = /translate\(\s*([-\d.]+)[\s,]+([-\d.]+)/.exec(el.getAttribute('transform') || '');
+        if (m) return { x: num(m[1], 0), y: num(m[2], 0) };
     }
     return null;
+}
+
+// The nine the toolbar offers, in the order it offers them: the middle first,
+// then the four sides, then the four corners. Where more than one of them would
+// write the same transform, the first is the one taken.
+const ALIGNMENTS = [
+    ['center', 'middle'],
+    ['center', 'top'], ['right', 'middle'], ['center', 'bottom'], ['left', 'middle'],
+    ['left', 'top'], ['right', 'top'], ['right', 'bottom'], ['left', 'bottom'],
+];
+
+/**
+ * Where a static object was laid, read back out of the transform that laid it.
+ *
+ * `alignOffset` is the one formula that wrote it, so each of the nine is simply
+ * tried: first as the file could have been written with no margin at all, and
+ * then, for the two alignments a margin can move, solving for the margin that
+ * would put the object where the file has it. The margin is a whole number of
+ * pixels - the field holds nothing else - so a solution is rounded before it is
+ * checked, and kept only if it writes the transform the file carries.
+ *
+ * A static file that this application did not write - every reference in
+ * src_doc/examples/static was drawn in place - matches none of them and is left
+ * on the defaults, exactly as it was before there was anything to read.
+ */
+function readAlignment(shift, box) {
+    if (!shift || !(box.w > 0) || !(box.h > 0)) return {};
+    const view = STATIC_DOC.view;
+    const fits = (a, b) => Math.abs(a - b) < 0.01;
+
+    const shiftFor = (alignH, alignV, alignMargin) => {
+        const area = alignArea({ alignMargin });
+        return {
+            x: alignOffset(area.x, area.w, box.w, alignH) - box.x,
+            y: alignOffset(area.y, area.h, box.h, alignV) - box.y,
+        };
+    };
+
+    // The margin that would put the object's left edge where the file has it.
+    // It moves the right edge of the area in, so it reaches an object laid
+    // against that edge in full and a centred one by half.
+    const marginFor = (alignH) => {
+        const want = shift.x + box.x;                       // the object's left edge
+        if (alignH === 'right') return view.x - box.w - want;
+        if (alignH === 'center') return view.x - STATIC_DOC.captionX - box.w - 2 * (want - STATIC_DOC.captionX);
+        return 0;                                           // 'left' does not move with it
+    };
+
+    for (const margin of [0, null]) {
+        for (const [alignH, alignV] of ALIGNMENTS) {
+            const alignMargin = margin === null ? Math.round(marginFor(alignH)) : 0;
+            if (alignMargin < 0 || alignMargin > MAX_BORDER) continue;
+            const got = shiftFor(alignH, alignV, alignMargin);
+            if (fits(got.x, shift.x) && fits(got.y, shift.y)) return { alignH, alignV, alignMargin };
+        }
+    }
+    return {};
 }
 
 /** The four numbers of a viewBox, or null. */
@@ -316,10 +380,13 @@ export function restoreDocument(svgText) {
     const layout = computeLayout(subjects, { ...params, topPadding: 0, bottomPadding: 0 });
     Object.assign(params, readHatch(doc.querySelector('[id="linear_grad"]'), layout.w, layout.h));
 
-    // A static document is a page of a fixed size with the object placed into a
-    // corner of it, so neither offset is written into it and neither is read
-    // back: the transform around its layers says where the object was put, not
-    // how much room was left above it.
+    // A static document is a page of a fixed size with the object laid into an
+    // area of it, so neither offset is written into it and neither is read
+    // back: the transform around its layers says where the object was laid, not
+    // how much room was left above it. That is what the alignment is read from.
+    if (isStaticDocument(doc)) {
+        Object.assign(params, readAlignment(readShift(svgEl), layout));
+    }
     const view = isStaticDocument(doc) ? null : readViewBox(svgEl);
     if (view) {
         // The space above the object is whatever moved the layers down, plus

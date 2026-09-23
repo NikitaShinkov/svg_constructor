@@ -84,7 +84,7 @@ Live version: `https://nikitashinkov.github.io/svg_constructor/`
 
 | Topic | Decision |
 |---|---|
-| Object type | `object_type_selector`, the **first thing in `sud_sidebloсk`** whatever else is showing: «Динамическое обор.» and «Статическое обор.», one pill with the chosen half filled, dynamic to begin with. It picks the template the file is built from and **nothing else**: the subjects, their code, their click areas and their indicators belong to the drawing, not to the template, and a switch leaves every one of them where it was. Switching back and forth gives the same file each time. Which type a file that is opened gets is decided by the file (section 5a), as the format itself is |
+| Object type | `object_type_selector`, the **first thing in `sud_sidebloсk`** whatever else is showing: «Динамическое обор.» and «Статическое обор.», one pill with the chosen half filled and the other left plain - the pointer alone changes nothing, the fill being what says which is chosen. Dynamic to begin with. It picks the template the file is built from and **nothing else**: the subjects, their code, their click areas and their indicators belong to the drawing, not to the template, and a switch leaves every one of them where it was. Switching back and forth gives the same file each time. Which type a file that is opened gets is decided by the file (section 5a), as the format itself is |
 | Subject order | The order in the file (layer names, where there are any). `sort_button` in `head_line` reverses the whole list, and a row can be carried to a new place with the pointer: it follows the cursor, its neighbours step aside and mark where it will land with a `#9393FF` line, and the numbers stay as they were until it is let go - the renumbering and the rebuild happen on release |
 | Lighting a subject | The list row and the shape in the preview light each other: a `#FF00FB` outline as thick as the outer stroke over the shape, and the same rectangle at 10% fill under it. It is drawn on two separate layers above and below the preview - **nothing is added to the exported file**. A click that misses every subject collapses every row: anywhere in `svg_privew_block`, the padding around the drawing included, and in the empty part of the list. Everything in the drawing that can be picked stops its own click |
 | Saving the file | `showSaveFilePicker` with `startIn` on the source file: the same name, the same folder, the user confirms. The original is never overwritten silently |
@@ -100,8 +100,10 @@ Live version: `https://nikitashinkov.github.io/svg_constructor/`
 | Dragging a border | A 9px grab band on screen whatever the zoom, `ns-resize`/`ew-resize` under the cursor, and the file is rebuilt as the border travels. The bands belong to any lit subject, hovered or selected, and pressing one selects that subject, so a border can be taken hold of straight away. Alt mirrors the border across the middle of the area, so both sides travel together and the centre stays put. Within 3% of the subject's own width or height, a border takes the nearest line worth landing on: its own subject's edge (where the field reads 0), every other subject's shape and click area, and the four edges of the document. The line it is on is drawn right across the document, 1px in `#FF00FB` whatever the zoom, and goes as soon as the border leaves its reach; when the line is another subject's click area, that subject lights up as though the pointer were on it. The lines are worked out once, when the border is picked up - the document grows as a border travels, and a line that moved with it would be something to chase rather than to land on - and where two fall together (a click area and the shape inside it) the click area is the one kept, because it is the one that lights up. A typed number is left as typed. A border in hand owns the pointer until it is let go: no other subject lights up as it is carried over them, and the cursor stays the resize one (`cursor: inherit !important` on everything, because the hit areas under it carry cursors of their own and say so more specifically). What is under the pointer when it is let go is asked for with `elementFromPoint`, since resting on something is not an event |
 | Indicator positions | `indicator_position_settings` under the click area block, for the selected subject: an X and a Y field per indicator, in the same three columns (old_repair over old_sost, insert, old_lock over fail). Clicking an indicator in the drawing picks it out - which shows on its pair of fields, outlined in `--accent`, and nowhere in the drawing itself - and the arrow keys then move it, 1px a press and 10 with Shift. Every indicator on show can be clicked, on any subject, selected or not; being switched off on the toolbar is the one thing that takes their hit areas away. Shift and a click gathers a group: the indicator clicked joins the ones already picked, or leaves them if it was one of them, and the arrows then move all of them at once. The subject with the say stays the first one's - that is the one the sidebar is showing - and the subjects of the others are only lit. Alt and a letter lines a group up, read by where the key sits rather than by which letter it types, since the layout may be Cyrillic: `KeyA`/`KeyD`/`KeyW`/`KeyS` put their left, right, top or bottom edges on the outermost of the group, and `KeyH`/`KeyV` put their middles on the first one picked - `KeyH` on one vertical line, `KeyV` on one horizontal. Every indicator is the same square, so lining up an edge and lining up a middle are the same move - only the line drawn afterwards differs. That line is the one the snapping uses (`hl_guide`), and it stays until the next click or arrow. The group is put down by Esc, by a click on anything that is not an indicator, or by a click on one without Shift, which starts a new group (a listener on the way in, since the drawing stops its clicks on the way out). The offsets are part of the file: they are the `x`/`y` of the `<use>`. Its `reset_button` puts the five indicators of the subject on show back in their corners, and reaches no further than that subject |
 | Undo, and R | Ctrl+Z puts back the last change to a click area or an indicator, and only that one: there is no history, and nothing to redo. What counts as one change is a gesture, not a keystroke - a whole border drag, a whole number typed into one field, a whole group moved by one arrow press or lined up by one alignment - which `keep(token, before)` does by ignoring a second snapshot from a gesture that already has one. The step is a copy of every subject's `clickArea` and `indicatorOffsets`, dropped when a subject is added, removed or reordered, since it could no longer be put back. R gives the selected subject both its click area and its five indicators back at once; neither key reaches past a field being typed into, where the browser's own undo is the one wanted |
-| Offsets | `offset_settings` on the bar, after the hatching: the empty space under the object (70px, which the format has always had) and as much above it as is asked for. Both are part of the document - the viewBox grows - and the file is rebuilt as they are typed. While one of the two fields has the focus, its strip is lit the way a selected subject is and the edge of the whole document is drawn round it in `#FF00FB`, 14px of line and 14px of gap as on the drop frame (`non-scaling-stroke`, stroked at double width so the outer half is clipped away). An offset is about the document, not about a subject, so reaching for one of these fields puts down whatever subject and indicator were picked; letting go of the field takes the lighting away and leaves the offset. The space above the object goes into the file as a shift of the group around the layers, never as the origin of the viewBox (section 4) |
+| Offsets | `offset_settings` on the bar, after the hatching: the empty space under the object (70px, which the format has always had) and as much above it as is asked for. Both are part of the document - the viewBox grows - and the file is rebuilt as they are typed. While one of the two fields has the focus, its strip is lit the way a selected subject is and the edge of the whole document is drawn round it in `#FF00FB`, 14px of line and 14px of gap as on the drop frame (`non-scaling-stroke`, stroked at double width so the outer half is clipped away). An offset is about the document, not about a subject, so reaching for one of these fields puts down whatever subject and indicator were picked; letting go of the field takes the lighting away and leaves the offset. The space above the object goes into the file as a shift of the group around the layers, never as the origin of the viewBox (section 4). The margin a static object is laid with is an offset of the same kind and its strip is shown the same way, running from the alignment area's right edge to the `View` rectangle it is measured from and standing as tall as that rectangle - but **without** the edge of the document round it: the two offsets move the page, while the margin moves an area inside it and leaves the page exactly as it was |
 | Offsets for a static object | A static object's page is a fixed size, so there is nothing for the two offsets to move. The block is therefore **not on the bar at all** while static is chosen (class `is_off`), and it comes back with its values when dynamic is. That is not the bar running out of room, so it is kept apart from the order the bar gives its blocks up in: `fitToolbar` leaves an `is_off` block out of that order and never marks it `is_hidden` |
+| Aligning a static object | `align_settings` on the bar, after the hatching, sharing the offsets' place: the two are never there at once, one belonging to a document that grows and the other to a page that does not, so they carry the same `data-drop` and each is `is_off` when the other is on. «Выравнивание», three 23px buttons and then «с отступом» with the margin field. The buttons are the middle, one side and two sides; the last two carry four variants each (`top`→`right`→`bottom`→`left`, `left_top`→`right_top`→`right_bottom`→`left_bottom`) and step on to the next when the button that is **already the chosen one** is pressed again - pressing any other takes it as it stands. The nine between them are the nine pairs of axes. A button is filled while it is the chosen one or under the pointer, which is CSS; pointing at one lays the object that way at once and rebuilds the file, taking the pointer off the three puts the kept one back, and only a press keeps it. Pointing at one also draws the edges of the area it lays against - four for the middle, one for a side, two for a corner - as the same `hl_guide` line the snapping draws, and lights the margin strip whenever the right-hand edge is one of them, so the line and the reason for it are never shown on their own. `state.align.saved` is the kept variant, `state.params.alignH/alignV` is what is being built, and the two differ only while the pointer is on a button |
+| Carrying the pointer across the buttons | The three sit in `align_buttons`, and what is being shown is put down on the way out of **that**, not out of a button: carrying the pointer from one to the next crosses the 4px gap between them, and a gap that put the kept alignment back for those few frames would make the object flick as the pointer travelled. Each button also reaches the full height of the bar for the pointer while staying 23px to the eye, as the layer segments do (a pseudo-element of the button, so hover and clicks land on it), and the strip does the same, so the gaps belong to it at any height. It is why `.settings` is the height of the bar rather than of its contents - a box only as tall as what is in it clips those hit areas away - and why a button cannot clip its own overflow, the glyph being rounded off by its own `border-radius` instead. A press from the keyboard leaves nothing showing (`:hover` is asked), since the pointer would never be there to take it away |
 | Switch strips | A 26px toggle is a small thing to aim at, so the whole strip is the switch: `cursor_settings` answers to a click anywhere on it, and so does `indicators_settings` - the switch, the label and the space around them. The slider shares the indicators' strip and keeps its own clicks (`#indicators_slider` is let through), which a drag let go of over the label proves: the pointer is the slider's until it comes up |
 | Cursor | A triangle to the proportions of `design/icons/pointer.svg`, drawn on the highlight layer at the foot of the selected subject's click area: a third of the average subject's width, 0.8 of that in height, its tip a third of its own height inside the bottom border. The switch in `cursor_settings` (before `indicators_settings`, `data-drop="6"`) changes the preview only. It stands below the area it belongs to, so a subject at the foot of the drawing puts it outside the document: the layer it is on does not clip (`#highlight_front { overflow: visible }`), and nothing is added to the document to make room for it - the zoom is measured on the file, not on a mark that is not in it. At the largest zoom it is therefore cut off by `svg_privew_block`, which clips instead so that it is never drawn over the sidebar; zooming out brings the whole of it into view |
 | Scope | Do not carry the old constructor's features over until asked |
@@ -186,13 +188,30 @@ differences from the dynamic template; everything else is the same:
    Without a reference from a subject layer KOMPAKS draws no background at all.
    A simplified version is written for now: the one caption «Источники АЭ» at
    `x="20" y="765"`.
-4. **The drawing is moved into the corner of the page**: the left edge of the
-   subject group onto the «Источники АЭ» caption and the top edge onto the top
-   of the `View` rectangle, which is the point `20 26`. The numbers are
-   constants of the application (`STATIC_DOC.originX/originY` in
-   `js/template.js`), not literals in the markup: they are expected to become a
-   setting. The move is written the way the dynamic file writes the space above
-   the object: `transform="translate(dx dy)"` on the unnamed group around the
+4. **The drawing is laid in an area of the page.** The area is three edges of
+   the `View` rectangle and one of the caption under it:
+
+   | edge | where |
+   |---|---|
+   | top | the top of `View` |
+   | bottom | the bottom of `View` |
+   | left | where the «Источники АЭ» caption starts |
+   | right | the left edge of `View`, less the margin the toolbar asks for |
+
+   The object is laid against whichever ends of it `alignH` and `alignV` name -
+   nine places, the middle of the area to begin with - and `alignOffset` is the
+   one formula that works any of them out. `left`+`top` is where the drawing
+   used to go and puts its corner on `20 26`.
+
+   The numbers are constants of the application (`STATIC_DOC.view` and
+   `STATIC_DOC.captionX` in `js/template.js`), not literals in the markup: they
+   are expected to become settings. They are also written into the markup, by
+   `STATIC_LAYER_O` and by `backgroundElem`, and the markup is kept verbatim
+   rather than built from them - so the golden test holds the two against each
+   other instead, and they cannot drift apart.
+
+   The move is written the way the dynamic file writes the space above the
+   object: `transform="translate(dx dy)"` on the unnamed group around the
    layers, **as an attribute and not a class**, since the stylesheet is not read
    for this. It also means the whole group can be moved by hand later.
 5. **The caption is moved the other way.** It lives inside `background_elem`,
@@ -280,7 +299,7 @@ is being built.
 | `viewW/viewH` | `objW`, `objH + topPadding + bottomPadding` | 1845, 800 |
 | `viewX/viewY` | `minX`, `minY − topPadding` | the file's box less the shift |
 | `fileViewX/fileViewY` | `minX`, `max(0, minY)` | −1, −1 |
-| `shiftX/shiftY` | 0, `fileViewY + topPadding − minY` | `20 − minX`, `26 − minY` |
+| `shiftX/shiftY` | 0, `fileViewY + topPadding − minY` | whatever lays the object in the alignment area (4a) |
 | `preserveAspectRatio` | none, so the default | `xMinYMin meet` |
 
 The same size is not enough on its own: a box that does not fill its element has
@@ -363,13 +382,23 @@ guessed - every number is read back through the one formula that wrote it:
 | `indicatorOffsets` | the `x`/`y` of each indicator's `<use>` against where Instruction.pdf 5.5 puts it |
 | `topPadding` | the `translate` on the group around the layers, plus however far the `viewBox` starts above the artwork - a file written before the transform carried it there instead, and one of the two is always zero |
 | `bottomPadding` | what is left of the `viewBox` height once the artwork and the top offset are taken off it |
+| `alignH`, `alignV`, `alignMargin` | that same `translate`, in a static file: which of the nine alignments, with which margin, would have written it |
 
 The two offsets are read out of a dynamic file only. A static one is a page of
-a fixed size with the object placed into a corner of it, so it holds neither -
-the `translate` on its group says where the object was put, not how much room
-was left above it - and both come back at their defaults. The background
-elements of a static file are not read back either: the template writes the one
-caption, so a static reference that carries more than that loses the rest.
+a fixed size with the object laid in an area of it, so it holds neither - the
+`translate` on its group says where the object was laid, not how much room was
+left above it - and both come back at their defaults. That transform is where
+`alignH`, `alignV` and `alignMargin` are read from instead: `alignOffset` is the
+one formula that wrote it, so each of the nine is tried, first as it would be
+with no margin and then solving for the margin that would put the object where
+the file has it. The margin is a whole number of pixels, the field holding
+nothing else, so a solution is rounded before it is checked and kept only if it
+writes the transform the file carries. `left` does not move with the margin, so
+a file laid against that edge comes back with the margin at 0 whatever was
+typed. A static file this application did not write matches none of the nine and
+is left on the defaults. The background elements of a static file are not read
+back either: the template writes the one caption, so a static reference that
+carries more than that loses the rest.
 
 Geometry is **not** rebuilt: the markup inside `layer_sN_fill` and
 `layer_sN_stroke_in` is cut out of the source text, not serialised from the
@@ -467,13 +496,16 @@ The object type has a section after that. The selector is checked where the
 design puts it - the first thing in the sidebar, one 26px accent ring round two
 halves with the dynamic one filled, and offered before anything is loaded - and
 again once a subject is selected, where it still has to be above the click area
-and indicator blocks the selection brings with it. Then a sketch is loaded, a
+and indicator blocks the selection brings with it. The pointer is then put on
+the half that is not chosen: it must not fill, and both labels must sit the
+pixel above their line box that the design draws them at. Then a sketch is loaded, a
 click area and an indicator are typed into, and the static button is pressed:
 the file comes back the fixed 1845x800 page, layer_o ahead of the subjects with
 its `View` and eight clusters, the caption drawn because s0 points at it and
-carrying the opposite move, the object's own corner on 20 26, and the highlight
-layer's box the same size as the file's and offset by exactly that move. Four
-checks then cover what the preview shows: an untouched subject's outline and
+carrying the opposite move, the object centred in the alignment area, and the
+highlight layer's box the same size as the file's and offset by exactly that
+move. Four checks then cover what the preview shows: an untouched subject's
+outline and
 tint land on its shape on screen to within a pixel and a half (which is what
 the two layers carrying the same `preserveAspectRatio` buys, and it covers the
 hit areas, the snapping lines and the alignment guides in one - all of them are
@@ -482,11 +514,36 @@ the rest of the background layer is not; the view and the eight clusters are
 stroked white 2 with no fill and take no clicks, and carry nothing of it in
 their own markup; and the offsets block is off the bar - `is_off` rather than
 `is_hidden`, at 1920 where the bar gives nothing up of its own accord - with
-everything else still there. What the sidebar holds has to be what it held
-before, and pressing the dynamic button back has to give the very same file
-again and the offsets block with it. Last, the two ways round of reading: a
-static reference restores as static with no offsets and rebuilds byte for byte,
-and a dynamic one still restores as dynamic.
+everything else still there.
+
+The alignment block follows, at that same width. It is checked where the design
+puts it, after the hatching, with its two labels, three 23px rounded buttons
+carrying the middle, the top and the top left, the chosen one filled and the
+others the same colour as the margin field beside them. Then the pointer is put
+on a button: the object goes to the corner at once and two guides are drawn, the
+middle draws four, and taking the pointer away puts both the object and the
+guides back. Five more follow the pointer as it travels: into the gap between
+two buttons, where what is being shown has to stay put, and on to the next
+button, where it has to change over; then above a button, below it, and above
+the gap, all of which have to answer as the button does. A press keeps an
+alignment, a second press on the same button steps it on to the next variant -
+and the button the pointer is not on keeps the variant it was left showing. The
+margin is typed in and has to move the right edge of the area and nothing else;
+its strip is then checked for being lit while the field is being edited, for
+measuring from the area's right edge to the `View` rectangle and standing as
+tall as it, for leaving the edge of the document alone where the two offsets
+draw it, for going when the field does, and for coming back whenever an
+alignment against that edge is being shown - and not when one against another
+edge is. Last, all eighteen of them - nine alignments, two margins - are written
+to a file and read back inside the page: each has to come back as it went in and
+rebuild byte for byte, the margin excepted where the object was laid against the
+left edge, which it does not move.
+
+What the sidebar holds has to be what it held before, and pressing the dynamic
+button back has to give the very same file again and the offsets block with it.
+Last, the two ways round of reading: a static reference restores as static with
+no offsets and rebuilds byte for byte, and a dynamic one still restores as
+dynamic.
 
 The two switch strips have a short section of their own at the very end: the
 label toggles, the gap between the switch and the label toggles, the switch
@@ -585,10 +642,21 @@ file has a different one: its `layer_o` carries 10 more, on its rectangles.
   template: a switch does not reset them, recompute them or lose them, and the
   file built after switching back matches the earlier one byte for byte.
 * Do not write a static object's move as numbers in place, and do not make it a
-  class. `20` and `26` live in `STATIC_DOC` - they are expected to become a
-  setting - and the move is a `transform` attribute on the group around the
-  layers, since the third-party application does not read the stylesheet for it.
-  The caption inside `background_elem` always carries exactly the opposite move.
+  class. The edges it is laid against live in `STATIC_DOC` (`view`, `captionX`)
+  - they are expected to become settings - and the move is a `transform`
+  attribute on the group around the layers, since the third-party application
+  does not read the stylesheet for it. The caption inside `background_elem`
+  always carries exactly the opposite move.
+* Do not let `STATIC_DOC.view` and `captionX` drift from the markup that also
+  holds those numbers, in `STATIC_LAYER_O` and `backgroundElem`. The markup
+  stays verbatim, so the golden test holds the two against each other; change
+  one and the other has to change with it, or the object will be laid against
+  edges that are not where the file draws them.
+* Do not keep the alignment being shown in `state.align.saved`. The parameters
+  hold what is being built, which while the pointer is on a button is the
+  variant it stands for and not the kept one; `saved` is what a press put there
+  and what taking the pointer away goes back to. Confusing the two makes hover
+  permanent.
 * Do not change what is in `STATIC_LAYER_O`. It was copied from the references
   verbatim, self-closing tags and `#Cluster10` on `Cluster1` included - those are
   the files the third-party application reads today, and nothing has tested

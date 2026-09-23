@@ -99,6 +99,11 @@ body {
     gap: clamp(8px, 1.5vw, 20px);
     flex: 0 1 auto;
     min-width: 0;
+    /* The full height of the bar, though its controls are shorter and stay
+       centred in it: what is cut off here is meant to be the right-hand end
+       (see above), and a box only as tall as its contents would cut the
+       full-height hit areas off with it. */
+    height: 100%;
     overflow: hidden;
 }
 
@@ -108,6 +113,7 @@ body {
 .indicators_settings,
 .lines_settings,
 .hatching_settings,
+.align_settings,
 .offset_settings,
 .layer_selection_block {
     display: flex;
@@ -115,6 +121,80 @@ body {
     gap: 4px;
     flex: 0 0 auto;
 }
+
+/* The three buttons keep their own strip: crossing the gap between two of them
+   must not count as leaving, or what is being shown would be put down and taken
+   up again and the object would flick back in between. The strip reaches the
+   full height of the bar, so the gaps belong to it at any height. */
+.align_buttons {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+}
+
+.align_buttons::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: var(--toolbar-h);
+    transform: translateY(-50%);
+}
+
+/* Where a static object is laid. Three layers, as design/align_settings.json
+   has them: the background, which is the state - filled while the button is the
+   chosen one or under the pointer - then the glyph, which reaches the edges of
+   the button and is clipped to its corners, and then the border over both. */
+.align_button {
+    position: relative;
+    flex: 0 0 auto;
+    width: 23px;
+    height: 23px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius);
+    background: var(--field-bg);
+    cursor: pointer;
+}
+
+/* A 23px square is a small thing to hit, so each button reaches the full height
+   of the bar for the pointer while staying 23px to the eye - the same as the
+   layer segments. It is a pseudo-element of the button, so hover and clicks
+   land on the button; which is why the button cannot clip its overflow, and the
+   glyph is rounded off by its own border-radius instead. */
+.align_button::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: var(--toolbar-h);
+    transform: translateY(-50%);
+}
+
+.align_button img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 23px;
+    height: 23px;
+    border-radius: var(--radius);
+}
+
+.align_button::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    pointer-events: none;
+}
+
+.align_button.is_on,
+.align_button:hover { background: var(--accent); }
 
 .settings_label { white-space: nowrap; }
 
@@ -353,7 +433,11 @@ body.is_resizing {
 
 .object_type img { flex: 0 0 auto; }
 
+/* Inter's 12px box sits the label a pixel low against the icon beside it, so
+   the text is lifted back onto the line the design draws it on. */
 .object_type span {
+    position: relative;
+    top: -1px;
     min-width: 0;
     overflow: hidden;
     white-space: nowrap;
@@ -361,8 +445,6 @@ body.is_resizing {
 }
 
 .object_type.is_on { background: var(--accent); }
-
-.object_type:not(.is_on):hover { background: var(--upload-hover); }
 
 .head_line {
     display: flex;

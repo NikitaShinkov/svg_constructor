@@ -17,7 +17,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildSvg, computeLayout, STATIC_DOC } from '../js/template.js';
+import { buildSvg, computeLayout, alignArea, STATIC_DOC } from '../js/template.js';
 import { parsePath, normalizePath, pathBBox } from '../js/geometry.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -214,18 +214,56 @@ for (const { name, level } of CASES) {
         check('layer_o comes first',
             true, built.indexOf('<g id="layer_o"') < built.indexOf('<g id="layer_s0"'));
 
-        // The object is moved to the corner the two constants name, and the
-        // caption is given the opposite move so it stays where it is.
-        const shift = first(built, /<g transform="translate\([^"]*\)">/);
+        // The markup of the frame is kept verbatim rather than built from the
+        // constants the alignment is worked out from, so the two are held
+        // against each other here instead.
+        const viewRect = first(built, /<rect id="View"[\s\S]*?\/>/) || '';
+        const attr = (name) => Number((viewRect.match(new RegExp(`${name}="([^"]*)"`)) || [])[1]);
+        check('the View rectangle is where the constants say',
+            JSON.stringify(STATIC_DOC.view),
+            JSON.stringify({ x: attr('x'), y: attr('y'), width: attr('width'), height: attr('height') }));
+        check('the caption starts where the constants say',
+            STATIC_DOC.captionX,
+            Number((first(built, /<text x="[^"]*"/) || '').match(/"([^"]*)"/)[1]));
+
+        // The object is laid in the alignment area, and the caption is given
+        // the opposite move so that it stays where it is whatever the object
+        // does. Where the object lands is checked against the area rather than
+        // against the shift, which is the thing being checked.
         const caption = first(built, /<g class="text text_src" transform="translate\([^"]*\)">/);
         const numbers = (s) => (s.match(/-?[\d.]+/g) || []).map(Number);
-        const artwork = computeLayout(subjects, { objectType: 'static' });
-        check('the object goes to the two constants',
-            JSON.stringify([STATIC_DOC.originX - artwork.x, STATIC_DOC.originY - artwork.y]
-                .map((v) => Number(v.toFixed(2)))),
-            JSON.stringify(numbers(shift)));
+        const shiftOf = (params) => {
+            const file = buildSvg(subjects, { objectType: 'static', ...params });
+            return numbers(first(file, /<g transform="translate\([^"]*\)">/));
+        };
+        const box = computeLayout(subjects, { objectType: 'static' });
+        const at = (params) => {
+            const [dx, dy] = shiftOf(params);
+            return [Number((box.x + dx).toFixed(2)), Number((box.y + dy).toFixed(2))];
+        };
+        const area = alignArea({});
+        const round2 = (v) => Number(v.toFixed(2));
+
+        check('centred is the default',
+            JSON.stringify([round2(area.x + (area.w - box.w) / 2), round2(area.y + (area.h - box.h) / 2)]),
+            JSON.stringify(at({})));
+        check('left and top put the corner on the caption and the View',
+            JSON.stringify([STATIC_DOC.captionX, STATIC_DOC.view.y]),
+            JSON.stringify(at({ alignH: 'left', alignV: 'top' })));
+        check('right and bottom put it on the far corner',
+            JSON.stringify([round2(area.x + area.w - box.w), round2(area.y + area.h - box.h)]),
+            JSON.stringify(at({ alignH: 'right', alignV: 'bottom' })));
+        // The margin is taken off the right edge and nothing else, so only an
+        // object laid against that edge moves by it.
+        check('the margin moves the right edge in',
+            JSON.stringify([round2(at({ alignH: 'right' })[0] - 40), at({ alignH: 'right' })[1]]),
+            JSON.stringify(at({ alignH: 'right', alignMargin: 40 })));
+        check('and leaves the left edge alone',
+            JSON.stringify(at({ alignH: 'left' })),
+            JSON.stringify(at({ alignH: 'left', alignMargin: 40 })));
+
         check('the caption moves the other way',
-            JSON.stringify(numbers(shift).map((v) => -v)), JSON.stringify(numbers(caption)));
+            JSON.stringify(shiftOf({}).map((v) => -v)), JSON.stringify(numbers(caption)));
 
         // KOMPAKS draws nothing no subject layer points at, so s0 - and only
         // s0 - carries the background.

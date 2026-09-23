@@ -1206,7 +1206,11 @@ try {
         const ids = [...bar.querySelectorAll('[data-drop]')].map(b => b.id);
         return {
             shown: !block.classList.contains('is_hidden'),
-            afterHatching: ids.indexOf('offset_settings') === ids.indexOf('hatching_settings') + 1,
+            // After the hatching, with only the alignment - which shares its
+            // place on the bar and is never there at the same time - between.
+            afterHatching: ids.indexOf('offset_settings') > ids.indexOf('hatching_settings')
+                && ids.slice(ids.indexOf('hatching_settings') + 1, ids.indexOf('offset_settings'))
+                    .every(id => id === 'align_settings'),
             // The first to be given up when the bar runs out of room.
             drop: block.dataset.drop,
             labels: [...block.querySelectorAll('.settings_label')].map(s => s.textContent).join('|'),
@@ -1377,7 +1381,10 @@ try {
 
         // No width is written down here either: the bar is swept from wide to
         // narrow and what must hold at every step is checked instead.
+        // A block with nothing to set for the object being built is not on the
+        // bar at any width, so it is not one of the blocks the bar gives up.
         const order = await session.evaluate(`[...document.querySelectorAll('#settings_toolbar [data-drop]')]
+            .filter(b => !b.classList.contains('is_off'))
             .sort((a, b) => Number(a.dataset.drop) - Number(b.dataset.drop))
             .map(b => b.id).join(',')`);
         const dropOrder = order.split(',');
@@ -2974,6 +2981,34 @@ try {
         shown: true,
     });
 
+    // Only the chosen half is filled: the pointer alone changes nothing, and
+    // the labels sit a pixel above where their line box would put them.
+    {
+        const box = JSON.parse(await session.evaluate(`(() => {
+            const r = document.getElementById('object_type_static').getBoundingClientRect();
+            return JSON.stringify([r.left + r.width / 2, r.top + r.height / 2]);
+        })()`));
+        await session.send('Input.dispatchMouseEvent',
+            { type: 'mouseMoved', x: box[0], y: box[1], buttons: 0 });
+        await sleep(250);
+    }
+    await step('the pointer alone does not fill a half, and the labels are lifted 1px', `(() => {
+        const buttons = [...document.querySelectorAll('.object_type')];
+        const cs = (el, p) => getComputedStyle(el)[p];
+        return {
+            hovered: buttons[1].matches(':hover'),
+            // The one under the pointer is still the plain one.
+            background: cs(buttons[1], 'backgroundColor'),
+            chosenBackground: cs(buttons[0], 'backgroundColor'),
+            lift: buttons.map(b => cs(b.querySelector('span'), 'top')).join(','),
+        };
+    })()`, {
+        hovered: true,
+        background: 'rgba(0, 0, 0, 0)',
+        chosenBackground: 'rgb(76, 76, 255)',
+        lift: '-1px,-1px',
+    });
+
     {
         const doc = await session.send('DOM.getDocument');
         const { nodeId } = await session.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: '#file_input' });
@@ -3068,19 +3103,31 @@ try {
     // The object's own top-left corner lands on the two constants, and the
     // highlight layers follow it: the preview's box and the file's differ by
     // exactly the move, which is what keeps them on the drawing.
-    await step('the object is placed at 20 26, and the highlights go with it', `(async () => {
-        const { STATIC_DOC } = await import('/js/template.js');
+    // The object is laid in the middle of the alignment area to begin with, and
+    // the highlight layer goes wherever it goes.
+    await step('the object is centred in the area, and the highlights go with it', `(async () => {
+        const { alignArea } = await import('/js/template.js');
         const svg = document.querySelector('#preview_svg svg');
         const group = [...svg.children].find(g => g.tagName === 'g' && !g.id && g.getAttribute('transform'));
         const move = (String(group.getAttribute('transform')).match(/-?[\\d.]+/g) || []).map(Number);
         const frames = [...svg.querySelectorAll('[id$="_frame"] rect')];
+        const at = (a) => frames.map(r => Number(r.getAttribute(a)));
+        const span = (a, s) => {
+            const lo = Math.min(...at(a));
+            return [lo, Math.max(...frames.map((r, i) => at(a)[i] + Number(r.getAttribute(s))))];
+        };
+        const [x0, x1] = span('x', 'width');
+        const [y0, y1] = span('y', 'height');
+        const area = alignArea({});
         const box = (s) => s.trim().split(/[\\s,]+/).map(Number);
         const file = box(svg.getAttribute('viewBox'));
         const hl = box(document.getElementById('highlight_front').getAttribute('viewBox'));
+        const near = (a, b) => Math.abs(a - b) < 0.51;
         return {
-            left: Math.round(Math.min(...frames.map(r => Number(r.getAttribute('x')))) + move[0]),
-            top: Math.round(Math.min(...frames.map(r => Number(r.getAttribute('y')))) + move[1]),
-            origin: [STATIC_DOC.originX, STATIC_DOC.originY],
+            // The middle of the object on the middle of the area, both ways.
+            centredX: near((x0 + x1) / 2 + move[0], area.x + area.w / 2),
+            centredY: near((y0 + y1) / 2 + move[1], area.y + area.h / 2),
+            area: [area.x, area.y, area.w, area.h],
             // The page is the fixed one, wherever the object was put in it.
             page: [file[2], file[3]],
             // The two boxes are the same size and differ by the move alone,
@@ -3091,7 +3138,10 @@ try {
                 && Math.abs(file[1] - hl[1] - move[1]) < 0.01,
         };
     })()`, {
-        left: 20, top: 26, origin: [20, 26],
+        centredX: true, centredY: true,
+        // Left on the caption, top and bottom on the View rectangle, right on
+        // its left edge, which is where the margin eats in from.
+        area: [20, 26, 951, 698],
         page: [1845, 800], sameSize: true, offsetByTheMove: true,
     });
 
@@ -3182,7 +3232,249 @@ try {
             others: [...document.querySelectorAll('.settings_toolbar [data-drop]')]
                 .filter(b => getComputedStyle(b).display !== 'none').length,
         };
-    })()`, { shown: false, off: true, hidden: false, others: 5 });
+    })()`, { shown: false, off: true, hidden: false, others: 6 });
+
+    // ---- where a static object is laid
+
+    // The block takes the offsets' place on the bar, and is built to
+    // design/align_settings.json: a label, three buttons, another label and the
+    // margin field.
+    await step('the alignment block is on the bar as designed', `(() => {
+        const block = document.getElementById('align_settings');
+        const bar = document.getElementById('settings_toolbar');
+        const ids = [...bar.querySelectorAll('[data-drop]')].map(b => b.id);
+        const buttons = [...block.querySelectorAll('.align_button')];
+        const cs = (el, p) => getComputedStyle(el)[p];
+        const accent = cs(document.documentElement, 'getPropertyValue') || '';
+        return {
+            shown: cs(block, 'display') !== 'none',
+            afterHatching: ids.indexOf('align_settings') === ids.indexOf('hatching_settings') + 1,
+            labels: [...block.querySelectorAll('.settings_label')].map(s => s.textContent).join('|'),
+            icons: buttons.map(b => b.querySelector('img').getAttribute('src').split('/').pop()).join(','),
+            // 23px square, rounded, and the chosen one filled - the rest are
+            // the same field colour as the margin box beside them.
+            size: buttons.map(b => Math.round(b.getBoundingClientRect().width) + 'x'
+                + Math.round(b.getBoundingClientRect().height)).join(','),
+            round: buttons.every(b => parseFloat(cs(b, 'borderTopLeftRadius')) === 6),
+            chosen: buttons.filter(b => b.classList.contains('is_on')).map(b => b.id).join(','),
+            filled: cs(buttons[0], 'backgroundColor'),
+            plain: cs(buttons[1], 'backgroundColor'),
+            fieldBg: cs(document.getElementById('align_margin'), 'backgroundColor'),
+            margin: document.getElementById('align_margin').value,
+        };
+    })()`, {
+        shown: true,
+        afterHatching: true,
+        labels: 'Выравнивание|с отступом',
+        icons: 'aligh_icon_center.svg,aligh_icon_top.svg,aligh_icon_left_top.svg',
+        size: '23x23,23x23,23x23',
+        round: true,
+        chosen: 'align_center',
+        filled: 'rgb(76, 76, 255)',
+        plain: 'rgb(36, 36, 60)',
+        fieldBg: 'rgb(36, 36, 60)',
+        margin: '0',
+    });
+
+    // Pointing at a button lays the object that way at once and draws the edges
+    // it was laid against; taking the pointer off puts both back.
+    const laidAt = `(() => {
+        const svg = document.querySelector('#preview_svg svg');
+        const g = [...svg.children].find(e => e.tagName === 'g' && !e.id && e.getAttribute('transform'));
+        const frames = [...svg.querySelectorAll('[id$="_frame"] rect')];
+        const move = (String(g.getAttribute('transform')).match(/-?[\\d.]+/g) || []).map(Number);
+        const edge = (a, s) => [
+            Math.round(Math.min(...frames.map(r => Number(r.getAttribute(a)))) + move[a === 'x' ? 0 : 1]),
+            Math.round(Math.max(...frames.map(r => Number(r.getAttribute(a)) + Number(r.getAttribute(s))))
+                + move[a === 'x' ? 0 : 1]),
+        ];
+        const guides = [...document.querySelectorAll('#highlight_front .hl_guide.is_on')];
+        return {
+            left: edge('x', 'width')[0], right: edge('x', 'width')[1],
+            top: edge('y', 'height')[0], bottom: edge('y', 'height')[1],
+            guides: guides.length,
+        };
+    })()`;
+
+    const point = async (id) => {
+        const box = JSON.parse(await session.evaluate(`(() => {
+            const r = document.getElementById('${id}').getBoundingClientRect();
+            return JSON.stringify([r.left + r.width / 2, r.top + r.height / 2]);
+        })()`));
+        await session.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: box[0], y: box[1], buttons: 0 });
+        await sleep(250);
+    };
+    const pointAway = async () => {
+        await session.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 900, y: 500, buttons: 0 });
+        await sleep(250);
+    };
+
+    const centred = await session.evaluate(laidAt);
+    await point('align_corner');
+    await step('pointing at a button lays the object and draws the edges it was laid against',
+        laidAt, { left: 20, right: 20 + (centred.right - centred.left),
+                  top: 26, bottom: 26 + (centred.bottom - centred.top), guides: 2 });
+
+    await point('align_center');
+    await step('the middle draws all four', laidAt, { ...centred, guides: 4 });
+
+    await pointAway();
+    await step('and taking the pointer away puts it back', laidAt, { ...centred, guides: 0 });
+
+    // Carrying the pointer from one button to the next crosses the gap between
+    // them. What is being shown has to stay put across it, or the object flicks
+    // back to the kept alignment for those few frames and jumps as it travels.
+    const pointTo = async (x, y) => {
+        await session.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, buttons: 0 });
+        await sleep(200);
+    };
+    const boxOf = async (id) => JSON.parse(await session.evaluate(`(() => {
+        const r = document.getElementById('${id}').getBoundingClientRect();
+        return JSON.stringify({ left: r.left, right: r.right, mid: r.left + r.width / 2,
+                                top: r.top, bottom: r.bottom, midY: r.top + r.height / 2 });
+    })()`));
+    const corner = await boxOf('align_corner');
+    const side = await boxOf('align_side');
+
+    await point('align_corner');
+    const onCorner = await session.evaluate(laidAt);
+    // The middle of the gap between the two, at the height of the buttons.
+    await pointTo((side.right + corner.left) / 2, corner.midY);
+    await step('crossing the gap between two buttons holds what is being shown',
+        laidAt, onCorner);
+
+    await pointTo(side.mid, side.midY);
+    await step('and it changes over only once the next button is reached', `(() => ({
+        top: ${laidAt}.top,
+        // The side button's own variant, not the corner's.
+        left: ${laidAt}.left,
+    }))()`, { top: 26, left: centred.left });
+
+    // Each button reaches the full height of the bar for the pointer while
+    // staying 23px to the eye, as the layer segments do.
+    await pointTo(corner.mid, corner.top - 6);
+    await step('a button answers above and below itself as well', laidAt, onCorner);
+
+    await pointTo(corner.mid, corner.bottom + 6);
+    await step('and below it', laidAt, onCorner);
+
+    // Above the gap, between the two strips: still inside the three, so still
+    // holding what it was showing.
+    await pointTo((side.right + corner.left) / 2, corner.top - 6);
+    await step('the gap holds it above the buttons too', laidAt, onCorner);
+
+    await pointAway();
+
+    // Pressing keeps it; pressing the one already chosen steps it on.
+    await session.evaluate(`document.getElementById('align_side').click()`);
+    await pointAway();
+    await step('pressing a button keeps that alignment', `(() => ({
+        chosen: [...document.querySelectorAll('.align_button.is_on')].map(b => b.id).join(','),
+        icon: document.querySelector('#align_side img').getAttribute('src').split('/').pop(),
+        top: ${laidAt}.top,
+    }))()`, { chosen: 'align_side', icon: 'aligh_icon_top.svg', top: 26 });
+
+    await session.evaluate(`document.getElementById('align_side').click()`);
+    await pointAway();
+    await step('pressing it again steps it on to the next variant', `(() => ({
+        icon: document.querySelector('#align_side img').getAttribute('src').split('/').pop(),
+        // Laid against the right edge of the area, which is the View rectangle.
+        right: ${laidAt}.right,
+        // And the button the pointer is not on keeps the variant it was left on.
+        corner: document.querySelector('#align_corner img').getAttribute('src').split('/').pop(),
+    }))()`, { icon: 'aligh_icon_right.svg', right: 971, corner: 'aligh_icon_left_top.svg' });
+
+    // The margin takes the right edge of the area in, and nothing else.
+    await session.evaluate(`(() => {
+        const f = document.getElementById('align_margin');
+        f.focus(); f.value = '40';
+        f.dispatchEvent(new Event('input', { bubbles: true }));
+        f.blur();
+    })()`);
+    await sleep(300);
+    await step('the margin takes the right edge in', `${laidAt}.right`, 931);
+
+    // The strip it takes off is shown the way the document offsets are: lit
+    // while its field is being edited, and as tall as the View rectangle it is
+    // measured from.
+    const marginBand = `(() => {
+        const svg = document.querySelector('#preview_svg svg');
+        const g = [...svg.children].find(e => e.tagName === 'g' && !e.id && e.getAttribute('transform'));
+        const move = (String(g.getAttribute('transform')).match(/-?[\\d.]+/g) || []).map(Number);
+        const band = document.querySelector('#highlight_front .hl_offset[data-side="margin"]');
+        const n = (a) => Number(band.getAttribute(a));
+        return {
+            lit: band.classList.contains('is_on'),
+            // In the file's own coordinates, which is where the View is.
+            box: [n('x') + move[0], n('y') + move[1], n('width'), n('height')].map(Math.round).join(','),
+        };
+    })()`;
+
+    await session.evaluate(`document.getElementById('align_margin').focus()`);
+    await sleep(300);
+    await step('editing the margin lights the strip it takes off', marginBand, {
+        lit: true,
+        // From the area's right edge to the View rectangle, and as tall as it.
+        box: '931,26,40,698',
+    });
+
+    // The page itself is not being changed - the margin moves an area inside
+    // it - so the edge of the document stays out of it.
+    await step('and leaves the edge of the document alone',
+        `[...document.querySelectorAll('#highlight_front .hl_bounds')].some(r => r.classList.contains('is_on'))`,
+        false);
+
+    await session.evaluate(`document.getElementById('align_margin').blur()`);
+    await sleep(300);
+    await step('and letting go of the field puts it away', `${marginBand}.lit`, false);
+
+    // It is also shown whenever the edge it puts there is, so that the line and
+    // the reason for it are never on their own.
+    await point('align_side');
+    await step('an alignment against that edge lights it too', `${marginBand}.lit`, true);
+    await point('align_corner');
+    await step('and one that is not laid against it does not', `${marginBand}.lit`, false);
+    await point('align_center');
+    await step('the middle, which draws all four edges, does', `${marginBand}.lit`, true);
+    await pointAway();
+
+    // All of it is part of the file, so it comes back out of one.
+    await step('an alignment comes back out of the file it was written into', `(async () => {
+        const [restore, template] = await Promise.all([
+            import('/js/restore.js'), import('/js/template.js'),
+        ]);
+        const subjects = [{
+            fill: '<path d="M10,10h100v80h-100Z"></path>', strokeIn: '',
+            fillBBox: { x: 10, y: 10, w: 100, h: 80 },
+        }];
+        const out = [];
+        for (const alignH of ['left', 'center', 'right']) {
+            for (const alignV of ['top', 'middle', 'bottom']) {
+                for (const alignMargin of [0, 40]) {
+                    const params = { objectType: 'static', alignH, alignV, alignMargin };
+                    const file = template.buildSvg(subjects, params);
+                    const back = restore.restoreDocument(file);
+                    const same = back && back.params.alignH === alignH && back.params.alignV === alignV
+                        // The margin only moves two of the three, so it is only
+                        // readable back out of those.
+                        && (alignH === 'left' || back.params.alignMargin === alignMargin);
+                    const again = back && template.buildSvg(back.subjects, back.params);
+                    if (!same || again !== file) out.push(alignH + '/' + alignV + '/' + alignMargin);
+                }
+            }
+        }
+        return { wrong: out.join(' ') || 'none' };
+    })()`, { wrong: 'none' });
+
+    // Put it back to the middle for what follows.
+    await session.evaluate(`(() => {
+        const f = document.getElementById('align_margin');
+        f.focus(); f.value = '0';
+        f.dispatchEvent(new Event('input', { bubbles: true }));
+        f.blur();
+        document.getElementById('align_center').click();
+    })()`);
+    await pointAway();
 
     // The whole point of the switch: the drawing is the user's, the template
     // is not. Nothing typed or moved may be lost by choosing the other one.

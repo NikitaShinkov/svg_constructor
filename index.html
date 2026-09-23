@@ -216,6 +216,38 @@
                        data-unit=" %" data-min="1" data-max="100" aria-label="Доля закрашенной части">
             </div>
 
+            <!-- Where a static object is laid in the area between the caption
+                 and the frame KOMPAKS fills in. Three buttons: the middle, one
+                 side, two sides - and the last two carry four variants each,
+                 cycled by pressing the button that is already chosen. It shares
+                 the offsets' place on the bar, the two never being there at
+                 once: one belongs to a document that grows, the other to a page
+                 that does not. -->
+            <div class="align_settings" id="align_settings" data-drop="1">
+                <span class="settings_label">Выравнивание</span>
+                <!-- The three together, because carrying the pointer from one to
+                     the next crosses the gap between them: what is being shown
+                     is only put down on the way out of the group, so the object
+                     never flicks back to the kept alignment in between. -->
+                <div class="align_buttons" id="align_buttons">
+                    <button type="button" class="align_button is_on" id="align_center"
+                            data-align="center" aria-pressed="true" title="По центру">
+                        <img src="assets/icons/aligh_icon_center.svg" alt="" width="23" height="23">
+                    </button>
+                    <button type="button" class="align_button" id="align_side"
+                            data-align="top" aria-pressed="false" title="К одной стороне">
+                        <img src="assets/icons/aligh_icon_top.svg" alt="" width="23" height="23">
+                    </button>
+                    <button type="button" class="align_button" id="align_corner"
+                            data-align="left_top" aria-pressed="false" title="К двум сторонам">
+                        <img src="assets/icons/aligh_icon_left_top.svg" alt="" width="23" height="23">
+                    </button>
+                </div>
+                <span class="settings_label">с отступом</span>
+                <input type="text" class="unit_input" id="align_margin" inputmode="numeric"
+                       data-min="0" data-max="9999" aria-label="Отступ от области выравнивания">
+            </div>
+
             <!-- The empty space the format leaves under the object, and as much
                  above it as is asked for. Both are part of the document, so the
                  file is rebuilt as they are typed. -->

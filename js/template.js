@@ -20,6 +20,11 @@ export const PARAMS = {
     bottomPadding: 70,          // empty space added below the object
     topPadding: 0,              // and above it, if the toolbar asks for any
     objectType: 'dynamic',      // 'dynamic' or 'static' - which template is built
+    // Where a static object sits in the area it is aligned in. Every pair of
+    // these is one of the nine the toolbar offers.
+    alignH: 'center',           // 'left' | 'center' | 'right'
+    alignV: 'middle',           // 'top' | 'middle' | 'bottom'
+    alignMargin: 0,             // taken off the right edge of that area
 };
 
 /**
@@ -31,17 +36,23 @@ export const PARAMS = {
  *
  *   width/height  the page, as every file in src_doc/examples/static has it
  *   viewX/viewY   where its viewBox starts
- *   originX       where the left edge of the subject group goes: on the
- *                 "Источники АЭ" caption
- *   originY       where its top edge goes: on the top of the `View` rectangle
+ *   view          the rectangle KOMPAKS draws the object in, three of whose
+ *                 edges the object is aligned against
+ *   captionX      where the "Источники АЭ" caption starts, which is the
+ *                 fourth - the left edge of that area
+ *
+ * `view` and `captionX` are also written into the markup - by STATIC_LAYER_O
+ * and by backgroundElem - and the two must not drift apart. The markup is kept
+ * verbatim rather than built from these, so the golden test holds one against
+ * the other instead.
  */
 export const STATIC_DOC = {
     width: 1845,
     height: 800,
     viewX: -1,
     viewY: -1,
-    originX: 20,
-    originY: 26,
+    view: { x: 971, y: 26, width: 860, height: 698 },
+    captionX: 20,
     // Every reference file carries this, and the preview has to carry it too:
     // it decides where a box that does not fill its element is drawn inside it,
     // so a highlight layer left on the default would centre what the file puts
@@ -50,6 +61,30 @@ export const STATIC_DOC = {
 };
 
 export const isStatic = (params) => (params || {}).objectType === 'static';
+
+/**
+ * The rectangle a static object is aligned in: the `View` rectangle KOMPAKS
+ * draws the object in, reaching left as far as the caption under it, and
+ * pulled in from `View`'s left edge by however much margin was asked for.
+ */
+export function alignArea(params) {
+    const p = { ...PARAMS, ...(params || {}) };
+    const v = STATIC_DOC.view;
+    const x = STATIC_DOC.captionX;
+    return { x, y: v.y, w: v.x - (p.alignMargin || 0) - x, h: v.height };
+}
+
+// Which end of the area an object is put against. Both axes read the same way,
+// so one table answers for them: the near edge, the middle, or the far edge.
+const NEAR = { left: 1, top: 1 };
+const FAR = { right: 1, bottom: 1 };
+
+/** Where an object of `extent` starts, laid against `how` of `start..start+size`. */
+export function alignOffset(start, size, extent, how) {
+    if (NEAR[how]) return start;
+    if (FAR[how]) return start + size - extent;
+    return start + (size - extent) / 2;
+}
 
 const f2 = (v) => (Math.abs(v) < 0.005 ? 0 : v).toFixed(2);
 const f0 = (v) => (Math.abs(v) < 0.5 ? 0 : v).toFixed(0);
@@ -474,14 +509,16 @@ export function computeLayout(subjects, params) {
     // both, which is what keeps the highlight layers on the drawing.
     let viewX, viewY, viewW, viewH, fileViewX, fileViewY, shiftX, shiftY;
     if (isStatic(p)) {
-        // A fixed page that the object is placed into. The two offsets are
-        // about a document that grows, so they have nothing to do here.
+        // A fixed page that the object is placed into, at whichever end of the
+        // alignment area the toolbar asks for. The two offsets are about a
+        // document that grows, so they have nothing to do here.
+        const area = alignArea(p);
         viewW = STATIC_DOC.width;
         viewH = STATIC_DOC.height;
         fileViewX = STATIC_DOC.viewX;
         fileViewY = STATIC_DOC.viewY;
-        shiftX = STATIC_DOC.originX - minX;
-        shiftY = STATIC_DOC.originY - minY;
+        shiftX = alignOffset(area.x, area.w, objW, p.alignH) - minX;
+        shiftY = alignOffset(area.y, area.h, objH, p.alignV) - minY;
         viewX = fileViewX - shiftX;
         viewY = fileViewY - shiftY;
     } else {

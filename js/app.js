@@ -2,7 +2,10 @@
 
 import { detectSubjects, parseGeometryFragment } from './detect.js';
 import { restoreDocument } from './restore.js';
-import { buildSvg, computeLayout, PARAMS, clickArea, indicatorOffsets, INDICATOR_KEYS, isStatic } from './template.js';
+import {
+    buildSvg, computeLayout, PARAMS, clickArea, indicatorOffsets, INDICATOR_KEYS,
+    isStatic, alignArea, STATIC_DOC,
+} from './template.js';
 import { INDICATOR_SIZES } from './indicators.js';
 
 const el = (id) => document.getElementById(id);
@@ -42,6 +45,8 @@ const ui = {
     resetIndicators: el('reset_indicators_button'),
     objectTypeSelector: el('object_type_selector'),
     offsetBlock: el('offset_settings'),
+    alignBlock: el('align_settings'),
+    alignButtons: el('align_buttons'),
 };
 
 /** A subject with nothing in it yet, ready to be typed into. */
@@ -66,6 +71,10 @@ const state = {
     hover: -1,          // subject the cursor is on, from either side
     indicators: [],     // the indicators the arrow keys move; the first has the say
     guide: null,        // {axis, at, subject} of the line a drag landed on, or an alignment used
+    // Where a static object is laid. `hover` is the variant the pointer is on,
+    // which is shown but not kept; the two cycling buttons remember the variant
+    // they are showing even while another button is the chosen one.
+    align: { hover: null, side: 'top', corner: 'left_top' },
     undo: null,         // {token, before} - one step back, and no more
     docBox: null,       // the document as the preview last drew it
     zoom: 1,            // 1 fills the preview block, 0 is 150px on the longer side
@@ -440,6 +449,19 @@ function renderHighlights() {
     ui.hlFront.appendChild(offsetBand('bottom',
         { x: layout.viewX, y: layout.y + layout.h, w: layout.viewW, h: offsets.bottomPadding }, pad.stOutWidth));
 
+    // And the strip the margin takes off the alignment area, which is an offset
+    // of the same kind: the area's right edge against the View rectangle it is
+    // measured from, as tall as that rectangle.
+    if (isStatic(pad)) {
+        const area = alignArea(pad);
+        ui.hlFront.appendChild(offsetBand('margin', {
+            x: area.x + area.w - layout.shiftX,
+            y: STATIC_DOC.view.y - layout.shiftY,
+            w: STATIC_DOC.view.x - (area.x + area.w),
+            h: STATIC_DOC.view.height,
+        }, pad.stOutWidth));
+    }
+
     const bounds = rect('hl_bounds', { x: layout.viewX, y: layout.viewY, w: layout.viewW, h: layout.viewH }, -1);
     ui.hlFront.appendChild(bounds);
 
@@ -450,8 +472,49 @@ function renderHighlights() {
     guide.setAttribute('class', 'hl_guide');
     ui.hlFront.appendChild(guide);
 
+    // The edges of the area a static object is laid in, shown while the pointer
+    // is on one of the alignment buttons. They are the same line the snapping
+    // draws, and they are drawn here because hovering rebuilds the file - the
+    // layer is thrown away and made again under the pointer.
+    for (const line of alignGuideLines(layout)) ui.hlFront.appendChild(line);
+
     sizeEdgeHandles();
     paintHighlights();
+}
+
+/**
+ * The edges of the alignment area that the button under the pointer stands
+ * for - all four for the middle, one for a side, two for a corner - drawn right
+ * across the document, as the snapping guide is.
+ *
+ * The area belongs to the file, which is the document moved by the shift, so
+ * each edge is brought back into the document's own coordinates.
+ */
+/** Which edges of the area a variant is laid against - all four for the middle. */
+const alignEdges = (variant) =>
+    (!variant ? [] : variant === 'center' ? ['left', 'right', 'top', 'bottom'] : variant.split('_'));
+
+function alignGuideLines(layout) {
+    const shown = state.align.hover;
+    if (!shown || !isStatic(layout.p)) return [];
+    const area = alignArea(layout.p);
+    const box = { x: layout.viewX, y: layout.viewY, w: layout.viewW, h: layout.viewH };
+    const at = {
+        left: ['x', area.x - layout.shiftX],
+        right: ['x', area.x + area.w - layout.shiftX],
+        top: ['y', area.y - layout.shiftY],
+        bottom: ['y', area.y + area.h - layout.shiftY],
+    };
+    return alignEdges(shown).map((edge) => {
+        const [axis, value] = at[edge];
+        const line = document.createElementNS(SVG_NS, 'line');
+        line.setAttribute('class', 'hl_guide is_on');
+        line.setAttribute('x1', axis === 'x' ? value : box.x);
+        line.setAttribute('x2', axis === 'x' ? value : box.x + box.w);
+        line.setAttribute('y1', axis === 'x' ? box.y : value);
+        line.setAttribute('y2', axis === 'x' ? box.y + box.h : value);
+        return line;
+    });
 }
 
 /** The strip an offset makes, lit like a selected subject while it is edited. */
@@ -614,13 +677,21 @@ function paintHighlights() {
         r.classList.toggle('is_live', state.preview.indicators);
     }
 
-    // The offsets are shown only while one of their fields is being edited.
+    // The offsets are shown only while one of their fields is being edited. The
+    // margin is one of those, and is shown while the edge it is measured from
+    // is drawn as well - the strip is what puts that line where it is.
     const offset = state.preview.offset;
+    const marginShown = offset === 'margin'
+        || (isStatic(state.params) && alignEdges(state.align.hover).includes('right'));
     for (const r of ui.stage.querySelectorAll('.hl_offset')) {
-        r.classList.toggle('is_on', r.dataset.side === offset);
+        const side = r.dataset.side;
+        r.classList.toggle('is_on', side === 'margin' ? marginShown : side === offset);
     }
+    // The edge of the document is drawn round the two that move it, and only
+    // those. The margin moves the area the object is laid in, which is inside
+    // the page and leaves it exactly as it was.
     for (const r of ui.stage.querySelectorAll('.hl_bounds')) {
-        r.classList.toggle('is_on', !!offset);
+        r.classList.toggle('is_on', !!offset && offset !== 'margin');
     }
 
     renderClickArea();
@@ -1871,6 +1942,7 @@ const FIELDS = [
     { id: 'hatch_coverage', key: 'hatchCoverage', hatch: true },
     { id: 'offset_bottom', key: 'bottomPadding', offset: 'bottom' },
     { id: 'offset_top', key: 'topPadding', offset: 'top' },
+    { id: 'align_margin', key: 'alignMargin', offset: 'margin' },
 ];
 
 /** @returns {() => void} puts what the parameters say into the field. */
@@ -1945,9 +2017,123 @@ const paramFields = FIELDS.map(setUpField);
 function syncParamControls() {
     paramFields.forEach((show) => show());
     paintSlider();
+    syncAlign();
     paintObjectType();
     layoutToolbar();
 }
+
+// ---------------------------------------------------------------- alignment
+
+// Where a static object is laid in the area between the caption and the frame
+// KOMPAKS fills in. Nine places, offered as three buttons: the middle, one
+// side, and two sides. The last two carry four variants each and step through
+// them when the button that is already chosen is pressed again.
+
+const ALIGN_VARIANTS = {
+    center: ['center'],
+    side: ['top', 'right', 'bottom', 'left'],
+    corner: ['left_top', 'right_top', 'right_bottom', 'left_bottom'],
+};
+
+// Every variant is one pair of axes, and every pair is one variant.
+const ALIGN_AXES = {
+    center: ['center', 'middle'],
+    top: ['center', 'top'],
+    right: ['right', 'middle'],
+    bottom: ['center', 'bottom'],
+    left: ['left', 'middle'],
+    left_top: ['left', 'top'],
+    right_top: ['right', 'top'],
+    right_bottom: ['right', 'bottom'],
+    left_bottom: ['left', 'bottom'],
+};
+
+/** Which button a variant belongs to. */
+const alignGroup = (variant) =>
+    Object.keys(ALIGN_VARIANTS).find((key) => ALIGN_VARIANTS[key].includes(variant));
+
+/** The variant a pair of axes stands for. */
+function alignVariant(alignH, alignV) {
+    const want = `${alignH},${alignV}`;
+    return Object.keys(ALIGN_AXES).find((v) => ALIGN_AXES[v].join(',') === want) || 'center';
+}
+
+/**
+ * Builds whatever is being shown - the variant under the pointer, or the one
+ * that was kept. The parameters hold that, not the kept one, which is why
+ * `state.align.saved` is where the kept one lives.
+ */
+function applyAlign() {
+    const [alignH, alignV] = ALIGN_AXES[state.align.hover || state.align.saved];
+    if (alignH === state.params.alignH && alignV === state.params.alignV) {
+        // Nothing to rebuild, but the guides belong to what is hovered rather
+        // than to what is being built, and they have just changed.
+        renderHighlights();
+        return;
+    }
+    state.params.alignH = alignH;
+    state.params.alignV = alignV;
+    rebuild();
+}
+
+/** The chosen button filled, and each cycling button showing its own variant. */
+function paintAlign() {
+    for (const button of ui.alignBlock.querySelectorAll('.align_button')) {
+        const key = button.id.replace('align_', '');
+        const variant = key === 'center' ? 'center' : state.align[key];
+        button.dataset.align = variant;
+        button.querySelector('img').src = `assets/icons/aligh_icon_${variant}.svg`;
+        const on = variant === state.align.saved;
+        button.classList.toggle('is_on', on);
+        button.setAttribute('aria-pressed', String(on));
+    }
+}
+
+/** Takes the kept variant from the parameters - after a file brought its own. */
+function syncAlign() {
+    const variant = alignVariant(state.params.alignH, state.params.alignV);
+    state.align.saved = variant;
+    state.align.hover = null;
+    const group = alignGroup(variant);
+    if (group !== 'center') state.align[group] = variant;
+    paintAlign();
+}
+
+ui.alignBlock.addEventListener('click', (e) => {
+    const button = e.target.closest('.align_button');
+    if (!button) return;
+    const key = button.id.replace('align_', '');
+    const variants = ALIGN_VARIANTS[key];
+    // Pressing the button that is already the chosen one steps it on to its
+    // next variant; pressing any other takes it as it stands.
+    const at = variants.indexOf(state.align.saved);
+    const next = at >= 0 ? variants[(at + 1) % variants.length] : button.dataset.align;
+    state.align.saved = next;
+    if (key !== 'center') state.align[key] = next;
+    // A press with the pointer on the button leaves it there, so what is being
+    // shown is now the new one; a press from the keyboard leaves it nowhere,
+    // and nothing may be left showing that the pointer will never take away.
+    state.align.hover = button.matches(':hover') ? next : null;
+    paintAlign();
+    applyAlign();
+});
+
+// Hovering shows an alignment at once; only a press keeps it. What is being
+// shown is put down on the way out of the three buttons rather than out of one
+// of them, because carrying the pointer from one to the next crosses the gap
+// between them - and a gap that put the kept alignment back for those few
+// frames would make the object flick as the pointer travelled.
+for (const button of ui.alignButtons.querySelectorAll('.align_button')) {
+    button.addEventListener('mouseenter', () => {
+        state.align.hover = button.dataset.align;
+        applyAlign();
+    });
+}
+
+ui.alignButtons.addEventListener('mouseleave', () => {
+    state.align.hover = null;
+    applyAlign();
+});
 
 // ---------------------------------------------------------------- object type
 
@@ -1962,11 +2148,15 @@ function paintObjectType() {
         button.classList.toggle('is_on', on);
         button.setAttribute('aria-pressed', String(on));
     }
-    // A static object's page is a fixed size, so there is nothing for the two
-    // offsets to move and no reason to offer them. This is not the bar running
-    // out of room, so it is a class of its own: fitToolbar leaves a block that
-    // has nothing to set out of the order it gives blocks up in.
-    ui.offsetBlock.classList.toggle('is_off', isStatic(state.params));
+    // The two blocks share a place on the bar and are never there together. A
+    // static object's page is a fixed size, so there is nothing for the offsets
+    // to move; a dynamic one has no area to be laid in, the alignment being
+    // measured off the static frame. Neither is the bar running out of room, so
+    // it is a class of its own: fitToolbar leaves a block that has nothing to
+    // set out of the order it gives blocks up in.
+    const staticDoc = isStatic(state.params);
+    ui.offsetBlock.classList.toggle('is_off', staticDoc);
+    ui.alignBlock.classList.toggle('is_off', !staticDoc);
     layoutToolbar();
 }
 
@@ -2064,6 +2254,7 @@ ui.copy.addEventListener('click', async () => {
 state.subjects[0].isOpen = true;
 reserveSizeWidth();
 paintSlider();
+syncAlign();
 paintObjectType();
 rebuild();
 renderSubList();

@@ -59,7 +59,7 @@ dynamic one in these ways only:
 
 * the page is a fixed size - `1845 x 800` - and the top and bottom offsets have
   nothing to move, so their block leaves the settings bar while static is
-  chosen: the page is not measured from the drawing, the drawing is placed into
+  chosen: the page is not measured from the drawing, the drawing is laid into
   the page;
 * `<g id="layer_o">` comes before the subject layers and describes not the
   document's frame but the areas the third-party application replaces with
@@ -70,12 +70,27 @@ dynamic one in these ways only:
   at it. Without a reference from a subject layer the third-party application
   draws no background at all. A simplified version is written for now: the one
   caption «Источники АЭ»;
-* the drawing is moved into the corner of the page - its left edge onto the
-  caption and its top edge onto the top of the `View` rectangle, which is the
-  point `20 26`. The move is written as a `transform="translate(dx dy)"`
-  attribute on the group around the layers, so the whole group can also be moved
-  by hand later. The caption sits inside that group and carries exactly the
-  opposite move, so it stays where it is however far the object travels.
+* the drawing is laid in an area of the page: the top, bottom and left edges of
+  the `View` rectangle, reaching left as far as the caption under it. The
+  «Выравнивание» block on the settings bar - which takes the offsets' place
+  there - says where in that area it goes. Three buttons: the middle, one side,
+  and two sides; the last two carry four variants each and step on to the next
+  when the button already chosen is pressed again, which makes nine places in
+  all. Pointing at a button lays the object that way at once and draws the edges
+  it is laid against, and taking the pointer away from the three puts it back -
+  only a press keeps it. Carrying the pointer from one button to the next holds
+  what it is showing across the gap between them, so the object does not flick
+  as it travels, and each button answers to the whole height of the bar.
+  «с отступом» beside them takes the right edge of the area in from the `View`
+  rectangle by as many pixels as are asked for; the strip it takes off is shown
+  while the field is being edited, and whenever that edge is being drawn. The
+  page itself is not outlined for it, as it is for the two document offsets -
+  the margin moves an area inside the page and leaves the page as it was. The
+  object is centred to begin with; the top left button is where the drawing used
+  to go. The move is written as a `transform="translate(dx dy)"` attribute on the
+  group around the layers, so the whole group can also be moved by hand later.
+  The caption sits inside that group and carries exactly the opposite move, so
+  it stays where it is however far the object travels.
 
 In the preview, two things are drawn that the file does not draw by itself: the
 caption is shown whichever state layer is on show (in the file it belongs to the
@@ -136,7 +151,8 @@ Which one is taken is decided by the file, not by the user:
    `x`/`y` of its `<use>`, and the two document offsets from the `viewBox`
    and the group the layers sit in. Which of the two templates it was built
    from is read from it as well, so a static file comes back static; a static
-   page holds no offsets, so those come back at their defaults.
+   page holds no offsets but does hold where the object was laid, so the
+   alignment and its margin are read out of that instead.
    The geometry is not rebuilt: the markup inside `layer_sN_fill` and
    `layer_sN_stroke_in` is lifted out of the text as it stands, so a file that
    is opened and saved again comes back the way it went in.

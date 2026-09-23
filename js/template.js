@@ -19,7 +19,37 @@ export const PARAMS = {
     hatchCoverage: 30,          // percent of the period covered by the grey stripe
     bottomPadding: 70,          // empty space added below the object
     topPadding: 0,              // and above it, if the toolbar asks for any
+    objectType: 'dynamic',      // 'dynamic' or 'static' - which template is built
 };
+
+/**
+ * The static object's document, which is a fixed frame rather than a measured
+ * one: KOMPAKS draws its own furniture into a page of this size, so the box
+ * never changes and the drawing is moved into it instead of the other way
+ * round. These are the application's numbers, not the format's - they are
+ * expected to become settings of their own.
+ *
+ *   width/height  the page, as every file in src_doc/examples/static has it
+ *   viewX/viewY   where its viewBox starts
+ *   originX       where the left edge of the subject group goes: on the
+ *                 "Источники АЭ" caption
+ *   originY       where its top edge goes: on the top of the `View` rectangle
+ */
+export const STATIC_DOC = {
+    width: 1845,
+    height: 800,
+    viewX: -1,
+    viewY: -1,
+    originX: 20,
+    originY: 26,
+    // Every reference file carries this, and the preview has to carry it too:
+    // it decides where a box that does not fill its element is drawn inside it,
+    // so a highlight layer left on the default would centre what the file puts
+    // at the top and every subject would be out by the same distance.
+    preserveAspectRatio: 'xMinYMin meet',
+};
+
+export const isStatic = (params) => (params || {}).objectType === 'static';
 
 const f2 = (v) => (Math.abs(v) < 0.005 ? 0 : v).toFixed(2);
 const f0 = (v) => (Math.abs(v) < 0.5 ? 0 : v).toFixed(0);
@@ -79,6 +109,15 @@ export function indicatorSet(p) {
     return INDICATORS[p.indicatorDiameter] || INDICATORS[PARAMS.indicatorDiameter];
 }
 
+// The static object carries text of its own, which needs two classes the
+// dynamic format has no use for. Only the classes something in the file uses
+// are written: Instruction.pdf 6.1 allows nothing else in.
+const STATIC_STYLE = `
+        <!-- text -->
+        .text{font-family: "Arial"; letter-spacing: 0em;}
+        <!-- src background text -->
+        .text_src {fill:#FFFFFF;font-size: 32px;}`;
+
 function styleBlock(p, set) {
     return `    <style type="text/css">
         <!-- subject click area -->
@@ -112,9 +151,119 @@ function styleBlock(p, set) {
         <!-- indicator insert fill -->
         .insert {fill:#143D8F}
         <!-- indicator scale -->
-        .scale {transform:scale(${f2(p.indicatorScale)})}
+        .scale {transform:scale(${f2(p.indicatorScale)})}${isStatic(p) ? STATIC_STYLE : ''}
     </style>`;
 }
+
+/**
+ * Everything the static object draws besides its subjects - lines, shapes and
+ * text of any colour and size. KOMPAKS only draws what a subject layer refers
+ * to, so it lives in the defs and layer_s0_background points at it.
+ *
+ * For now this is the one caption every static file carries. It is placed in
+ * the document, not in the object, so it is given the opposite of the shift
+ * that moves the subject group and stays where it is however far the object
+ * travels.
+ */
+function backgroundElem(shiftX, shiftY) {
+    return `        <!--background-->
+        <g id="background_elem">
+            <g class="text text_src" transform="translate(${f2(-shiftX)} ${f2(-shiftY)})">
+                <text x="20" y="765">Источники АЭ</text>
+            </g>
+        </g>
+
+`;
+}
+
+/**
+ * The frame KOMPAKS fills in: the rectangles it replaces with objects of its
+ * own, and the arrows between them. It is the same in every static file - none
+ * of it is worked out from the drawing - so it is kept here exactly as
+ * src_doc/examples/static has it, self-closing tags, `#Cluster10` on Cluster1
+ * and all: these files are what the third-party application reads today.
+ */
+const STATIC_LAYER_O = `    <g id="layer_o"
+     style="display:inline"
+     inkscape:groupmode="layer"
+     inkscape:label="layer_o">
+        <g id="layer_o_background"
+        style="display:inline"
+        inkscape:label="layer_o_background"
+        inkscape:groupmode="layer">
+            <path id="strela"
+                class="icon_w" d="M244.65,730v45h35v-45h-35ZM277.65,773h-31v-41h31v41ZM267.95,762.2l-13.6-9.5,13.6-9.8v19.3Z"/>
+            <path id="strela-5"
+                class="icon_w" d="M1823,775v-45h-35v45h35ZM1790,732h31v41h-31v-41ZM1799.7,742.8l13.6,9.5-13.6,9.8v-19.3Z"/>
+            <g id="layer_o_background_off"
+                style="display:inline"
+                inkscape:groupmode="layer"
+                inkscape:label="layer_o_background_off"></g>
+            <g id="layer_o_background_on"
+                style="display:inline"
+                inkscape:groupmode="layer"
+                inkscape:label="layer_o_background_on"></g>
+            <rect id="View"
+                style="display:inline"
+                class="frame"
+                x="971" y="26" width="860" height="698"/>
+            <rect id="Cluster0"
+                inkscape:label="#Cluster0"
+                style="display:inline"
+                class="frame"
+                x="283.65" y="730" width="184" height="45"/>
+            <rect id="Cluster1"
+                inkscape:label="#Cluster10"
+                style="display:inline"
+                class="frame"
+                x="471.7" y="730" width="184" height="45"/>
+            <rect id="Cluster2"
+                inkscape:label="#Cluster2"
+                style="display:inline"
+                class="frame"
+                x="659.75" y="730" width="184" height="45"/>
+            <rect id="Cluster3"
+                inkscape:label="#Cluster3"
+                style="display:inline"
+                class="frame"
+                x="847.8" y="730" width="184" height="45"/>
+            <rect id="Cluster4"
+                inkscape:label="#Cluster4"
+                style="display:inline"
+                class="frame"
+                x="1035.85" y="730" width="184" height="45"/>
+            <rect id="Cluster5"
+                inkscape:label="#Cluster5"
+                style="display:inline"
+                class="frame"
+                x="1223.9" y="730" width="184" height="45"/>
+            <rect id="Cluster6"
+                inkscape:label="#Cluster6"
+                style="display:inline"
+                class="frame"
+                x="1411.95" y="730" width="184" height="45"/>
+            <rect id="Cluster7"
+                inkscape:label="#Cluster7"
+                style="display:inline"
+                class="frame"
+                x="1600" y="730" width="184" height="45"/>
+            <rect id="tbtClusterLeft"
+                inkscape:label="#tbtClusterLeft"
+                style="display:inline"
+                class="frame"
+                x="244.65" y="730" width="35" height="45"/>
+            <rect id="tbtClusterRight"
+                inkscape:label="#tbtClusterRight"
+                style="display:inline"
+                class="frame"
+                x="1788" y="730" width="35" height="45"/>
+            <rect id="Subject"
+                class="frame"
+                x="1" y="1" width="1845" height="800"/>
+        </g>
+    </g>
+
+`;
 
 /**
  * `fill` and `strokeIn` are inserted exactly as the user typed them - the app
@@ -145,7 +294,7 @@ const STATES = [
     ['repair', 'st_w'],
 ];
 
-function subjectLayer(n, ind) {
+function subjectLayer(n, ind, background) {
     const states = STATES.map(([state, lineClass]) => `            <g id="layer_s${n}_${state}" inkscape:label="layer_s${n}_${state}" style="display:inline">
                 <use xlink:href="#layer_s${n}_fill" class="${state}"></use>
                 <use xlink:href="#layer_s${n}_stroke_in" class="st_in ${lineClass}"></use>
@@ -165,7 +314,8 @@ function subjectLayer(n, ind) {
             <use id="Subject${n}" xlink:href="#layer_s${n}_frame" class="frame"></use>
             <use xlink:href="#layer_s${n}_fill" class="bg_grad"></use>
             <use xlink:href="#layer_s${n}_stroke_in" class="st_in st_w"></use>
-            <use xlink:href="#layer_s${n}_fill" class="st_out"></use>
+            <use xlink:href="#layer_s${n}_fill" class="st_out"></use>${background ? `
+            <use xlink:href="#background_elem"></use>` : ''}
         </g>
 
         <g id="layer_s${n}_sost" inkscape:label="layer_s${n}_sost" style="display:inline">
@@ -307,32 +457,59 @@ export function computeLayout(subjects, params) {
 
     const objW = maxX - minX;
     const objH = maxY - minY;
-    // The document is the artwork with the two offsets around it. x/y/w/h stay
-    // the artwork's own, which is what the hatch and the offset bands are
-    // measured from; viewY/viewH are the document.
-    const viewH = objH + p.topPadding + p.bottomPadding;
-    const viewY = minY - p.topPadding;
 
-    // The same document, written down the way KOMPAKS reads it. It takes the
-    // height of the viewBox but ignores its origin, so a box that starts above
-    // the artwork draws the subjects from the top of itself and leaves the
-    // empty space at the foot - the offset above the object arrives below it.
-    // The file therefore never starts its box above zero: it starts at the
-    // artwork's own top, and the space above the object is made by moving the
-    // object down instead, which buildSvg writes as an inline transform on a
-    // group around the layers. `topShift` is how far down, and it is never
-    // negative - an artwork that begins above zero is rebased the same way.
-    const fileViewY = Math.max(0, minY);
-    const topShift = fileViewY + p.topPadding - minY;
+    // The document, and how far the object is moved inside it. x/y/w/h stay the
+    // artwork's own throughout - that is what the hatch is measured on and what
+    // the click areas and indicators are worked out in - while viewX/viewY/
+    // viewW/viewH are the page the preview draws and fileViewBox is the same
+    // page as the file writes it.
+    //
+    // The two differ by the shift, and only by that. KOMPAKS takes the size of
+    // the viewBox but ignores where it starts, so a box that began above the
+    // artwork would draw the subjects from the top of itself and put the space
+    // meant to be above the object underneath it. The file therefore never
+    // moves its box; it moves the object, which buildSvg writes as an inline
+    // transform on a group around the layers. Because the two boxes are the
+    // same size, a point of the artwork lands on the same place on screen in
+    // both, which is what keeps the highlight layers on the drawing.
+    let viewX, viewY, viewW, viewH, fileViewX, fileViewY, shiftX, shiftY;
+    if (isStatic(p)) {
+        // A fixed page that the object is placed into. The two offsets are
+        // about a document that grows, so they have nothing to do here.
+        viewW = STATIC_DOC.width;
+        viewH = STATIC_DOC.height;
+        fileViewX = STATIC_DOC.viewX;
+        fileViewY = STATIC_DOC.viewY;
+        shiftX = STATIC_DOC.originX - minX;
+        shiftY = STATIC_DOC.originY - minY;
+        viewX = fileViewX - shiftX;
+        viewY = fileViewY - shiftY;
+    } else {
+        // The artwork with the two offsets around it. The box starts at the
+        // artwork's own top, and an artwork that begins above zero is rebased
+        // the same way, so no coordinate in the file is ever negative.
+        viewW = objW;
+        viewH = objH + p.topPadding + p.bottomPadding;
+        viewX = minX;
+        viewY = minY - p.topPadding;
+        fileViewX = minX;
+        fileViewY = Math.max(0, minY);
+        shiftX = 0;
+        shiftY = fileViewY + p.topPadding - minY;
+    }
+
     return {
-        p, frames, x: minX, y: minY, w: objW, h: objH, viewY, viewH,
+        p, frames, x: minX, y: minY, w: objW, h: objH,
         // The document's own coordinates: what the preview highlights, the
-        // offset bands and the border drags all work in, and what the file
-        // used to be written in as well.
-        viewBox: `${f2(minX)} ${f2(viewY)} ${f2(objW)} ${f2(viewH)}`,
-        // The file's, which differ by `topShift` and only ever by that.
-        fileViewY, topShift,
-        fileViewBox: `${f2(minX)} ${f2(fileViewY)} ${f2(objW)} ${f2(viewH)}`,
+        // offset bands and the border drags all work in.
+        viewX, viewY, viewW, viewH,
+        viewBox: `${f2(viewX)} ${f2(viewY)} ${f2(viewW)} ${f2(viewH)}`,
+        // What the file's <svg> will carry, so that anything drawn over the
+        // file can be given the same and land on it.
+        preserveAspectRatio: isStatic(p) ? STATIC_DOC.preserveAspectRatio : null,
+        // The file's, which differ by the shift and only ever by that.
+        fileViewX, fileViewY, shiftX, shiftY,
+        fileViewBox: `${f2(fileViewX)} ${f2(fileViewY)} ${f2(viewW)} ${f2(viewH)}`,
     };
 }
 
@@ -342,11 +519,12 @@ export function computeLayout(subjects, params) {
  */
 export function buildSvg(subjects, params) {
     const layout = computeLayout(subjects, params);
-    const { p, frames, w: objW, h: objH, viewH, topShift } = layout;
-    const minX = layout.x;
+    const { p, frames, w: objW, h: objH, viewW, viewH, shiftX, shiftY } = layout;
     // The file's box, not the document's: see computeLayout. Everything written
     // below is in the file's coordinates.
+    const viewX = layout.fileViewX;
     const viewY = layout.fileViewY;
+    const staticDoc = isStatic(p);
 
     const set = indicatorSet(p);
 
@@ -361,26 +539,43 @@ export function buildSvg(subjects, params) {
         .map((s, i) => roleDefs(i, frames[i], s.fill, s.strokeIn))
         .join('');
 
+    // Only s0 carries the background: KOMPAKS draws nothing that no subject
+    // layer refers to, and one reference is enough to have it drawn.
     const layers = subjects
-        .map((s, i) => subjectLayer(i, frames[i].indicators))
+        .map((s, i) => subjectLayer(i, frames[i].indicators, staticDoc && i === 0))
         .join('');
 
-    // The space above the object, as an inline transform - a class would not do,
-    // KOMPAKS does not read the stylesheet for this. layer_o stays outside the
-    // group: its rect is the whole document, so it belongs to the box rather
-    // than to the object being moved inside it.
-    const body = topShift > 0
-        ? `    <g transform="translate(0 ${f2(topShift)})">
+    // Where the object sits in the document, as an inline transform - a class
+    // would not do, KOMPAKS does not read the stylesheet for this. For a
+    // dynamic object this is the space asked for above it; for a static one it
+    // is the corner the drawing is placed in. layer_o stays outside the group
+    // either way: its rectangles are the document, not the object moving
+    // inside it.
+    const body = (shiftX || shiftY)
+        ? `    <g transform="translate(${f2(shiftX)} ${f2(shiftY)})">
 ${indent(layers)}    </g>
 
 `
         : layers;
 
-    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="${layout.fileViewBox}" width="${f2(objW)}" height="${f2(viewH)}">
+    // The static object's own furniture comes before the subjects, as every
+    // file in src_doc/examples/static has it; the dynamic one's box comes after
+    // them, as Instruction.pdf 6.2 has it.
+    const layerO = staticDoc ? STATIC_LAYER_O : `    <g id="layer_o" inkscape:label="layer_o" style="display:inline">
+        <g id="layer_o_background" inkscape:label="layer_o_background" style="display:inline">
+            <g id="layer_o_background_off" inkscape:label="layer_o_background_off" style="display:inline"></g>
+            <g id="layer_o_background_on" inkscape:label="layer_o_background_on" style="display:inline"></g>
+            <rect width="${f2(viewW)}" height="${f2(viewH)}" x="${f2(viewX)}" y="${f2(viewY)}" style="fill:none"></rect>
+        </g>
+    </g>
+
+`;
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="${layout.fileViewBox}" width="${f2(viewW)}" height="${f2(viewH)}"${layout.preserveAspectRatio ? ` preserveAspectRatio="${layout.preserveAspectRatio}"` : ''}>
 ${styleBlock(p, set)}
 
     <defs>
-        <!--gradient-->
+${staticDoc ? backgroundElem(shiftX, shiftY) : ''}        <!--gradient-->
         <linearGradient id="linear_grad" x1="${f0(hatch.x1)}" x2="${f0(hatch.x2)}" y1="${f0(hatch.y1)}" y2="${f0(hatch.y2)}" gradientUnits="userSpaceOnUse">
 ${stops}
         </linearGradient>
@@ -388,13 +583,5 @@ ${stops}
 ${defs}${set.icons}
     </defs>
 
-${body}    <g id="layer_o" inkscape:label="layer_o" style="display:inline">
-        <g id="layer_o_background" inkscape:label="layer_o_background" style="display:inline">
-            <g id="layer_o_background_off" inkscape:label="layer_o_background_off" style="display:inline"></g>
-            <g id="layer_o_background_on" inkscape:label="layer_o_background_on" style="display:inline"></g>
-            <rect width="${f2(objW)}" height="${f2(viewH)}" x="${f2(minX)}" y="${f2(viewY)}" style="fill:none"></rect>
-        </g>
-    </g>
-
-</svg>`;
+${staticDoc ? layerO + body : body + layerO}</svg>`;
 }

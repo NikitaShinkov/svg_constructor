@@ -139,6 +139,10 @@ body {
 /* Dropped whole when the bar runs out of room, in the order set in app.js. */
 .settings_toolbar .is_hidden { display: none; }
 
+/* Not the bar running out of room: a block with nothing to set for the object
+   being built, which is gone whatever room there is. */
+.settings_toolbar .is_off { display: none; }
+
 /* ---------- switch ---------- */
 
 .switch {
@@ -318,6 +322,47 @@ body.is_resizing {
     flex: 1;
     min-height: 0;
 }
+
+/* Two halves of one pill, from design/object_type_selector.json: a 1px accent
+   ring around both and the chosen one filled. At the sidebar's 360px minimum
+   the ring measures the design's 336px exactly, which is what the labels were
+   laid out against. */
+.object_type_selector {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    height: 26px;
+    border: 1px solid var(--accent);
+    border-radius: 40px;
+}
+
+.object_type {
+    display: flex;
+    align-items: center;
+    flex: 1 1 0;
+    min-width: 0;
+    height: 24px;
+    gap: 4px;
+    padding: 0 11px;
+    border: 0;
+    border-radius: 44px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.object_type img { flex: 0 0 auto; }
+
+.object_type span {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.object_type.is_on { background: var(--accent); }
+
+.object_type:not(.is_on):hover { background: var(--upload-hover); }
 
 .head_line {
     display: flex;
@@ -738,9 +783,26 @@ body.is_empty .upload_button:hover {
 .preview_stage svg {
     width: 100%;
     height: 100%;
-    /* preserveAspectRatio defaults to xMidYMid meet, so proportions are kept.
-       The highlight layers carry the same viewBox and the same box, so the two
-       coordinate systems land on top of each other exactly. */
+    /* Proportions are kept whatever preserveAspectRatio says; what it decides
+       is where a box that does not fill the element is put inside it. The
+       highlight layers are given the same viewBox and the same value as the
+       file (renderHighlights), so the two coordinate systems land on top of
+       each other exactly. */
+}
+
+/* The areas KOMPAKS replaces with objects of its own: the view it draws the
+   object in, and the eight clusters under it. In the file they are `fill:none`
+   and nothing else - the format has no line on them - so this is a rule of the
+   app's own over the injected copy, and nothing of it reaches the export. The
+   line is in the document's units, like every other line in the drawing, so it
+   scales with the artwork. They are paint, not targets: the pointer goes
+   through them to the drawing underneath. */
+.preview_svg [id="View"],
+.preview_svg [id^="Cluster"] {
+    fill: none;
+    stroke: var(--text);
+    stroke-width: 2;
+    pointer-events: none;
 }
 
 /* ---------- subject highlight ---------- */

@@ -17,7 +17,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildSvg } from '../js/template.js';
+import { buildSvg, computeLayout, STATIC_DOC } from '../js/template.js';
 import { parsePath, normalizePath, pathBBox } from '../js/geometry.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -169,6 +169,83 @@ for (const { name, level } of CASES) {
         failures++;
         console.log(`FAIL  ${name}  (${subjects.length} subjects, ${level})`);
         problems.forEach((p) => console.log(p));
+    }
+}
+
+// ---------------------------------------------------------------- static
+
+// The static object is the same drawing under a different template: a page of a
+// fixed size with the object placed into a corner of it. There is nothing to
+// diff whole against, because the references in src_doc/examples/static were
+// drawn in place - every one of them carries translate(0 0) - and they hold
+// background elements the simplified template does not write yet. What can be
+// checked is everything the template decides for itself.
+{
+    const name = 'AE_Separator_8.svg';
+    const file = path.join(dir, 'static', name);
+    const problems = [];
+    const check = (label, want, got) => {
+        if (String(want) !== String(got)) {
+            problems.push(`      ${label}\n        expected: ${want}\n        actual:   ${got}`);
+        }
+    };
+
+    if (!fs.existsSync(file)) {
+        console.log(`SKIP  ${name} (missing)`);
+    } else {
+        const original = normalise(fs.readFileSync(file, 'utf8')).trimEnd();
+        const subjects = extractSubjects(original);
+        const built = normalise(buildSvg(subjects, { objectType: 'static' })).trimEnd();
+
+        const first = (s, re) => (s.match(re) || [])[0];
+        const layerO = (s) => s.slice(s.indexOf('<g id="layer_o"'), s.indexOf('<g transform="translate'));
+
+        // The page is the format's, not the drawing's.
+        check('header', first(original, /<svg [^>]*>/), first(built, /<svg [^>]*>/));
+
+        // The frames and the hatch are the drawing's, not the template's, and
+        // the dynamic cases above already hold them to the reference files.
+        // This one's frames were adjusted by hand after export, exactly as
+        // CC2's were, so there is nothing here to compare them against.
+
+        // The frame KOMPAKS fills in is copied from the reference verbatim, and
+        // it comes before the subjects rather than after them.
+        check('layer_o', layerO(original), layerO(built));
+        check('layer_o comes first',
+            true, built.indexOf('<g id="layer_o"') < built.indexOf('<g id="layer_s0"'));
+
+        // The object is moved to the corner the two constants name, and the
+        // caption is given the opposite move so it stays where it is.
+        const shift = first(built, /<g transform="translate\([^"]*\)">/);
+        const caption = first(built, /<g class="text text_src" transform="translate\([^"]*\)">/);
+        const numbers = (s) => (s.match(/-?[\d.]+/g) || []).map(Number);
+        const artwork = computeLayout(subjects, { objectType: 'static' });
+        check('the object goes to the two constants',
+            JSON.stringify([STATIC_DOC.originX - artwork.x, STATIC_DOC.originY - artwork.y]
+                .map((v) => Number(v.toFixed(2)))),
+            JSON.stringify(numbers(shift)));
+        check('the caption moves the other way',
+            JSON.stringify(numbers(shift).map((v) => -v)), JSON.stringify(numbers(caption)));
+
+        // KOMPAKS draws nothing no subject layer points at, so s0 - and only
+        // s0 - carries the background.
+        check('s0 refers to the background', 1, (built.match(/<use xlink:href="#background_elem">/g) || []).length);
+        check('the background is in the defs',
+            true, built.indexOf('<g id="background_elem">') < built.indexOf('</defs>'));
+
+        // Nothing of the static template leaks into the dynamic one.
+        const dynamic = buildSvg(subjects);
+        check('the dynamic file has none of it', 'none',
+            ['background_elem', 'text_src', 'id="View"', 'preserveAspectRatio']
+                .filter((s) => dynamic.includes(s)).join(',') || 'none');
+
+        if (!problems.length) {
+            console.log(`PASS  static/${name}  (${subjects.length} subjects, static template)`);
+        } else {
+            failures++;
+            console.log(`FAIL  static/${name}  (${subjects.length} subjects, static template)`);
+            problems.forEach((p) => console.log(p));
+        }
     }
 }
 

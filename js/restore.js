@@ -213,6 +213,16 @@ export function isTemplateDocument(doc) {
 }
 
 /**
+ * Which of the two templates the file was built from. The static one is the
+ * one with a frame KOMPAKS fills in - the `View` rectangle inside layer_o -
+ * and a background of its own in the defs.
+ */
+function isStaticDocument(doc) {
+    return !!(doc.querySelector('[id="layer_o"] [id="View"]')
+        && doc.querySelector('[id="background_elem"]'));
+}
+
+/**
  * Reads a KOMPAKS file this application could have written.
  *
  * @param {string} svgText
@@ -233,6 +243,7 @@ export function restoreDocument(svgText) {
     };
 
     const params = { ...PARAMS };
+    params.objectType = isStaticDocument(doc) ? 'static' : 'dynamic';
     const out = styleWidth('st_out');
     const inner = styleWidth('st_in');
     if (out !== null) params.stOutWidth = clamp(out, ...RANGE.stOutWidth);
@@ -305,7 +316,11 @@ export function restoreDocument(svgText) {
     const layout = computeLayout(subjects, { ...params, topPadding: 0, bottomPadding: 0 });
     Object.assign(params, readHatch(doc.querySelector('[id="linear_grad"]'), layout.w, layout.h));
 
-    const view = readViewBox(svgEl);
+    // A static document is a page of a fixed size with the object placed into a
+    // corner of it, so neither offset is written into it and neither is read
+    // back: the transform around its layers says where the object was put, not
+    // how much room was left above it.
+    const view = isStaticDocument(doc) ? null : readViewBox(svgEl);
     if (view) {
         // The space above the object is whatever moved the layers down, plus
         // whatever the box starts above the artwork. One of the two is always

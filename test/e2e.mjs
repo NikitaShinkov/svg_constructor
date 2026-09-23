@@ -1307,7 +1307,7 @@ try {
     })()`, {
         viewBox: '0.00 0.00 354.00 362.00',
         size: '354.00,362.00',
-        transform: 'translate(0 40.00)',
+        transform: 'translate(0.00 40.00)',
         wraps: 'layer_s0,layer_s1',
         layerO: '0.00,0.00,354.00,362.00',
         outside: true,
@@ -2927,12 +2927,314 @@ try {
         // The same document as it would have been written before: nothing on
         // the group, the box starting above the artwork, and layer_o with it.
         const then = now
-            .split('translate(0 40.00)').join('translate(0 0)')
+            .split('translate(0.00 40.00)').join('translate(0 0)')
             .split('viewBox="0.00 0.00').join('viewBox="0.00 -40.00')
             .split('x="0.00" y="0.00" style="fill:none"').join('x="0.00" y="-40.00" style="fill:none"');
         const r = restoreDocument(then);
         return r ? { top: r.params.topPadding, bottom: r.params.bottomPadding } : { top: null, bottom: null };
     })()`, { top: 40, bottom: 120 });
+    // ---- dynamic or static equipment ----------------------------------------
+
+    // Two templates over one drawing. The sidebar is the same either way, and
+    // so is everything in it: what the switch changes is the file.
+    await session.send('Page.navigate', { url: `http://localhost:${appPort}/index.html` });
+    await waitUntil(session, `document.body.dataset.ready === 'true'`);
+
+    await step('the selector is the first thing in the sidebar, dynamic chosen', `(() => {
+        const sel = document.getElementById('object_type_selector');
+        const sidebar = document.getElementById('sud_sidebloсk');
+        const buttons = [...sel.querySelectorAll('.object_type')];
+        const cs = getComputedStyle(sel);
+        const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+        const rgb = (hex) => 'rgb(' + [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(', ') + ')';
+        return {
+            first: sidebar.firstElementChild === sel,
+            labels: buttons.map(b => b.querySelector('span').textContent).join('|'),
+            icons: buttons.map(b => b.querySelector('img').getAttribute('src').split('/').pop()).join('|'),
+            chosen: buttons.filter(b => b.classList.contains('is_on')).map(b => b.dataset.type).join(','),
+            pressed: buttons.map(b => b.getAttribute('aria-pressed')).join(','),
+            // The design's pill: one accent ring round both, the chosen one filled.
+            height: Math.round(sel.getBoundingClientRect().height),
+            ring: cs.borderTopWidth + ' ' + cs.borderTopColor,
+            round: parseFloat(cs.borderTopLeftRadius) >= 13,
+            fill: buttons.map(b => getComputedStyle(b).backgroundColor === rgb(accent)).join(','),
+            // Nothing is loaded yet and it is offered all the same.
+            shown: cs.display !== 'none',
+        };
+    })()`, {
+        first: true,
+        labels: 'Динамическое обор.|Статическое обор.',
+        icons: 'dynamics_icon.svg|static_icon.svg',
+        chosen: 'dynamic',
+        pressed: 'true,false',
+        height: 26,
+        ring: '1px rgb(76, 76, 255)',
+        round: true,
+        fill: 'true,false',
+        shown: true,
+    });
+
+    {
+        const doc = await session.send('DOM.getDocument');
+        const { nodeId } = await session.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: '#file_input' });
+        await session.send('DOM.setFileInputFiles', {
+            nodeId, files: [path.join(root, 'src_doc', 'files', 'PG_2m1v2s_S-S_figma_draft.svg')],
+        });
+        await waitUntil(session, `document.body.dataset.loaded === 'true'`);
+        await sleep(400);
+    }
+
+    // Something typed into every part of the sidebar, so that a switch has
+    // work to lose: a click area, an indicator and one of the code fields.
+    await session.evaluate(`document.querySelector('#sub_list .sub_num').click()`);
+    await sleep(150);
+    for (const [id, value] of [['click_left', '18'], ['ind_insert_x', '12']]) {
+        await session.evaluate(`(() => {
+            const f = document.getElementById('${id}');
+            f.focus(); f.value = '${value}';
+            f.dispatchEvent(new Event('input', { bubbles: true }));
+            f.blur();
+        })()`);
+        await sleep(150);
+    }
+
+    // The blocks the selection brings with it appear under the selector, never
+    // over it: it is the first thing in the sidebar whatever else is showing.
+    await step('it stays first once a subject is selected', `(() => {
+        const sidebar = document.getElementById('sud_sidebloсk');
+        const top = (id) => document.getElementById(id).getBoundingClientRect().top;
+        return {
+            first: sidebar.firstElementChild.id,
+            aboveClickArea: top('object_type_selector') < top('click_area_settings'),
+            aboveIndicators: top('object_type_selector') < top('indicator_position_settings'),
+            aboveList: top('object_type_selector') < document.querySelector('.sub_list_wrap').getBoundingClientRect().top,
+        };
+    })()`, {
+        first: 'object_type_selector',
+        aboveClickArea: true, aboveIndicators: true, aboveList: true,
+    });
+
+    const sidebarState = `(() => ({
+        rows: [...document.querySelectorAll('#sub_list .sub_num')].map(e => e.textContent).join(','),
+        codes: [...document.querySelectorAll('#sub_list textarea')].map(a => a.value.length).join(','),
+        firstCode: (document.querySelector('#sub_list textarea') || {}).value || '',
+        click: document.getElementById('click_left').value,
+        indicator: document.getElementById('ind_insert_x').value,
+    }))()`;
+    const before = await session.evaluate(sidebarState);
+    const dynamicFile = await session.evaluate(`document.getElementById('preview_svg').innerHTML`);
+
+    await session.evaluate(`document.getElementById('object_type_static').click()`);
+    await sleep(400);
+
+    await step('the static file is the fixed page the format has', `(() => {
+        const svg = document.querySelector('#preview_svg svg');
+        const text = document.getElementById('preview_svg').innerHTML;
+        const caption = svg.querySelector('#background_elem .text_src');
+        const group = [...svg.children].find(g => g.tagName === 'g' && !g.id && g.getAttribute('transform'));
+        const layerO = svg.querySelector('#layer_o');
+        const numbers = (s) => (String(s).match(/-?[\\d.]+/g) || []).map(Number);
+        return {
+            size: svg.getAttribute('width') + 'x' + svg.getAttribute('height'),
+            viewBox: svg.getAttribute('viewBox'),
+            // layer_o comes first here, and it is not the object's box but the
+            // frame the third-party application fills in.
+            layerOFirst: [...svg.children].filter(e => e.tagName === 'g').indexOf(layerO) === 0,
+            view: ['x', 'y', 'width', 'height'].map(a => svg.querySelector('#View').getAttribute(a)).join(','),
+            clusters: svg.querySelectorAll('#layer_o rect[id^="Cluster"]').length,
+            // The caption is drawn because s0 points at it, and it is given
+            // the opposite of the object's move so it stays where it is.
+            caption: caption ? caption.querySelector('text').textContent : '',
+            referred: svg.querySelectorAll('#layer_s0_background use[*|href="#background_elem"]').length,
+            opposite: JSON.stringify(numbers(group.getAttribute('transform')))
+                === JSON.stringify(numbers(caption.getAttribute('transform')).map(v => -v)),
+            wraps: [...group.children].map(g => g.id).join(','),
+            // KOMPAKS does not read the stylesheet for the move.
+            inline: !!group.getAttribute('transform') && !group.getAttribute('class'),
+        };
+    })()`, {
+        size: '1845.00x800.00',
+        viewBox: '-1.00 -1.00 1845.00 800.00',
+        layerOFirst: true,
+        view: '971,26,860,698',
+        clusters: 8,
+        caption: 'Источники АЭ',
+        referred: 1,
+        opposite: true,
+        wraps: 'layer_s0,layer_s1',
+        inline: true,
+    });
+
+    // The object's own top-left corner lands on the two constants, and the
+    // highlight layers follow it: the preview's box and the file's differ by
+    // exactly the move, which is what keeps them on the drawing.
+    await step('the object is placed at 20 26, and the highlights go with it', `(async () => {
+        const { STATIC_DOC } = await import('/js/template.js');
+        const svg = document.querySelector('#preview_svg svg');
+        const group = [...svg.children].find(g => g.tagName === 'g' && !g.id && g.getAttribute('transform'));
+        const move = (String(group.getAttribute('transform')).match(/-?[\\d.]+/g) || []).map(Number);
+        const frames = [...svg.querySelectorAll('[id$="_frame"] rect')];
+        const box = (s) => s.trim().split(/[\\s,]+/).map(Number);
+        const file = box(svg.getAttribute('viewBox'));
+        const hl = box(document.getElementById('highlight_front').getAttribute('viewBox'));
+        return {
+            left: Math.round(Math.min(...frames.map(r => Number(r.getAttribute('x')))) + move[0]),
+            top: Math.round(Math.min(...frames.map(r => Number(r.getAttribute('y')))) + move[1]),
+            origin: [STATIC_DOC.originX, STATIC_DOC.originY],
+            // The page is the fixed one, wherever the object was put in it.
+            page: [file[2], file[3]],
+            // The two boxes are the same size and differ by the move alone,
+            // which is what puts a point of the drawing on the same place on
+            // screen in the file and on the highlight layer over it.
+            sameSize: file[2] === hl[2] && file[3] === hl[3],
+            offsetByTheMove: Math.abs(file[0] - hl[0] - move[0]) < 0.01
+                && Math.abs(file[1] - hl[1] - move[1]) < 0.01,
+        };
+    })()`, {
+        left: 20, top: 26, origin: [20, 26],
+        page: [1845, 800], sameSize: true, offsetByTheMove: true,
+    });
+
+    // A box that does not fill its element has to be put somewhere inside it,
+    // and the two layers have to agree about where or nothing that answers the
+    // pointer is where the drawing is. This is the whole page as it is on
+    // screen: what is lit, what is clicked and what a border snaps to are all
+    // drawn from the same rectangles, so one subject answers for them all.
+    await step('what answers the pointer is where the shape is', `(() => {
+        const round = (r) => [r.left, r.top, r.right, r.bottom].map(v => Math.round(v));
+        const near = (a, b) => a.every((v, i) => Math.abs(v - b[i]) <= 1.5);
+        // s1, whose click area has not been moved: its frame is its own
+        // rectangle, so the outline is the shape and nothing else.
+        const shape = document.querySelector('#preview_svg [id="layer_s1_otlichno"]').getBoundingClientRect();
+        const outline = document.querySelector('#highlight_front .hl_outline[data-index="1"]').getBoundingClientRect();
+        const tint = document.querySelector('#highlight_back .hl_tint[data-index="1"]').getBoundingClientRect();
+        return {
+            // The same value as the file, which is what puts them together.
+            keeps: document.getElementById('highlight_front').getAttribute('preserveAspectRatio'),
+            fileKeeps: document.querySelector('#preview_svg svg').getAttribute('preserveAspectRatio'),
+            onTheShape: near(round(outline), round(shape)),
+            andTheTint: near(round(tint), round(shape)),
+            // And the drawing is really on screen where it is being measured.
+            drawn: shape.width > 1 && shape.height > 1,
+        };
+    })()`, {
+        keeps: 'xMinYMin meet', fileKeeps: 'xMinYMin meet',
+        onTheShape: true, andTheTint: true, drawn: true,
+    });
+
+    // The caption is drawn by KOMPAKS off the background layer, but it is the
+    // picture the object stands on rather than a state of it, so the preview
+    // shows it whichever state is on show - here the one it opens on.
+    await step('the caption is on show whatever layer is', `(() => {
+        const text = document.querySelector('#preview_svg #background_elem text');
+        const group = document.querySelector('#preview_svg #layer_s0_background');
+        const ref = group.querySelector('use[*|href="#background_elem"]');
+        return {
+            layer: document.getElementById('layer_name').textContent,
+            caption: text.textContent,
+            // The <use> is what is drawn; the text itself lives in the defs,
+            // where nothing has a place on screen.
+            visible: ref.getBoundingClientRect().width > 1,
+            // Nothing else of that layer is: the hatch is still a state.
+            restHidden: [...group.children].filter(c => c !== ref)
+                .every(c => c.style.display === 'none'),
+        };
+    })()`, { layer: 'ХОР', caption: 'Источники АЭ', visible: true, restHidden: true });
+
+    // The areas KOMPAKS fills in are drawn in the preview so they can be seen,
+    // and nowhere else: the file has no line on them.
+    await step('the view and the clusters are outlined in the preview only', `(() => {
+        const rects = [...document.querySelectorAll('#preview_svg [id="View"], #preview_svg [id^="Cluster"]')];
+        const cs = (el, p) => getComputedStyle(el)[p];
+        const one = (p) => [...new Set(rects.map(r => cs(r, p)))].join(',');
+        return {
+            ids: rects.map(r => r.id).sort().join(','),
+            stroke: one('stroke'),
+            width: one('strokeWidth'),
+            fill: one('fill'),
+            // Paint, not targets: the pointer goes through to the drawing.
+            takesClicks: rects.some(r => cs(r, 'pointerEvents') !== 'none'),
+            // And none of it is in the markup that would be exported: the
+            // rects carry what the format gives them and no line of their own.
+            inTheFile: rects.some(r => r.getAttribute('stroke')
+                || /stroke|fill/.test(r.getAttribute('style') || '')),
+        };
+    })()`, {
+        ids: 'Cluster0,Cluster1,Cluster2,Cluster3,Cluster4,Cluster5,Cluster6,Cluster7,View',
+        stroke: 'rgb(255, 255, 255)', width: '2px', fill: 'none',
+        takesClicks: false,
+        inTheFile: false,
+    });
+
+    // A fixed page has nothing for the two offsets to move, so they are not
+    // offered - and that is not the bar running out of room, so it is kept
+    // apart from the order the bar gives its blocks up in. At the width the
+    // bar was drawn for, where it gives nothing up of its own accord.
+    await wide();
+    await step('the offsets are not offered for a fixed page', `(() => {
+        const block = document.getElementById('offset_settings');
+        return {
+            shown: getComputedStyle(block).display !== 'none',
+            off: block.classList.contains('is_off'),
+            // Not dropped, which is a different thing and would come back.
+            hidden: block.classList.contains('is_hidden'),
+            // Everything else on the bar is still there.
+            others: [...document.querySelectorAll('.settings_toolbar [data-drop]')]
+                .filter(b => getComputedStyle(b).display !== 'none').length,
+        };
+    })()`, { shown: false, off: true, hidden: false, others: 5 });
+
+    // The whole point of the switch: the drawing is the user's, the template
+    // is not. Nothing typed or moved may be lost by choosing the other one.
+    await step('the subjects, their code and their adjustments are kept', sidebarState, before);
+
+    await session.evaluate(`document.getElementById('object_type_dynamic').click()`);
+    await sleep(400);
+
+    await step('switching back gives the same file again', `(() => ({
+        same: document.getElementById('preview_svg').innerHTML === ${JSON.stringify(dynamicFile)},
+        chosen: [...document.querySelectorAll('.object_type.is_on')].map(b => b.dataset.type).join(','),
+        // The offsets have something to move again, so they are back.
+        offsets: getComputedStyle(document.getElementById('offset_settings')).display !== 'none',
+        offsetsValues: [document.getElementById('offset_top').value, document.getElementById('offset_bottom').value].join(','),
+    }))()`, { same: true, chosen: 'dynamic', offsets: true, offsetsValues: '0,70' });
+
+    await backToTest();
+
+    await step('and the sidebar is still where it was', sidebarState, before);
+
+    // A static file of ours is read back as one: which of the two it is comes
+    // from the file, as it does for the format itself.
+    await step('a static file comes back static', `(async () => {
+        const [restore, template] = await Promise.all([
+            import('/js/restore.js'), import('/js/template.js'),
+        ]);
+        const text = await (await fetch('/src_doc/examples/static/AE_Separator_8.svg')).text();
+        const first = restore.restoreDocument(text);
+        if (!first) return { restored: false };
+        const built = template.buildSvg(first.subjects, first.params);
+        const again = restore.restoreDocument(built);
+        return {
+            restored: true,
+            type: first.params.objectType,
+            subjects: first.subjects.length,
+            // A fixed page holds no offsets, so none are read out of one.
+            padding: [first.params.topPadding, first.params.bottomPadding],
+            size: (built.match(/width="([^"]*)" height="([^"]*)"/) || []).slice(1).join('x'),
+            stable: built === template.buildSvg(again.subjects, again.params),
+        };
+    })()`, {
+        restored: true, type: 'static', subjects: 8,
+        padding: [0, 70], size: '1845.00x800.00', stable: true,
+    });
+
+    await step('a dynamic file of ours still comes back dynamic', `(async () => {
+        const { restoreDocument } = await import('/js/restore.js');
+        const text = await (await fetch('/src_doc/examples/PV_3m4v6s_R-RS-S.svg')).text();
+        const r = restoreDocument(text);
+        return { type: r.params.objectType, padding: [r.params.topPadding, r.params.bottomPadding] };
+    })()`, { type: 'dynamic', padding: [0, 70] });
+
     // ---- the two switch strips ----------------------------------------------
 
     // A 26px toggle is a small thing to hit, so the whole strip answers: the

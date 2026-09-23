@@ -2,7 +2,7 @@
 
 import { detectSubjects, parseGeometryFragment } from './detect.js';
 import { restoreDocument } from './restore.js';
-import { buildSvg, computeLayout, PARAMS, clickArea, indicatorOffsets, INDICATOR_KEYS } from './template.js';
+import { buildSvg, computeLayout, PARAMS, clickArea, indicatorOffsets, INDICATOR_KEYS, isStatic } from './template.js';
 import { INDICATOR_SIZES } from './indicators.js';
 
 const el = (id) => document.getElementById(id);
@@ -40,6 +40,8 @@ const ui = {
     resetClick: el('reset_button'),
     indBlock: el('indicator_position_settings'),
     resetIndicators: el('reset_indicators_button'),
+    objectTypeSelector: el('object_type_selector'),
+    offsetBlock: el('offset_settings'),
 };
 
 /** A subject with nothing in it yet, ready to be typed into. */
@@ -254,12 +256,35 @@ const LAYER_NAMES = {
 const STATE_GROUP = /^layer_s\d+_(otlichno|norm|tpm|ndp|repair|background)$/;
 const INDICATOR_GROUP = /^layer_s\d+_(fail|old_sost|old_repair|old_lock|insert)$/;
 
+/**
+ * The background elements of a static object - for now the one caption - are
+ * drawn by KOMPAKS because a subject's background layer points at them, so in
+ * the file they belong to that one state. They are not a state of anything
+ * though: they are the picture the object is drawn on, and the preview shows
+ * them whichever state it is showing.
+ *
+ * Hiding the group would take them with it, so when its state is not the one
+ * wanted the group stays and its own contents go instead. Nothing is added and
+ * nothing is moved: this is the same hiding by inline `display` the segments
+ * have always done, one level further in.
+ */
+const BACKGROUND_REF = 'use[*|href="#background_elem"]';
+
+function showStateLayer(g, on) {
+    const keep = g.querySelector(BACKGROUND_REF);
+    if (!keep) { g.style.display = on ? 'inline' : 'none'; return; }
+    g.style.display = 'inline';
+    for (const child of g.children) {
+        child.style.display = (on || child === keep) ? 'inline' : 'none';
+    }
+}
+
 /** Shows one state layer per subject, and the indicators if they are wanted. */
 function applyPreviewLayers() {
     const wanted = shownLayer();
     for (const g of ui.previewSvg.querySelectorAll('g[id^="layer_s"]')) {
         const state_ = STATE_GROUP.exec(g.id);
-        if (state_) { g.style.display = state_[1] === wanted ? 'inline' : 'none'; continue; }
+        if (state_) { showStateLayer(g, state_[1] === wanted); continue; }
         if (INDICATOR_GROUP.test(g.id)) g.style.display = state.preview.indicators ? 'inline' : 'none';
     }
 
@@ -321,12 +346,23 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
  */
 function renderHighlights() {
     const layout = computeLayout(state.subjects, state.params);
-    state.docSize = { w: layout.w, h: layout.viewH };
+    // The document, which for a static object is the fixed page the drawing
+    // was placed into rather than the drawing itself.
+    state.docSize = { w: layout.viewW, h: layout.viewH };
     ui.hlBack.textContent = '';
     ui.hlFront.textContent = '';
 
     ui.hlBack.setAttribute('viewBox', layout.viewBox);
     ui.hlFront.setAttribute('viewBox', layout.viewBox);
+    // A box that does not fill its element has to be put somewhere inside it,
+    // and the file says where. Left on the default the layers would centre what
+    // the file aligns to the top, and every subject would be out by the same
+    // distance - the drawing in one place, everything that answers the pointer
+    // in another.
+    for (const layer of [ui.hlBack, ui.hlFront]) {
+        if (layout.preserveAspectRatio) layer.setAttribute('preserveAspectRatio', layout.preserveAspectRatio);
+        else layer.removeAttribute('preserveAspectRatio');
+    }
 
     const rect = (cls, frame, index) => {
         const r = document.createElementNS(SVG_NS, 'rect');
@@ -395,18 +431,21 @@ function renderHighlights() {
 
     // The empty space the offsets make, and the edge of the document they
     // move. Last, so they lie over the drawing; they take no clicks.
+    // A static document is a fixed page, so neither offset has anything to
+    // move there and both bands are drawn away to nothing.
     const pad = layout.p;
+    const offsets = isStatic(pad) ? { topPadding: 0, bottomPadding: 0 } : pad;
     ui.hlFront.appendChild(offsetBand('top',
-        { x: layout.x, y: layout.viewY, w: layout.w, h: pad.topPadding }, pad.stOutWidth));
+        { x: layout.viewX, y: layout.viewY, w: layout.viewW, h: offsets.topPadding }, pad.stOutWidth));
     ui.hlFront.appendChild(offsetBand('bottom',
-        { x: layout.x, y: layout.y + layout.h, w: layout.w, h: pad.bottomPadding }, pad.stOutWidth));
+        { x: layout.viewX, y: layout.y + layout.h, w: layout.viewW, h: offsets.bottomPadding }, pad.stOutWidth));
 
-    const bounds = rect('hl_bounds', { x: layout.x, y: layout.viewY, w: layout.w, h: layout.viewH }, -1);
+    const bounds = rect('hl_bounds', { x: layout.viewX, y: layout.viewY, w: layout.viewW, h: layout.viewH }, -1);
     ui.hlFront.appendChild(bounds);
 
     // The line a dragged border has landed on, drawn right across the document
     // and no further. Painting moves it; it is not there the rest of the time.
-    state.docBox = { x: layout.x, y: layout.viewY, w: layout.w, h: layout.viewH };
+    state.docBox = { x: layout.viewX, y: layout.viewY, w: layout.viewW, h: layout.viewH };
     const guide = document.createElementNS(SVG_NS, 'line');
     guide.setAttribute('class', 'hl_guide');
     ui.hlFront.appendChild(guide);
@@ -1639,7 +1678,10 @@ function tooTight() {
 
 function fitToolbar() {
     for (const block of DROP_ORDER) block.classList.remove('is_hidden');
-    for (const block of DROP_ORDER) {
+    // A block that has nothing to set for the object being built is not on the
+    // bar at all, so it is not one of the blocks the bar can give up either -
+    // and it must not be left carrying a class that says it was dropped.
+    for (const block of DROP_ORDER.filter((b) => !b.classList.contains('is_off'))) {
         // Reading the width after each one flushes the layout, so the next
         // test sees the room the last block gave up.
         if (!tooTight()) return;
@@ -1903,8 +1945,45 @@ const paramFields = FIELDS.map(setUpField);
 function syncParamControls() {
     paramFields.forEach((show) => show());
     paintSlider();
+    paintObjectType();
     layoutToolbar();
 }
+
+// ---------------------------------------------------------------- object type
+
+// Dynamic or static equipment: two templates over one drawing. Nothing but the
+// output changes - the subjects, their code, their click areas and their
+// indicators are the drawing's, not the template's, and a switch leaves every
+// one of them where it was.
+
+function paintObjectType() {
+    for (const button of ui.objectTypeSelector.querySelectorAll('.object_type')) {
+        const on = button.dataset.type === state.params.objectType;
+        button.classList.toggle('is_on', on);
+        button.setAttribute('aria-pressed', String(on));
+    }
+    // A static object's page is a fixed size, so there is nothing for the two
+    // offsets to move and no reason to offer them. This is not the bar running
+    // out of room, so it is a class of its own: fitToolbar leaves a block that
+    // has nothing to set out of the order it gives blocks up in.
+    ui.offsetBlock.classList.toggle('is_off', isStatic(state.params));
+    layoutToolbar();
+}
+
+function setObjectType(type) {
+    if (type === state.params.objectType) return;
+    state.params.objectType = type;
+    // The offsets belong to the bar the fields are on; one of them may be the
+    // field being edited, and its strip is about to stop existing.
+    if (state.preview.offset) { state.preview.offset = null; paintHighlights(); }
+    paintObjectType();
+    rebuild();
+}
+
+ui.objectTypeSelector.addEventListener('click', (e) => {
+    const button = e.target.closest('.object_type');
+    if (button) setObjectType(button.dataset.type);
+});
 
 // ---------------------------------------------------------------- sidebar resize
 
@@ -1985,6 +2064,7 @@ ui.copy.addEventListener('click', async () => {
 state.subjects[0].isOpen = true;
 reserveSizeWidth();
 paintSlider();
+paintObjectType();
 rebuild();
 renderSubList();
 

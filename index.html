@@ -18,6 +18,23 @@
 
     <aside class="sud_sidebloсk" id="sud_sidebloсk">
 
+        <!-- Which of the two templates the file is built from. It is the first
+             thing in the sidebar whatever else is showing, and it changes
+             nothing else: the subjects, their code and every adjustment made
+             to them stay exactly as they are across a switch. -->
+        <div class="object_type_selector" id="object_type_selector" role="group" aria-label="Тип объекта">
+            <button type="button" class="object_type is_on" id="object_type_dynamic"
+                    data-type="dynamic" aria-pressed="true">
+                <img src="assets/icons/dynamics_icon.svg" alt="" width="16" height="12">
+                <span>Динамическое обор.</span>
+            </button>
+            <button type="button" class="object_type" id="object_type_static"
+                    data-type="static" aria-pressed="false">
+                <img src="assets/icons/static_icon.svg" alt="" width="16" height="12">
+                <span>Статическое обор.</span>
+            </button>
+        </div>
+
         <!-- The click area of the selected subject: how far each border of its
              layer_sN_frame sits from the subject's own edge. Hidden while
              nothing is selected. -->

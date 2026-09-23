@@ -1,0 +1,1544 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="-1.00 -1.00 1845.00 800.00" width="1845.00" height="800.00" preserveAspectRatio="xMinYMin meet">  
+    <style type="text/css">
+        <!-- subject click area -->
+        .frame {fill:none}
+        <!-- subject background hatch fill -->
+        .bg_1 {stop-color:#808080}
+        .bg_2 {stop-color:#FFFFFF; stop-opacity:0;}
+        .bg_grad {fill:url(#linear_grad)}
+        <!-- subject inner line -->
+        .st_in {fill:none;stroke-width:2.00;stroke-dasharray:8;stroke-miterlimit:10}
+        .st_in_1 {fill:none;stroke-width:2.00;stroke-miterlimit:10}
+        <!-- subject inner line white -->
+        .st_w {stroke:#FFFFFF}
+        <!-- subject inner line black -->
+        .st_b {stroke:#000000}
+        <!-- subject outer line -->
+        .st_out {fill:none;stroke:white;stroke-width:2.00;stroke-miterlimit:10}
+        <!-- subject sost fill-->
+        .otlichno {fill:#049B4E}
+        .norm {fill:#00FF00}
+        .tpm {fill:#FFF200}
+        .ndp {fill:#FF0000}
+        .repair {fill:#7F4124}
+        <!-- indicator outer line -->
+        .icons_st_out {stroke:white;stroke-width:2.00;stroke-miterlimit:10}
+        <!-- indicator icon fill white -->
+        .icon_w {fill:#FFFFFF}
+        <!-- indicator icon fill black -->
+        .icon_b {fill:#000000}
+        <!-- indicator fail fill -->
+        .fail {fill:#4B4392}
+        <!-- indicator insert fill -->
+        .insert {fill:#143D8F}
+        <!-- indicator scale -->
+        .scale {transform:scale(1.00)}
+
+        <!-- text -->
+        .text{font-family: "Arial"; letter-spacing: 0em;}
+
+        <!-- subject background text -->
+        .text_bg {fill:#808080;font-size: 32px;}
+        <!-- src background text -->
+        .text_src {fill:#FFFFFF;font-size: 32px;}
+        <!-- subject background line -->
+        .bg_st {fill:none; stroke:#808080; stroke-width:2;stroke-dasharray:8; stroke-miterlimit:10}
+    </style>
+
+    <defs>
+        <g id="background_elem">  
+            <g class="text text_src" transform="translate(0 0)">
+                <text x="20" y="765">Источники АЭ</text>
+            </g>
+            <g class="text text_bg">
+                <text x="321.29" y="619.84">Z01</text>
+                <text x="614.67" y="619.84">Z02</text>
+                <text x="321.29" y="541.25">Z04</text>
+                <text x="614.67" y="541.25">Z03</text>
+                <text x="321.29" y="449.04">Z05</text>
+                <text x="614.67" y="449.04">Z06</text>
+                <text x="321.29" y="355.84">Z07</text>
+                <text x="614.67" y="355.84">Z08</text>
+                <text x="312.83" y="280.3">Z09</text>
+                <text x="614.67" y="280.3">Z10</text>
+                <text x="321.29" y="186.87">Z11</text>
+                <text x="614.67" y="186.87">Z12</text>
+            </g>
+            <g class="bg_st">
+                <path d="M536.52,159.32h48.5v30.04h-48.5M536.52,282.79h48.5v-30.04h-48.5M536.52,358.32h48.5v-30.04h-48.5M536.52,450.53h48.5v-30.04h-48.5M536.52,542.73h48.5v-30.04h-48.5M536.52,621.32h48.5v-30.04h-48.5M453.52,159.32h-48.5v30.04h48.5M453.52,252.74h-48.5v30.04h48.5M453.52,328.28h-48.5v30.04h48.5M453.52,420.49h-48.5v30.04h48.5M453.52,512.69h-48.5v30.04h48.5M453.52,591.28h-48.5v30.04h48.5"/>
+            </g>
+        </g>
+
+        <!--gradient-->
+        <linearGradient id="linear_grad" x1="565" x2="-52" y1="0" y2="616" gradientUnits="userSpaceOnUse">
+            <stop offset="0.00%" class="bg_1"></stop>
+            <stop offset="0.46%" class="bg_1"></stop>
+            <stop offset="0.46%" class="bg_2"></stop>
+            <stop offset="1.53%" class="bg_2"></stop>
+            <stop offset="1.53%" class="bg_1"></stop>
+            <stop offset="1.99%" class="bg_1"></stop>
+            <stop offset="1.99%" class="bg_2"></stop>
+            <stop offset="3.06%" class="bg_2"></stop>
+            <stop offset="3.06%" class="bg_1"></stop>
+            <stop offset="3.52%" class="bg_1"></stop>
+            <stop offset="3.52%" class="bg_2"></stop>
+            <stop offset="4.59%" class="bg_2"></stop>
+            <stop offset="4.59%" class="bg_1"></stop>
+            <stop offset="5.05%" class="bg_1"></stop>
+            <stop offset="5.05%" class="bg_2"></stop>
+            <stop offset="6.12%" class="bg_2"></stop>
+            <stop offset="6.12%" class="bg_1"></stop>
+            <stop offset="6.58%" class="bg_1"></stop>
+            <stop offset="6.58%" class="bg_2"></stop>
+            <stop offset="7.65%" class="bg_2"></stop>
+            <stop offset="7.65%" class="bg_1"></stop>
+            <stop offset="8.11%" class="bg_1"></stop>
+            <stop offset="8.11%" class="bg_2"></stop>
+            <stop offset="9.18%" class="bg_2"></stop>
+            <stop offset="9.18%" class="bg_1"></stop>
+            <stop offset="9.64%" class="bg_1"></stop>
+            <stop offset="9.64%" class="bg_2"></stop>
+            <stop offset="10.71%" class="bg_2"></stop>
+            <stop offset="10.71%" class="bg_1"></stop>
+            <stop offset="11.17%" class="bg_1"></stop>
+            <stop offset="11.17%" class="bg_2"></stop>
+            <stop offset="12.24%" class="bg_2"></stop>
+            <stop offset="12.24%" class="bg_1"></stop>
+            <stop offset="12.70%" class="bg_1"></stop>
+            <stop offset="12.70%" class="bg_2"></stop>
+            <stop offset="13.77%" class="bg_2"></stop>
+            <stop offset="13.77%" class="bg_1"></stop>
+            <stop offset="14.23%" class="bg_1"></stop>
+            <stop offset="14.23%" class="bg_2"></stop>
+            <stop offset="15.30%" class="bg_2"></stop>
+            <stop offset="15.30%" class="bg_1"></stop>
+            <stop offset="15.76%" class="bg_1"></stop>
+            <stop offset="15.76%" class="bg_2"></stop>
+            <stop offset="16.83%" class="bg_2"></stop>
+            <stop offset="16.83%" class="bg_1"></stop>
+            <stop offset="17.29%" class="bg_1"></stop>
+            <stop offset="17.29%" class="bg_2"></stop>
+            <stop offset="18.36%" class="bg_2"></stop>
+            <stop offset="18.36%" class="bg_1"></stop>
+            <stop offset="18.82%" class="bg_1"></stop>
+            <stop offset="18.82%" class="bg_2"></stop>
+            <stop offset="19.89%" class="bg_2"></stop>
+            <stop offset="19.89%" class="bg_1"></stop>
+            <stop offset="20.35%" class="bg_1"></stop>
+            <stop offset="20.35%" class="bg_2"></stop>
+            <stop offset="21.42%" class="bg_2"></stop>
+            <stop offset="21.42%" class="bg_1"></stop>
+            <stop offset="21.88%" class="bg_1"></stop>
+            <stop offset="21.88%" class="bg_2"></stop>
+            <stop offset="22.95%" class="bg_2"></stop>
+            <stop offset="22.95%" class="bg_1"></stop>
+            <stop offset="23.41%" class="bg_1"></stop>
+            <stop offset="23.41%" class="bg_2"></stop>
+            <stop offset="24.48%" class="bg_2"></stop>
+            <stop offset="24.48%" class="bg_1"></stop>
+            <stop offset="24.94%" class="bg_1"></stop>
+            <stop offset="24.94%" class="bg_2"></stop>
+            <stop offset="26.01%" class="bg_2"></stop>
+            <stop offset="26.01%" class="bg_1"></stop>
+            <stop offset="26.47%" class="bg_1"></stop>
+            <stop offset="26.47%" class="bg_2"></stop>
+            <stop offset="27.54%" class="bg_2"></stop>
+            <stop offset="27.54%" class="bg_1"></stop>
+            <stop offset="28.00%" class="bg_1"></stop>
+            <stop offset="28.00%" class="bg_2"></stop>
+            <stop offset="29.07%" class="bg_2"></stop>
+            <stop offset="29.07%" class="bg_1"></stop>
+            <stop offset="29.53%" class="bg_1"></stop>
+            <stop offset="29.53%" class="bg_2"></stop>
+            <stop offset="30.60%" class="bg_2"></stop>
+            <stop offset="30.60%" class="bg_1"></stop>
+            <stop offset="31.06%" class="bg_1"></stop>
+            <stop offset="31.06%" class="bg_2"></stop>
+            <stop offset="32.13%" class="bg_2"></stop>
+            <stop offset="32.13%" class="bg_1"></stop>
+            <stop offset="32.59%" class="bg_1"></stop>
+            <stop offset="32.59%" class="bg_2"></stop>
+            <stop offset="33.66%" class="bg_2"></stop>
+            <stop offset="33.66%" class="bg_1"></stop>
+            <stop offset="34.12%" class="bg_1"></stop>
+            <stop offset="34.12%" class="bg_2"></stop>
+            <stop offset="35.19%" class="bg_2"></stop>
+            <stop offset="35.19%" class="bg_1"></stop>
+            <stop offset="35.65%" class="bg_1"></stop>
+            <stop offset="35.65%" class="bg_2"></stop>
+            <stop offset="36.72%" class="bg_2"></stop>
+            <stop offset="36.72%" class="bg_1"></stop>
+            <stop offset="37.18%" class="bg_1"></stop>
+            <stop offset="37.18%" class="bg_2"></stop>
+            <stop offset="38.25%" class="bg_2"></stop>
+            <stop offset="38.25%" class="bg_1"></stop>
+            <stop offset="38.71%" class="bg_1"></stop>
+            <stop offset="38.71%" class="bg_2"></stop>
+            <stop offset="39.78%" class="bg_2"></stop>
+            <stop offset="39.78%" class="bg_1"></stop>
+            <stop offset="40.24%" class="bg_1"></stop>
+            <stop offset="40.24%" class="bg_2"></stop>
+            <stop offset="41.31%" class="bg_2"></stop>
+            <stop offset="41.31%" class="bg_1"></stop>
+            <stop offset="41.77%" class="bg_1"></stop>
+            <stop offset="41.77%" class="bg_2"></stop>
+            <stop offset="42.84%" class="bg_2"></stop>
+            <stop offset="42.84%" class="bg_1"></stop>
+            <stop offset="43.30%" class="bg_1"></stop>
+            <stop offset="43.30%" class="bg_2"></stop>
+            <stop offset="44.37%" class="bg_2"></stop>
+            <stop offset="44.37%" class="bg_1"></stop>
+            <stop offset="44.83%" class="bg_1"></stop>
+            <stop offset="44.83%" class="bg_2"></stop>
+            <stop offset="45.90%" class="bg_2"></stop>
+            <stop offset="45.90%" class="bg_1"></stop>
+            <stop offset="46.35%" class="bg_1"></stop>
+            <stop offset="46.35%" class="bg_2"></stop>
+            <stop offset="47.43%" class="bg_2"></stop>
+            <stop offset="47.43%" class="bg_1"></stop>
+            <stop offset="47.88%" class="bg_1"></stop>
+            <stop offset="47.88%" class="bg_2"></stop>
+            <stop offset="48.96%" class="bg_2"></stop>
+            <stop offset="48.96%" class="bg_1"></stop>
+            <stop offset="49.41%" class="bg_1"></stop>
+            <stop offset="49.41%" class="bg_2"></stop>
+            <stop offset="50.49%" class="bg_2"></stop>
+            <stop offset="50.49%" class="bg_1"></stop>
+            <stop offset="50.94%" class="bg_1"></stop>
+            <stop offset="50.94%" class="bg_2"></stop>
+            <stop offset="52.02%" class="bg_2"></stop>
+            <stop offset="52.02%" class="bg_1"></stop>
+            <stop offset="52.47%" class="bg_1"></stop>
+            <stop offset="52.47%" class="bg_2"></stop>
+            <stop offset="53.55%" class="bg_2"></stop>
+            <stop offset="53.55%" class="bg_1"></stop>
+            <stop offset="54.00%" class="bg_1"></stop>
+            <stop offset="54.00%" class="bg_2"></stop>
+            <stop offset="55.08%" class="bg_2"></stop>
+            <stop offset="55.08%" class="bg_1"></stop>
+            <stop offset="55.53%" class="bg_1"></stop>
+            <stop offset="55.53%" class="bg_2"></stop>
+            <stop offset="56.60%" class="bg_2"></stop>
+            <stop offset="56.60%" class="bg_1"></stop>
+            <stop offset="57.06%" class="bg_1"></stop>
+            <stop offset="57.06%" class="bg_2"></stop>
+            <stop offset="58.13%" class="bg_2"></stop>
+            <stop offset="58.13%" class="bg_1"></stop>
+            <stop offset="58.59%" class="bg_1"></stop>
+            <stop offset="58.59%" class="bg_2"></stop>
+            <stop offset="59.66%" class="bg_2"></stop>
+            <stop offset="59.66%" class="bg_1"></stop>
+            <stop offset="60.12%" class="bg_1"></stop>
+            <stop offset="60.12%" class="bg_2"></stop>
+            <stop offset="61.19%" class="bg_2"></stop>
+            <stop offset="61.19%" class="bg_1"></stop>
+            <stop offset="61.65%" class="bg_1"></stop>
+            <stop offset="61.65%" class="bg_2"></stop>
+            <stop offset="62.72%" class="bg_2"></stop>
+            <stop offset="62.72%" class="bg_1"></stop>
+            <stop offset="63.18%" class="bg_1"></stop>
+            <stop offset="63.18%" class="bg_2"></stop>
+            <stop offset="64.25%" class="bg_2"></stop>
+            <stop offset="64.25%" class="bg_1"></stop>
+            <stop offset="64.71%" class="bg_1"></stop>
+            <stop offset="64.71%" class="bg_2"></stop>
+            <stop offset="65.78%" class="bg_2"></stop>
+            <stop offset="65.78%" class="bg_1"></stop>
+            <stop offset="66.24%" class="bg_1"></stop>
+            <stop offset="66.24%" class="bg_2"></stop>
+            <stop offset="67.31%" class="bg_2"></stop>
+            <stop offset="67.31%" class="bg_1"></stop>
+            <stop offset="67.77%" class="bg_1"></stop>
+            <stop offset="67.77%" class="bg_2"></stop>
+            <stop offset="68.84%" class="bg_2"></stop>
+            <stop offset="68.84%" class="bg_1"></stop>
+            <stop offset="69.30%" class="bg_1"></stop>
+            <stop offset="69.30%" class="bg_2"></stop>
+            <stop offset="70.37%" class="bg_2"></stop>
+            <stop offset="70.37%" class="bg_1"></stop>
+            <stop offset="70.83%" class="bg_1"></stop>
+            <stop offset="70.83%" class="bg_2"></stop>
+            <stop offset="71.90%" class="bg_2"></stop>
+            <stop offset="71.90%" class="bg_1"></stop>
+            <stop offset="72.36%" class="bg_1"></stop>
+            <stop offset="72.36%" class="bg_2"></stop>
+            <stop offset="73.43%" class="bg_2"></stop>
+            <stop offset="73.43%" class="bg_1"></stop>
+            <stop offset="73.89%" class="bg_1"></stop>
+            <stop offset="73.89%" class="bg_2"></stop>
+            <stop offset="74.96%" class="bg_2"></stop>
+            <stop offset="74.96%" class="bg_1"></stop>
+            <stop offset="75.42%" class="bg_1"></stop>
+            <stop offset="75.42%" class="bg_2"></stop>
+            <stop offset="76.49%" class="bg_2"></stop>
+            <stop offset="76.49%" class="bg_1"></stop>
+            <stop offset="76.95%" class="bg_1"></stop>
+            <stop offset="76.95%" class="bg_2"></stop>
+            <stop offset="78.02%" class="bg_2"></stop>
+            <stop offset="78.02%" class="bg_1"></stop>
+            <stop offset="78.48%" class="bg_1"></stop>
+            <stop offset="78.48%" class="bg_2"></stop>
+            <stop offset="79.55%" class="bg_2"></stop>
+            <stop offset="79.55%" class="bg_1"></stop>
+            <stop offset="80.01%" class="bg_1"></stop>
+            <stop offset="80.01%" class="bg_2"></stop>
+            <stop offset="81.08%" class="bg_2"></stop>
+            <stop offset="81.08%" class="bg_1"></stop>
+            <stop offset="81.54%" class="bg_1"></stop>
+            <stop offset="81.54%" class="bg_2"></stop>
+            <stop offset="82.61%" class="bg_2"></stop>
+            <stop offset="82.61%" class="bg_1"></stop>
+            <stop offset="83.07%" class="bg_1"></stop>
+            <stop offset="83.07%" class="bg_2"></stop>
+            <stop offset="84.14%" class="bg_2"></stop>
+            <stop offset="84.14%" class="bg_1"></stop>
+            <stop offset="84.60%" class="bg_1"></stop>
+            <stop offset="84.60%" class="bg_2"></stop>
+            <stop offset="85.67%" class="bg_2"></stop>
+            <stop offset="85.67%" class="bg_1"></stop>
+            <stop offset="86.13%" class="bg_1"></stop>
+            <stop offset="86.13%" class="bg_2"></stop>
+            <stop offset="87.20%" class="bg_2"></stop>
+            <stop offset="87.20%" class="bg_1"></stop>
+            <stop offset="87.66%" class="bg_1"></stop>
+            <stop offset="87.66%" class="bg_2"></stop>
+            <stop offset="88.73%" class="bg_2"></stop>
+            <stop offset="88.73%" class="bg_1"></stop>
+            <stop offset="89.19%" class="bg_1"></stop>
+            <stop offset="89.19%" class="bg_2"></stop>
+            <stop offset="90.26%" class="bg_2"></stop>
+            <stop offset="90.26%" class="bg_1"></stop>
+            <stop offset="90.72%" class="bg_1"></stop>
+            <stop offset="90.72%" class="bg_2"></stop>
+            <stop offset="91.79%" class="bg_2"></stop>
+            <stop offset="91.79%" class="bg_1"></stop>
+            <stop offset="92.25%" class="bg_1"></stop>
+            <stop offset="92.25%" class="bg_2"></stop>
+            <stop offset="93.32%" class="bg_2"></stop>
+            <stop offset="93.32%" class="bg_1"></stop>
+            <stop offset="93.78%" class="bg_1"></stop>
+            <stop offset="93.78%" class="bg_2"></stop>
+            <stop offset="94.85%" class="bg_2"></stop>
+            <stop offset="94.85%" class="bg_1"></stop>
+            <stop offset="95.31%" class="bg_1"></stop>
+            <stop offset="95.31%" class="bg_2"></stop>
+            <stop offset="96.38%" class="bg_2"></stop>
+            <stop offset="96.38%" class="bg_1"></stop>
+            <stop offset="96.84%" class="bg_1"></stop>
+            <stop offset="96.84%" class="bg_2"></stop>
+            <stop offset="97.91%" class="bg_2"></stop>
+            <stop offset="97.91%" class="bg_1"></stop>
+            <stop offset="98.37%" class="bg_1"></stop>
+            <stop offset="98.37%" class="bg_2"></stop>
+            <stop offset="99.44%" class="bg_2"></stop>
+            <stop offset="99.44%" class="bg_1"></stop>
+            <stop offset="99.90%" class="bg_1"></stop>
+            <stop offset="99.90%" class="bg_2"></stop>
+            <stop offset="100.00%" class="bg_2"></stop>
+        </linearGradient>
+
+        <!--s0-->
+        <g id="layer_s0_frame">
+            <rect width="41.50" height="92.20" x="452.52" y="574.82"></rect>
+        </g>
+        
+        <g id="layer_s0_fill">
+            <path d="M493.02,575.82h-39.5v61.48c0,15.86,17.55,28.72,39.2,28.72h.3v-90.2Z"></path>   
+        </g>
+        
+        <g id="layer_s0_stroke_in">
+            <path d="M493.02,591.28h-39.5M493.02,621.32h-39.5"></path>   
+        </g>
+        
+        <!--s1-->
+        <g id="layer_s1_frame">
+            <rect width="41.50" height="92.20" x="496.02" y="574.82"></rect>
+        </g>
+        
+        <g id="layer_s1_fill">
+            <path d="M497.02,575.82v90.2h.3c21.65,0,39.2-12.86,39.2-28.72v-61.48h-39.5Z"></path>   
+        </g>
+        
+        <g id="layer_s1_stroke_in">
+            <path d="M497.02,591.28h39.5M497.02,621.32h39.5"></path>   
+        </g>
+        
+        <!--s2-->
+        <g id="layer_s2_frame">
+            <rect width="41.50" height="90.23" x="496.02" y="482.59"></rect>
+        </g>
+        
+        <g id="layer_s2_fill">
+            <rect x="497.02" y="483.59" width="39.5" height="88.23"></rect>   
+        </g>
+        
+        <g id="layer_s2_stroke_in">
+            <path d="M497.02,542.73h39.5M497.02,512.69h39.5"></path>   
+        </g>
+        
+        <!--s3-->
+        <g id="layer_s3_frame">
+            <rect width="41.50" height="90.23" x="452.52" y="482.59"></rect>
+        </g>
+        
+        <g id="layer_s3_fill">
+            <rect x="453.52" y="483.59" width="39.5" height="88.23"></rect>   
+        </g>
+        
+        <g id="layer_s3_stroke_in">
+            <path d="M493.02,512.69h-39.5M493.02,542.73h-39.5"></path>   
+        </g>
+        
+        <!--s4-->
+        <g id="layer_s4_frame">
+            <rect width="41.50" height="90.18" x="452.52" y="390.42"></rect>
+        </g>
+        
+        <g id="layer_s4_fill">
+            <rect x="453.52" y="391.42" width="39.5" height="88.18"></rect>   
+        </g>
+        
+        <g id="layer_s4_stroke_in">
+            <path d="M493.02,420.49h-39.5M493.02,450.53h-39.5"></path>   
+        </g>
+        
+        <!--s5-->
+        <g id="layer_s5_frame">
+            <rect width="41.50" height="90.18" x="496.02" y="390.42"></rect>
+        </g>
+        
+        <g id="layer_s5_fill">
+            <rect x="497.02" y="391.42" width="39.5" height="88.18"></rect>   
+        </g>
+        
+        <g id="layer_s5_stroke_in">
+            <path d="M497.02,450.53h39.5M497.02,420.49h39.5"></path>   
+        </g>
+        
+        <!--s6-->
+        <g id="layer_s6_frame">
+            <rect width="41.50" height="90.20" x="452.52" y="298.22"></rect>
+        </g>
+        
+        <g id="layer_s6_fill">
+            <rect x="453.52" y="299.22" width="39.5" height="88.2"></rect>   
+        </g>
+        
+        <g id="layer_s6_stroke_in">
+            <path d="M493.02,328.28h-39.5M493.02,358.32h-39.5"></path>   
+        </g>
+        
+        <!--s7-->
+        <g id="layer_s7_frame">
+            <rect width="41.50" height="90.20" x="496.02" y="298.22"></rect>
+        </g>
+        
+        <g id="layer_s7_fill">
+            <rect x="497.02" y="299.22" width="39.5" height="88.2"></rect>   
+        </g>
+        
+        <g id="layer_s7_stroke_in">
+            <path d="M497.02,358.32h39.5M497.02,328.28h39.5"></path>   
+        </g>
+        
+        <!--s8-->
+        <g id="layer_s8_frame">
+            <rect x="453.52" y="206.98" width="39.5" height="88.24"></rect>
+        </g>
+        
+        <g id="layer_s8_fill">
+            <polygon points="453.52 206.98 453.52 224.17 443.52 224.17 435.52 220.5 435.52 217.57 427.52 217.57 427.52 244.68 435.52 244.68 435.52 241.75 443.52 238.09 453.52 238.09 453.52 295.22 493.02 295.22 493.02 206.98 453.52 206.98"></polygon>   
+        </g>
+        
+        <g id="layer_s8_stroke_in">
+            <path d="M493.02,252.74h-39.5M493.02,282.79h-39.5"></path>   
+        </g>
+
+        <g id="layer_s8_stroke_in_1">
+            <path d="M453.52,224.17v13.92M443.52,224.17v13.92M435.52,241.75v-21.25"></path>  
+        </g>
+
+        <!--s9-->
+        <g id="layer_s9_frame">
+            <rect x="497.02" y="206.98" width="39.5" height="88.24"></rect>
+        </g>
+        
+        <g id="layer_s9_fill">
+            <polygon points="554.52 217.57 554.52 220.5 546.52 224.17 536.52 224.17 536.52 206.98 497.02 206.98 497.02 295.22 536.52 295.22 536.52 238.09 546.52 238.09 554.52 241.75 554.52 244.68 562.52 244.68 562.52 217.57 554.52 217.57"></polygon>   
+        </g>
+        
+        <g id="layer_s9_stroke_in">
+            <path d="M497.02,252.74h39.5M497.02,282.79h39.5"></path>  
+        </g>
+
+        <g id="layer_s9_stroke_in_1">
+            <path d="M536.52,224.17v13.92M546.52,224.17v13.92M554.52,241.75v-21.25"></path>   
+        </g>
+
+        <!--s10-->
+        <g id="layer_s10_frame">
+            <rect width="41.50" height="92.19" x="452.52" y="111.79"></rect>
+        </g>
+        
+        <g id="layer_s10_fill">
+            <path d="M493.02,202.98v-90.19h-10.5v10.31c-16.18.73-29,10.58-29,22.62v57.26h39.5Z"></path>   
+        </g>
+        
+        <g id="layer_s10_stroke_in">
+            <path d="M453.52,189.36h39.5M493.02,159.32h-39.5"></path>   
+        </g>
+        
+        <!--s11-->
+        <g id="layer_s11_frame">
+            <rect width="41.50" height="92.19" x="496.02" y="111.79"></rect>
+        </g>
+        
+        <g id="layer_s11_fill">
+            <path d="M497.02,112.79v90.19h39.5v-57.26c0-12.04-12.82-21.89-29-22.62v-10.31h-10.5Z"></path>   
+        </g>
+        
+        <g id="layer_s11_stroke_in">
+            <path d="M497.02,189.36h39.5M497.02,159.32h39.5"></path>   
+        </g>
+        
+        <!--indicators-->
+        <g id="circle" class="scale">
+            <circle cx="12" cy="12" r="11" class="icons_st_out"></circle>
+        </g>
+        <g id="fail">
+            <use xlink:href="#circle" class="fail"></use>
+            <path class="icon_w scale" d="M9.78,18.25c0-1.3.86-2.19,2.2-2.19,1.25,0,2.12.89,2.12,2.19,0,1.22-.86,2.19-2.12,2.19-1.34,0-2.2-.97-2.2-2.19ZM10.57,14.84h0l-.55-10.95h3.84l-.55,10.95h-2.74Z"></path>
+        </g>
+        <g id="old_repair">
+            <use xlink:href="#circle" class="repair"></use>
+            <path class="icon_w scale" d="M14.99,12.7l-2.88-.61-.59-2.82,2.95-2.9c-.44-.08-.81-.15-1.25-.23-2.73,0-5.31,2.59-5.31,5.34,0,.61.15,1.15.3,1.68l-5.27,5.07c.88,1.28,2.04,2.36,3.37,3.17l5.21-5.12.07-.07c.37.07.74.15,1.18.15,2.73,0,5.31-2.59,5.31-5.34.08-.39,0-.77-.15-1.23l-2.95,2.9Z"></path>
+        </g>
+        <g id="old_lock_icon" class="scale">
+            <path d="M6.68,5.95v11.87h11.37v.9H5.77V5.93h.91ZM14.44,10.27c-.27,3.44-3.56,5.76-7.02,5.21v1.79c4.48.55,8.34-2.57,8.71-6.78.8.11,1.18.17,2.09.3l-1.12-2.75-1.12-2.75-1.82,2.35-1.82,2.35c.94.13,1.15.16,2.09.29h0Z"></path>
+        </g>
+        <g id="old_lock_norm">
+            <use xlink:href="#circle" class="norm"></use>
+            <use xlink:href="#old_lock_icon" class="icon_b"></use>
+        </g>
+        <g id="old_lock_tpm">
+            <use xlink:href="#circle" class="tpm"></use>
+            <use xlink:href="#old_lock_icon" class="icon_b"></use>
+        </g>
+        <g id="old_lock_ndp">
+            <use xlink:href="#circle" class="ndp"></use>
+            <use xlink:href="#old_lock_icon" class="icon_w"></use>
+        </g>
+        <g id="insert">
+            <use xlink:href="#circle" class="insert"></use>
+            <path class="icon_w scale" d="M12.27,12l-5.37,4.28V7.72l5.37,4.28ZM18.44,12l-5.38,4.28V7.72l5.38,4.28Z"></path>
+        </g>
+    </defs>
+
+    <g id="layer_o"
+     style="display:inline"
+     inkscape:groupmode="layer"
+     inkscape:label="layer_o">
+        <g id="layer_o_background"
+        style="display:inline"
+        inkscape:label="layer_o_background"
+        inkscape:groupmode="layer">
+            <path id="strela"
+                class="icon_w" d="M244.65,730v45h35v-45h-35ZM277.65,773h-31v-41h31v41ZM267.95,762.2l-13.6-9.5,13.6-9.8v19.3Z"/>
+            <path id="strela-5"
+                class="icon_w" d="M1823,775v-45h-35v45h35ZM1790,732h31v41h-31v-41ZM1799.7,742.8l13.6,9.5-13.6,9.8v-19.3Z"/>
+            <g id="layer_o_background_off"
+                style="display:inline"
+                inkscape:groupmode="layer"
+                inkscape:label="layer_o_background_off"></g>
+            <g id="layer_o_background_on"
+                style="display:inline"
+                inkscape:groupmode="layer"
+                inkscape:label="layer_o_background_on"></g>
+            <rect id="View"
+                style="display:inline"
+                class="frame"
+                x="971" y="26" width="860" height="698"/>
+            <rect id="Cluster0"
+                inkscape:label="#Cluster0"
+                style="display:inline"
+                class="frame"
+                x="283.65" y="730" width="184" height="45"/>
+            <rect id="Cluster1"
+                inkscape:label="#Cluster10"
+                style="display:inline"
+                class="frame"
+                x="471.7" y="730" width="184" height="45"/>
+            <rect id="Cluster2"
+                inkscape:label="#Cluster2"
+                style="display:inline"
+                class="frame"
+                x="659.75" y="730" width="184" height="45"/>
+            <rect id="Cluster3"
+                inkscape:label="#Cluster3"
+                style="display:inline"
+                class="frame"
+                x="847.8" y="730" width="184" height="45"/>
+            <rect id="Cluster4"
+                inkscape:label="#Cluster4"
+                style="display:inline"
+                class="frame"
+                x="1035.85" y="730" width="184" height="45"/>
+            <rect id="Cluster5"
+                inkscape:label="#Cluster5"
+                style="display:inline"
+                class="frame"
+                x="1223.9" y="730" width="184" height="45"/>
+            <rect id="Cluster6"
+                inkscape:label="#Cluster6"
+                style="display:inline"
+                class="frame"
+                x="1411.95" y="730" width="184" height="45"/>
+            <rect id="Cluster7"
+                inkscape:label="#Cluster7"
+                style="display:inline"
+                class="frame"
+                x="1600" y="730" width="184" height="45"/>
+            <rect id="tbtClusterLeft"
+                inkscape:label="#tbtClusterLeft"
+                style="display:inline"
+                class="frame"
+                x="244.65" y="730" width="35" height="45"/>
+            <rect id="tbtClusterRight"
+                inkscape:label="#tbtClusterRight"
+                style="display:inline"
+                class="frame"
+                x="1788" y="730" width="35" height="45"/>
+            <rect id="Subject"
+                class="frame"
+                x="1" y="1" width="1845" height="800"/>
+        </g> 
+    </g>
+
+    <g transform="translate(0 0)">
+        <g id="layer_s0" inkscape:label="layer_s0" style="display:inline">
+            <g id="layer_s0_background" inkscape:label="layer_s0_background" style="display:inline">
+                <use id="Subject0" xlink:href="#layer_s0_frame" class="frame"></use>
+                <use xlink:href="#layer_s0_fill" class="bg_grad"></use>
+                <use xlink:href="#layer_s0_stroke_in" class="st_in st_w"></use>
+                <use xlink:href="#layer_s0_fill" class="st_out"></use>
+                <use xlink:href="#background_elem"></use>
+            </g>
+
+            <g id="layer_s0_sost" inkscape:label="layer_s0_sost" style="display:inline">
+                <g id="layer_s0_otlichno" inkscape:label="layer_s0_otlichno" style="display:inline">
+                    <use xlink:href="#layer_s0_fill" class="otlichno"></use>
+                    <use xlink:href="#layer_s0_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s0_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s0_norm" inkscape:label="layer_s0_norm" style="display:inline">
+                    <use xlink:href="#layer_s0_fill" class="norm"></use>
+                    <use xlink:href="#layer_s0_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s0_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s0_tpm" inkscape:label="layer_s0_tpm" style="display:inline">
+                    <use xlink:href="#layer_s0_fill" class="tpm"></use>
+                    <use xlink:href="#layer_s0_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s0_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s0_ndp" inkscape:label="layer_s0_ndp" style="display:inline">
+                    <use xlink:href="#layer_s0_fill" class="ndp"></use>
+                    <use xlink:href="#layer_s0_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s0_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s0_repair" inkscape:label="layer_s0_repair" style="display:inline">
+                    <use xlink:href="#layer_s0_fill" class="repair"></use>
+                    <use xlink:href="#layer_s0_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s0_fill" class="st_out"></use>
+                </g>
+            </g>
+        
+            <g id="layer_s0_fail" inkscape:label="layer_s0_fail" style="display:inline">
+                <use xlink:href="#fail" x="470.02" y="642.02"></use>
+            </g>
+            
+            <g id="layer_s0_old_sost" inkscape:label="layer_s0_old_sost" style="display:inline">
+                <g id="layer_s0_old_otlichno" inkscape:label="layer_s0_old_otlichno" style="display:inline">
+                    <use xlink:href="#circle" class="otlichno" x="452.52" y="627.02"></use>
+                </g>
+                <g id="layer_s0_old_norm" inkscape:label="layer_s0_old_norm" style="display:inline">
+                    <use xlink:href="#circle" class="norm" x="452.520" y="627.02"></use>
+                </g>
+                <g id="layer_s0_old_tpm" inkscape:label="layer_s0_old_tpm" style="display:inline">
+                    <use xlink:href="#circle" class="tpm" x="452.52" y="627.02"></use>
+                </g>
+                <g id="layer_s0_old_ndp" inkscape:label="layer_s0_old_ndp" style="display:inline">
+                    <use xlink:href="#circle" class="ndp" x="452.52" y="627.02"></use>
+                </g>
+            </g>
+            
+            <g id="layer_s0_old_repair" inkscape:label="layer_s0_old_repair" style="display:inline">
+                <use xlink:href="#old_repair" x="452.52" y="574.82"></use>
+            </g>
+            
+            <g id="layer_s0_old_lock" inkscape:label="layer_s0_old_lock" style="display:inline">
+            <g id="layer_s0_old_lock_norm" inkscape:label="layer_s0_old_lock_norm" style="display:inline">
+                <use xlink:href="#old_lock_norm" x="470.02" y="574.82"></use>
+            </g>
+            <g id="layer_s0_old_lock_tpm" inkscape:label="layer_s0_old_lock_tpm" style="display:inline">
+                <use xlink:href="#old_lock_tpm" x="470.02" y="574.82"></use>
+            </g>
+            <g id="layer_s0_old_lock_ndp" inkscape:label="layer_s0_old_lock_ndp" style="display:inline">
+                <use xlink:href="#old_lock_ndp" x="470.02" y="574.82"></use>
+            </g>
+            </g>
+            
+            <g id="layer_s0_insert" inkscape:label="layer_s0_insert" style="display:inline">
+            <use xlink:href="#insert" x="461.27" y="604.92"></use>
+            </g>
+        </g>
+
+        <g id="layer_s1" inkscape:label="layer_s1" style="display:inline">
+            <g id="layer_s1_background" inkscape:label="layer_s1_background" style="display:inline">
+                <use id="Subject1" xlink:href="#layer_s1_frame" class="frame"></use>
+                <use xlink:href="#layer_s1_fill" class="bg_grad"></use>
+                <use xlink:href="#layer_s1_stroke_in" class="st_in st_w"></use>
+                <use xlink:href="#layer_s1_fill" class="st_out"></use>
+            </g>
+
+            <g id="layer_s1_sost" inkscape:label="layer_s1_sost" style="display:inline">
+                <g id="layer_s1_otlichno" inkscape:label="layer_s1_otlichno" style="display:inline">
+                    <use xlink:href="#layer_s1_fill" class="otlichno"></use>
+                    <use xlink:href="#layer_s1_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s1_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s1_norm" inkscape:label="layer_s1_norm" style="display:inline">
+                    <use xlink:href="#layer_s1_fill" class="norm"></use>
+                    <use xlink:href="#layer_s1_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s1_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s1_tpm" inkscape:label="layer_s1_tpm" style="display:inline">
+                    <use xlink:href="#layer_s1_fill" class="tpm"></use>
+                    <use xlink:href="#layer_s1_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s1_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s1_ndp" inkscape:label="layer_s1_ndp" style="display:inline">
+                    <use xlink:href="#layer_s1_fill" class="ndp"></use>
+                    <use xlink:href="#layer_s1_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s1_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s1_repair" inkscape:label="layer_s1_repair" style="display:inline">
+                    <use xlink:href="#layer_s1_fill" class="repair"></use>
+                    <use xlink:href="#layer_s1_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s1_fill" class="st_out"></use>
+                </g>
+            </g>
+        
+            <g id="layer_s1_fail" inkscape:label="layer_s1_fail" style="display:inline">
+                <use xlink:href="#fail" x="513.52" y="627.02"></use>
+            </g>
+            
+            <g id="layer_s1_old_sost" inkscape:label="layer_s1_old_sost" style="display:inline">
+                <g id="layer_s1_old_otlichno" inkscape:label="layer_s1_old_otlichno" style="display:inline">
+                    <use xlink:href="#circle" class="otlichno" x="496.02" y="642.02"></use>
+                </g>
+                <g id="layer_s1_old_norm" inkscape:label="layer_s1_old_norm" style="display:inline">
+                    <use xlink:href="#circle" class="norm" x="496.020" y="642.02"></use>
+                </g>
+                <g id="layer_s1_old_tpm" inkscape:label="layer_s1_old_tpm" style="display:inline">
+                    <use xlink:href="#circle" class="tpm" x="496.02" y="642.02"></use>
+                </g>
+                <g id="layer_s1_old_ndp" inkscape:label="layer_s1_old_ndp" style="display:inline">
+                    <use xlink:href="#circle" class="ndp" x="496.02" y="642.02"></use>
+                </g>
+            </g>
+            
+            <g id="layer_s1_old_repair" inkscape:label="layer_s1_old_repair" style="display:inline">
+                <use xlink:href="#old_repair" x="496.02" y="574.82"></use>
+            </g>
+            
+            <g id="layer_s1_old_lock" inkscape:label="layer_s1_old_lock" style="display:inline">
+            <g id="layer_s1_old_lock_norm" inkscape:label="layer_s1_old_lock_norm" style="display:inline">
+                <use xlink:href="#old_lock_norm" x="513.52" y="574.82"></use>
+            </g>
+            <g id="layer_s1_old_lock_tpm" inkscape:label="layer_s1_old_lock_tpm" style="display:inline">
+                <use xlink:href="#old_lock_tpm" x="513.52" y="574.82"></use>
+            </g>
+            <g id="layer_s1_old_lock_ndp" inkscape:label="layer_s1_old_lock_ndp" style="display:inline">
+                <use xlink:href="#old_lock_ndp" x="513.52" y="574.82"></use>
+            </g>
+            </g>
+            
+            <g id="layer_s1_insert" inkscape:label="layer_s1_insert" style="display:inline">
+            <use xlink:href="#insert" x="504.77" y="604.92"></use>
+            </g>
+        </g>
+
+        <g id="layer_s2" inkscape:label="layer_s2" style="display:inline">
+            <g id="layer_s2_background" inkscape:label="layer_s2_background" style="display:inline">
+                <use id="Subject2" xlink:href="#layer_s2_frame" class="frame"></use>
+                <use xlink:href="#layer_s2_fill" class="bg_grad"></use>
+                <use xlink:href="#layer_s2_stroke_in" class="st_in st_w"></use>
+                <use xlink:href="#layer_s2_fill" class="st_out"></use>
+            </g>
+
+            <g id="layer_s2_sost" inkscape:label="layer_s2_sost" style="display:inline">
+                <g id="layer_s2_otlichno" inkscape:label="layer_s2_otlichno" style="display:inline">
+                    <use xlink:href="#layer_s2_fill" class="otlichno"></use>
+                    <use xlink:href="#layer_s2_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s2_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s2_norm" inkscape:label="layer_s2_norm" style="display:inline">
+                    <use xlink:href="#layer_s2_fill" class="norm"></use>
+                    <use xlink:href="#layer_s2_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s2_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s2_tpm" inkscape:label="layer_s2_tpm" style="display:inline">
+                    <use xlink:href="#layer_s2_fill" class="tpm"></use>
+                    <use xlink:href="#layer_s2_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s2_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s2_ndp" inkscape:label="layer_s2_ndp" style="display:inline">
+                    <use xlink:href="#layer_s2_fill" class="ndp"></use>
+                    <use xlink:href="#layer_s2_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s2_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s2_repair" inkscape:label="layer_s2_repair" style="display:inline">
+                    <use xlink:href="#layer_s2_fill" class="repair"></use>
+                    <use xlink:href="#layer_s2_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s2_fill" class="st_out"></use>
+                </g>
+            </g>
+        
+            <g id="layer_s2_fail" inkscape:label="layer_s2_fail" style="display:inline">
+                <use xlink:href="#fail" x="513.52" y="548.82"></use>
+            </g>
+            
+            <g id="layer_s2_old_sost" inkscape:label="layer_s2_old_sost" style="display:inline">
+                <g id="layer_s2_old_otlichno" inkscape:label="layer_s2_old_otlichno" style="display:inline">
+                    <use xlink:href="#circle" class="otlichno" x="496.02" y="548.82"></use>
+                </g>
+                <g id="layer_s2_old_norm" inkscape:label="layer_s2_old_norm" style="display:inline">
+                    <use xlink:href="#circle" class="norm" x="496.020" y="548.82"></use>
+                </g>
+                <g id="layer_s2_old_tpm" inkscape:label="layer_s2_old_tpm" style="display:inline">
+                    <use xlink:href="#circle" class="tpm" x="496.02" y="548.82"></use>
+                </g>
+                <g id="layer_s2_old_ndp" inkscape:label="layer_s2_old_ndp" style="display:inline">
+                    <use xlink:href="#circle" class="ndp" x="496.02" y="548.82"></use>
+                </g>
+            </g>
+            
+            <g id="layer_s2_old_repair" inkscape:label="layer_s2_old_repair" style="display:inline">
+                <use xlink:href="#old_repair" x="496.02" y="482.59"></use>
+            </g>
+            
+            <g id="layer_s2_old_lock" inkscape:label="layer_s2_old_lock" style="display:inline">
+            <g id="layer_s2_old_lock_norm" inkscape:label="layer_s2_old_lock_norm" style="display:inline">
+                <use xlink:href="#old_lock_norm" x="513.52" y="482.59"></use>
+            </g>
+            <g id="layer_s2_old_lock_tpm" inkscape:label="layer_s2_old_lock_tpm" style="display:inline">
+                <use xlink:href="#old_lock_tpm" x="513.52" y="482.59"></use>
+            </g>
+            <g id="layer_s2_old_lock_ndp" inkscape:label="layer_s2_old_lock_ndp" style="display:inline">
+                <use xlink:href="#old_lock_ndp" x="513.52" y="482.59"></use>
+            </g>
+            </g>
+            
+            <g id="layer_s2_insert" inkscape:label="layer_s2_insert" style="display:inline">
+            <use xlink:href="#insert" x="504.77" y="515.70"></use>
+            </g>
+        </g>
+
+        <g id="layer_s3" inkscape:label="layer_s3" style="display:inline">
+            <g id="layer_s3_background" inkscape:label="layer_s3_background" style="display:inline">
+                <use id="Subject3" xlink:href="#layer_s3_frame" class="frame"></use>
+                <use xlink:href="#layer_s3_fill" class="bg_grad"></use>
+                <use xlink:href="#layer_s3_stroke_in" class="st_in st_w"></use>
+                <use xlink:href="#layer_s3_fill" class="st_out"></use>
+            </g>
+
+            <g id="layer_s3_sost" inkscape:label="layer_s3_sost" style="display:inline">
+                <g id="layer_s3_otlichno" inkscape:label="layer_s3_otlichno" style="display:inline">
+                    <use xlink:href="#layer_s3_fill" class="otlichno"></use>
+                    <use xlink:href="#layer_s3_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s3_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s3_norm" inkscape:label="layer_s3_norm" style="display:inline">
+                    <use xlink:href="#layer_s3_fill" class="norm"></use>
+                    <use xlink:href="#layer_s3_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s3_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s3_tpm" inkscape:label="layer_s3_tpm" style="display:inline">
+                    <use xlink:href="#layer_s3_fill" class="tpm"></use>
+                    <use xlink:href="#layer_s3_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s3_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s3_ndp" inkscape:label="layer_s3_ndp" style="display:inline">
+                    <use xlink:href="#layer_s3_fill" class="ndp"></use>
+                    <use xlink:href="#layer_s3_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s3_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s3_repair" inkscape:label="layer_s3_repair" style="display:inline">
+                    <use xlink:href="#layer_s3_fill" class="repair"></use>
+                    <use xlink:href="#layer_s3_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s3_fill" class="st_out"></use>
+                </g>
+            </g>
+        
+            <g id="layer_s3_fail" inkscape:label="layer_s3_fail" style="display:inline">
+                <use xlink:href="#fail" x="470.02" y="548.82"></use>
+            </g>
+            
+            <g id="layer_s3_old_sost" inkscape:label="layer_s3_old_sost" style="display:inline">
+                <g id="layer_s3_old_otlichno" inkscape:label="layer_s3_old_otlichno" style="display:inline">
+                    <use xlink:href="#circle" class="otlichno" x="452.52" y="548.82"></use>
+                </g>
+                <g id="layer_s3_old_norm" inkscape:label="layer_s3_old_norm" style="display:inline">
+                    <use xlink:href="#circle" class="norm" x="452.520" y="548.82"></use>
+                </g>
+                <g id="layer_s3_old_tpm" inkscape:label="layer_s3_old_tpm" style="display:inline">
+                    <use xlink:href="#circle" class="tpm" x="452.52" y="548.82"></use>
+                </g>
+                <g id="layer_s3_old_ndp" inkscape:label="layer_s3_old_ndp" style="display:inline">
+                    <use xlink:href="#circle" class="ndp" x="452.52" y="548.82"></use>
+                </g>
+            </g>
+            
+            <g id="layer_s3_old_repair" inkscape:label="layer_s3_old_repair" style="display:inline">
+                <use xlink:href="#old_repair" x="452.52" y="482.59"></use>
+            </g>
+            
+            <g id="layer_s3_old_lock" inkscape:label="layer_s3_old_lock" style="display:inline">
+            <g id="layer_s3_old_lock_norm" inkscape:label="layer_s3_old_lock_norm" style="display:inline">
+                <use xlink:href="#old_lock_norm" x="470.02" y="482.59"></use>
+            </g>
+            <g id="layer_s3_old_lock_tpm" inkscape:label="layer_s3_old_lock_tpm" style="display:inline">
+                <use xlink:href="#old_lock_tpm" x="470.02" y="482.59"></use>
+            </g>
+            <g id="layer_s3_old_lock_ndp" inkscape:label="layer_s3_old_lock_ndp" style="display:inline">
+                <use xlink:href="#old_lock_ndp" x="470.02" y="482.59"></use>
+            </g>
+            </g>
+            
+            <g id="layer_s3_insert" inkscape:label="layer_s3_insert" style="display:inline">
+            <use xlink:href="#insert" x="461.27" y="515.70"></use>
+            </g>
+        </g>
+
+        <g id="layer_s4" inkscape:label="layer_s4" style="display:inline">
+            <g id="layer_s4_background" inkscape:label="layer_s4_background" style="display:inline">
+                <use id="Subject4" xlink:href="#layer_s4_frame" class="frame"></use>
+                <use xlink:href="#layer_s4_fill" class="bg_grad"></use>
+                <use xlink:href="#layer_s4_stroke_in" class="st_in st_w"></use>
+                <use xlink:href="#layer_s4_fill" class="st_out"></use>
+            </g>
+
+            <g id="layer_s4_sost" inkscape:label="layer_s4_sost" style="display:inline">
+                <g id="layer_s4_otlichno" inkscape:label="layer_s4_otlichno" style="display:inline">
+                    <use xlink:href="#layer_s4_fill" class="otlichno"></use>
+                    <use xlink:href="#layer_s4_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s4_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s4_norm" inkscape:label="layer_s4_norm" style="display:inline">
+                    <use xlink:href="#layer_s4_fill" class="norm"></use>
+                    <use xlink:href="#layer_s4_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s4_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s4_tpm" inkscape:label="layer_s4_tpm" style="display:inline">
+                    <use xlink:href="#layer_s4_fill" class="tpm"></use>
+                    <use xlink:href="#layer_s4_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s4_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s4_ndp" inkscape:label="layer_s4_ndp" style="display:inline">
+                    <use xlink:href="#layer_s4_fill" class="ndp"></use>
+                    <use xlink:href="#layer_s4_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s4_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s4_repair" inkscape:label="layer_s4_repair" style="display:inline">
+                    <use xlink:href="#layer_s4_fill" class="repair"></use>
+                    <use xlink:href="#layer_s4_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s4_fill" class="st_out"></use>
+                </g>
+            </g>
+        
+            <g id="layer_s4_fail" inkscape:label="layer_s4_fail" style="display:inline">
+                <use xlink:href="#fail" x="470.02" y="456.60"></use>
+            </g>
+            
+            <g id="layer_s4_old_sost" inkscape:label="layer_s4_old_sost" style="display:inline">
+                <g id="layer_s4_old_otlichno" inkscape:label="layer_s4_old_otlichno" style="display:inline">
+                    <use xlink:href="#circle" class="otlichno" x="452.52" y="456.60"></use>
+                </g>
+                <g id="layer_s4_old_norm" inkscape:label="layer_s4_old_norm" style="display:inline">
+                    <use xlink:href="#circle" class="norm" x="452.520" y="456.60"></use>
+                </g>
+                <g id="layer_s4_old_tpm" inkscape:label="layer_s4_old_tpm" style="display:inline">
+                    <use xlink:href="#circle" class="tpm" x="452.52" y="456.60"></use>
+                </g>
+                <g id="layer_s4_old_ndp" inkscape:label="layer_s4_old_ndp" style="display:inline">
+                    <use xlink:href="#circle" class="ndp" x="452.52" y="456.60"></use>
+                </g>
+            </g>
+            
+            <g id="layer_s4_old_repair" inkscape:label="layer_s4_old_repair" style="display:inline">
+                <use xlink:href="#old_repair" x="452.52" y="390.42"></use>
+            </g>
+            
+            <g id="layer_s4_old_lock" inkscape:label="layer_s4_old_lock" style="display:inline">
+            <g id="layer_s4_old_lock_norm" inkscape:label="layer_s4_old_lock_norm" style="display:inline">
+                <use xlink:href="#old_lock_norm" x="470.02" y="390.42"></use>
+            </g>
+            <g id="layer_s4_old_lock_tpm" inkscape:label="layer_s4_old_lock_tpm" style="display:inline">
+                <use xlink:href="#old_lock_tpm" x="470.02" y="390.42"></use>
+            </g>
+            <g id="layer_s4_old_lock_ndp" inkscape:label="layer_s4_old_lock_ndp" style="display:inline">
+                <use xlink:href="#old_lock_ndp" x="470.02" y="390.42"></use>
+            </g>
+            </g>
+            
+            <g id="layer_s4_insert" inkscape:label="layer_s4_insert" style="display:inline">
+            <use xlink:href="#insert" x="461.27" y="423.51"></use>
+            </g>
+        </g>
+
+        <g id="layer_s5" inkscape:label="layer_s5" style="display:inline">
+            <g id="layer_s5_background" inkscape:label="layer_s5_background" style="display:inline">
+                <use id="Subject5" xlink:href="#layer_s5_frame" class="frame"></use>
+                <use xlink:href="#layer_s5_fill" class="bg_grad"></use>
+                <use xlink:href="#layer_s5_stroke_in" class="st_in st_w"></use>
+                <use xlink:href="#layer_s5_fill" class="st_out"></use>
+            </g>
+
+            <g id="layer_s5_sost" inkscape:label="layer_s5_sost" style="display:inline">
+                <g id="layer_s5_otlichno" inkscape:label="layer_s5_otlichno" style="display:inline">
+                    <use xlink:href="#layer_s5_fill" class="otlichno"></use>
+                    <use xlink:href="#layer_s5_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s5_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s5_norm" inkscape:label="layer_s5_norm" style="display:inline">
+                    <use xlink:href="#layer_s5_fill" class="norm"></use>
+                    <use xlink:href="#layer_s5_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s5_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s5_tpm" inkscape:label="layer_s5_tpm" style="display:inline">
+                    <use xlink:href="#layer_s5_fill" class="tpm"></use>
+                    <use xlink:href="#layer_s5_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s5_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s5_ndp" inkscape:label="layer_s5_ndp" style="display:inline">
+                    <use xlink:href="#layer_s5_fill" class="ndp"></use>
+                    <use xlink:href="#layer_s5_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s5_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s5_repair" inkscape:label="layer_s5_repair" style="display:inline">
+                    <use xlink:href="#layer_s5_fill" class="repair"></use>
+                    <use xlink:href="#layer_s5_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s5_fill" class="st_out"></use>
+                </g>
+            </g>
+        
+            <g id="layer_s5_fail" inkscape:label="layer_s5_fail" style="display:inline">
+                <use xlink:href="#fail" x="513.52" y="456.60"></use>
+            </g>
+            
+            <g id="layer_s5_old_sost" inkscape:label="layer_s5_old_sost" style="display:inline">
+                <g id="layer_s5_old_otlichno" inkscape:label="layer_s5_old_otlichno" style="display:inline">
+                    <use xlink:href="#circle" class="otlichno" x="496.02" y="456.60"></use>
+                </g>
+                <g id="layer_s5_old_norm" inkscape:label="layer_s5_old_norm" style="display:inline">
+                    <use xlink:href="#circle" class="norm" x="496.020" y="456.60"></use>
+                </g>
+                <g id="layer_s5_old_tpm" inkscape:label="layer_s5_old_tpm" style="display:inline">
+                    <use xlink:href="#circle" class="tpm" x="496.02" y="456.60"></use>
+                </g>
+                <g id="layer_s5_old_ndp" inkscape:label="layer_s5_old_ndp" style="display:inline">
+                    <use xlink:href="#circle" class="ndp" x="496.02" y="456.60"></use>
+                </g>
+            </g>
+            
+            <g id="layer_s5_old_repair" inkscape:label="layer_s5_old_repair" style="display:inline">
+                <use xlink:href="#old_repair" x="496.02" y="390.42"></use>
+            </g>
+            
+            <g id="layer_s5_old_lock" inkscape:label="layer_s5_old_lock" style="display:inline">
+            <g id="layer_s5_old_lock_norm" inkscape:label="layer_s5_old_lock_norm" style="display:inline">
+                <use xlink:href="#old_lock_norm" x="513.52" y="390.42"></use>
+            </g>
+            <g id="layer_s5_old_lock_tpm" inkscape:label="layer_s5_old_lock_tpm" style="display:inline">
+                <use xlink:href="#old_lock_tpm" x="513.52" y="390.42"></use>
+            </g>
+            <g id="layer_s5_old_lock_ndp" inkscape:label="layer_s5_old_lock_ndp" style="display:inline">
+                <use xlink:href="#old_lock_ndp" x="513.52" y="390.42"></use>
+            </g>
+            </g>
+            
+            <g id="layer_s5_insert" inkscape:label="layer_s5_insert" style="display:inline">
+            <use xlink:href="#insert" x="504.77" y="423.51"></use>
+            </g>
+        </g>
+
+        <g id="layer_s6" inkscape:label="layer_s6" style="display:inline">
+            <g id="layer_s6_background" inkscape:label="layer_s6_background" style="display:inline">
+                <use id="Subject6" xlink:href="#layer_s6_frame" class="frame"></use>
+                <use xlink:href="#layer_s6_fill" class="bg_grad"></use>
+                <use xlink:href="#layer_s6_stroke_in" class="st_in st_w"></use>
+                <use xlink:href="#layer_s6_fill" class="st_out"></use>
+            </g>
+
+            <g id="layer_s6_sost" inkscape:label="layer_s6_sost" style="display:inline">
+                <g id="layer_s6_otlichno" inkscape:label="layer_s6_otlichno" style="display:inline">
+                    <use xlink:href="#layer_s6_fill" class="otlichno"></use>
+                    <use xlink:href="#layer_s6_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s6_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s6_norm" inkscape:label="layer_s6_norm" style="display:inline">
+                    <use xlink:href="#layer_s6_fill" class="norm"></use>
+                    <use xlink:href="#layer_s6_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s6_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s6_tpm" inkscape:label="layer_s6_tpm" style="display:inline">
+                    <use xlink:href="#layer_s6_fill" class="tpm"></use>
+                    <use xlink:href="#layer_s6_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s6_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s6_ndp" inkscape:label="layer_s6_ndp" style="display:inline">
+                    <use xlink:href="#layer_s6_fill" class="ndp"></use>
+                    <use xlink:href="#layer_s6_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s6_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s6_repair" inkscape:label="layer_s6_repair" style="display:inline">
+                    <use xlink:href="#layer_s6_fill" class="repair"></use>
+                    <use xlink:href="#layer_s6_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s6_fill" class="st_out"></use>
+                </g>
+            </g>
+        
+            <g id="layer_s6_fail" inkscape:label="layer_s6_fail" style="display:inline">
+                <use xlink:href="#fail" x="470.02" y="364.42"></use>
+            </g>
+            
+            <g id="layer_s6_old_sost" inkscape:label="layer_s6_old_sost" style="display:inline">
+                <g id="layer_s6_old_otlichno" inkscape:label="layer_s6_old_otlichno" style="display:inline">
+                    <use xlink:href="#circle" class="otlichno" x="452.52" y="364.42"></use>
+                </g>
+                <g id="layer_s6_old_norm" inkscape:label="layer_s6_old_norm" style="display:inline">
+                    <use xlink:href="#circle" class="norm" x="452.520" y="364.42"></use>
+                </g>
+                <g id="layer_s6_old_tpm" inkscape:label="layer_s6_old_tpm" style="display:inline">
+                    <use xlink:href="#circle" class="tpm" x="452.52" y="364.42"></use>
+                </g>
+                <g id="layer_s6_old_ndp" inkscape:label="layer_s6_old_ndp" style="display:inline">
+                    <use xlink:href="#circle" class="ndp" x="452.52" y="364.42"></use>
+                </g>
+            </g>
+            
+            <g id="layer_s6_old_repair" inkscape:label="layer_s6_old_repair" style="display:inline">
+                <use xlink:href="#old_repair" x="452.52" y="298.22"></use>
+            </g>
+            
+            <g id="layer_s6_old_lock" inkscape:label="layer_s6_old_lock" style="display:inline">
+            <g id="layer_s6_old_lock_norm" inkscape:label="layer_s6_old_lock_norm" style="display:inline">
+                <use xlink:href="#old_lock_norm" x="470.02" y="298.22"></use>
+            </g>
+            <g id="layer_s6_old_lock_tpm" inkscape:label="layer_s6_old_lock_tpm" style="display:inline">
+                <use xlink:href="#old_lock_tpm" x="470.02" y="298.22"></use>
+            </g>
+            <g id="layer_s6_old_lock_ndp" inkscape:label="layer_s6_old_lock_ndp" style="display:inline">
+                <use xlink:href="#old_lock_ndp" x="470.02" y="298.22"></use>
+            </g>
+            </g>
+            
+            <g id="layer_s6_insert" inkscape:label="layer_s6_insert" style="display:inline">
+            <use xlink:href="#insert" x="461.27" y="331.32"></use>
+            </g>
+        </g>
+
+        <g id="layer_s7" inkscape:label="layer_s7" style="display:inline">
+            <g id="layer_s7_background" inkscape:label="layer_s7_background" style="display:inline">
+                <use id="Subject7" xlink:href="#layer_s7_frame" class="frame"></use>
+                <use xlink:href="#layer_s7_fill" class="bg_grad"></use>
+                <use xlink:href="#layer_s7_stroke_in" class="st_in st_w"></use>
+                <use xlink:href="#layer_s7_fill" class="st_out"></use>
+            </g>
+
+            <g id="layer_s7_sost" inkscape:label="layer_s7_sost" style="display:inline">
+                <g id="layer_s7_otlichno" inkscape:label="layer_s7_otlichno" style="display:inline">
+                    <use xlink:href="#layer_s7_fill" class="otlichno"></use>
+                    <use xlink:href="#layer_s7_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s7_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s7_norm" inkscape:label="layer_s7_norm" style="display:inline">
+                    <use xlink:href="#layer_s7_fill" class="norm"></use>
+                    <use xlink:href="#layer_s7_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s7_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s7_tpm" inkscape:label="layer_s7_tpm" style="display:inline">
+                    <use xlink:href="#layer_s7_fill" class="tpm"></use>
+                    <use xlink:href="#layer_s7_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s7_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s7_ndp" inkscape:label="layer_s7_ndp" style="display:inline">
+                    <use xlink:href="#layer_s7_fill" class="ndp"></use>
+                    <use xlink:href="#layer_s7_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s7_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s7_repair" inkscape:label="layer_s7_repair" style="display:inline">
+                    <use xlink:href="#layer_s7_fill" class="repair"></use>
+                    <use xlink:href="#layer_s7_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s7_fill" class="st_out"></use>
+                </g>
+            </g>
+        
+            <g id="layer_s7_fail" inkscape:label="layer_s7_fail" style="display:inline">
+                <use xlink:href="#fail" x="513.52" y="364.42"></use>
+            </g>
+            
+            <g id="layer_s7_old_sost" inkscape:label="layer_s7_old_sost" style="display:inline">
+                <g id="layer_s7_old_otlichno" inkscape:label="layer_s7_old_otlichno" style="display:inline">
+                    <use xlink:href="#circle" class="otlichno" x="496.02" y="364.42"></use>
+                </g>
+                <g id="layer_s7_old_norm" inkscape:label="layer_s7_old_norm" style="display:inline">
+                    <use xlink:href="#circle" class="norm" x="496.020" y="364.42"></use>
+                </g>
+                <g id="layer_s7_old_tpm" inkscape:label="layer_s7_old_tpm" style="display:inline">
+                    <use xlink:href="#circle" class="tpm" x="496.02" y="364.42"></use>
+                </g>
+                <g id="layer_s7_old_ndp" inkscape:label="layer_s7_old_ndp" style="display:inline">
+                    <use xlink:href="#circle" class="ndp" x="496.02" y="364.42"></use>
+                </g>
+            </g>
+            
+            <g id="layer_s7_old_repair" inkscape:label="layer_s7_old_repair" style="display:inline">
+                <use xlink:href="#old_repair" x="496.02" y="298.22"></use>
+            </g>
+            
+            <g id="layer_s7_old_lock" inkscape:label="layer_s7_old_lock" style="display:inline">
+            <g id="layer_s7_old_lock_norm" inkscape:label="layer_s7_old_lock_norm" style="display:inline">
+                <use xlink:href="#old_lock_norm" x="513.52" y="298.22"></use>
+            </g>
+            <g id="layer_s7_old_lock_tpm" inkscape:label="layer_s7_old_lock_tpm" style="display:inline">
+                <use xlink:href="#old_lock_tpm" x="513.52" y="298.22"></use>
+            </g>
+            <g id="layer_s7_old_lock_ndp" inkscape:label="layer_s7_old_lock_ndp" style="display:inline">
+                <use xlink:href="#old_lock_ndp" x="513.52" y="298.22"></use>
+            </g>
+            </g>
+            
+            <g id="layer_s7_insert" inkscape:label="layer_s7_insert" style="display:inline">
+            <use xlink:href="#insert" x="504.77" y="331.32"></use>
+            </g>
+        </g>
+
+        <g id="layer_s8" inkscape:label="layer_s8" style="display:inline">
+            <g id="layer_s8_background" inkscape:label="layer_s8_background" style="display:inline">
+                <use id="Subject8" xlink:href="#layer_s8_frame" class="frame"></use>
+                <use xlink:href="#layer_s8_fill" class="bg_grad"></use>
+                <use xlink:href="#layer_s8_stroke_in" class="st_in st_w"></use>
+                <use xlink:href="#layer_s8_stroke_in_1" class="st_in_1 st_w"></use>
+                <use xlink:href="#layer_s8_fill" class="st_out"></use>
+            </g>
+
+            <g id="layer_s8_sost" inkscape:label="layer_s8_sost" style="display:inline">
+                <g id="layer_s8_otlichno" inkscape:label="layer_s8_otlichno" style="display:inline">
+                    <use xlink:href="#layer_s8_fill" class="otlichno"></use>
+                    <use xlink:href="#layer_s8_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s8_stroke_in_1" class="st_in_1 st_w"></use>
+                    <use xlink:href="#layer_s8_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s8_norm" inkscape:label="layer_s8_norm" style="display:inline">
+                    <use xlink:href="#layer_s8_fill" class="norm"></use>
+                    <use xlink:href="#layer_s8_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s8_stroke_in_1" class="st_in_1 st_b"></use>
+                    <use xlink:href="#layer_s8_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s8_tpm" inkscape:label="layer_s8_tpm" style="display:inline">
+                    <use xlink:href="#layer_s8_fill" class="tpm"></use>
+                    <use xlink:href="#layer_s8_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s8_stroke_in_1" class="st_in_1 st_b"></use>
+                    <use xlink:href="#layer_s8_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s8_ndp" inkscape:label="layer_s8_ndp" style="display:inline">
+                    <use xlink:href="#layer_s8_fill" class="ndp"></use>
+                    <use xlink:href="#layer_s8_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s8_stroke_in_1" class="st_in_1 st_w"></use>
+                    <use xlink:href="#layer_s8_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s8_repair" inkscape:label="layer_s8_repair" style="display:inline">
+                    <use xlink:href="#layer_s8_fill" class="repair"></use>
+                    <use xlink:href="#layer_s8_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s8_stroke_in_1" class="st_in_1 st_w"></use>
+                    <use xlink:href="#layer_s8_fill" class="st_out"></use>
+                </g>
+            </g>
+        
+            <g id="layer_s8_fail" inkscape:label="layer_s8_fail" style="display:inline">
+                <use xlink:href="#fail" x="470.02" y="272.22"></use>
+            </g>
+            
+            <g id="layer_s8_old_sost" inkscape:label="layer_s8_old_sost" style="display:inline">
+                <g id="layer_s8_old_otlichno" inkscape:label="layer_s8_old_otlichno" style="display:inline">
+                    <use xlink:href="#circle" class="otlichno" x="452.52" y="272.22"></use>
+                </g>
+                <g id="layer_s8_old_norm" inkscape:label="layer_s8_old_norm" style="display:inline">
+                    <use xlink:href="#circle" class="norm" x="452.520" y="272.22"></use>
+                </g>
+                <g id="layer_s8_old_tpm" inkscape:label="layer_s8_old_tpm" style="display:inline">
+                    <use xlink:href="#circle" class="tpm" x="452.52" y="272.22"></use>
+                </g>
+                <g id="layer_s8_old_ndp" inkscape:label="layer_s8_old_ndp" style="display:inline">
+                    <use xlink:href="#circle" class="ndp" x="452.52" y="272.22"></use>
+                </g>
+            </g>
+            
+            <g id="layer_s8_old_repair" inkscape:label="layer_s8_old_repair" style="display:inline">
+                <use xlink:href="#old_repair" x="452.52" y="205.98"></use>
+            </g>
+            
+            <g id="layer_s8_old_lock" inkscape:label="layer_s8_old_lock" style="display:inline">
+            <g id="layer_s8_old_lock_norm" inkscape:label="layer_s8_old_lock_norm" style="display:inline">
+                <use xlink:href="#old_lock_norm" x="470.02" y="205.98"></use>
+            </g>
+            <g id="layer_s8_old_lock_tpm" inkscape:label="layer_s8_old_lock_tpm" style="display:inline">
+                <use xlink:href="#old_lock_tpm" x="470.02" y="205.98"></use>
+            </g>
+            <g id="layer_s8_old_lock_ndp" inkscape:label="layer_s8_old_lock_ndp" style="display:inline">
+                <use xlink:href="#old_lock_ndp" x="470.02" y="205.98"></use>
+            </g>
+            </g>
+            
+            <g id="layer_s8_insert" inkscape:label="layer_s8_insert" style="display:inline">
+            <use xlink:href="#insert" x="461.27" y="239.10"></use>
+            </g>
+        </g>
+
+        <g id="layer_s9" inkscape:label="layer_s9" style="display:inline">
+            <g id="layer_s9_background" inkscape:label="layer_s9_background" style="display:inline">
+                <use id="Subject9" xlink:href="#layer_s9_frame" class="frame"></use>
+                <use xlink:href="#layer_s9_fill" class="bg_grad"></use>
+                <use xlink:href="#layer_s9_stroke_in" class="st_in st_w"></use>
+                <use xlink:href="#layer_s9_stroke_in_1" class="st_in_1 st_w"></use>
+                <use xlink:href="#layer_s9_fill" class="st_out"></use>
+            </g>
+
+            <g id="layer_s9_sost" inkscape:label="layer_s9_sost" style="display:inline">
+                <g id="layer_s9_otlichno" inkscape:label="layer_s9_otlichno" style="display:inline">
+                    <use xlink:href="#layer_s9_fill" class="otlichno"></use>
+                    <use xlink:href="#layer_s9_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s9_stroke_in_1" class="st_in_1 st_w"></use>
+                    <use xlink:href="#layer_s9_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s9_norm" inkscape:label="layer_s9_norm" style="display:inline">
+                    <use xlink:href="#layer_s9_fill" class="norm"></use>
+                    <use xlink:href="#layer_s9_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s9_stroke_in_1" class="st_in_1 st_b"></use>
+                    <use xlink:href="#layer_s9_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s9_tpm" inkscape:label="layer_s9_tpm" style="display:inline">
+                    <use xlink:href="#layer_s9_fill" class="tpm"></use>
+                    <use xlink:href="#layer_s9_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s9_stroke_in_1" class="st_in_1 st_b"></use>
+                    <use xlink:href="#layer_s9_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s9_ndp" inkscape:label="layer_s9_ndp" style="display:inline">
+                    <use xlink:href="#layer_s9_fill" class="ndp"></use>
+                    <use xlink:href="#layer_s9_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s9_stroke_in_1" class="st_in_1 st_w"></use>
+                    <use xlink:href="#layer_s9_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s9_repair" inkscape:label="layer_s9_repair" style="display:inline">
+                    <use xlink:href="#layer_s9_fill" class="repair"></use>
+                    <use xlink:href="#layer_s9_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s9_stroke_in_1" class="st_in_1 st_w"></use>
+                    <use xlink:href="#layer_s9_fill" class="st_out"></use>
+                </g>
+            </g>
+        
+            <g id="layer_s9_fail" inkscape:label="layer_s9_fail" style="display:inline">
+                <use xlink:href="#fail" x="513.52" y="272.22"></use>
+            </g>
+            
+            <g id="layer_s9_old_sost" inkscape:label="layer_s9_old_sost" style="display:inline">
+                <g id="layer_s9_old_otlichno" inkscape:label="layer_s9_old_otlichno" style="display:inline">
+                    <use xlink:href="#circle" class="otlichno" x="496.02" y="272.22"></use>
+                </g>
+                <g id="layer_s9_old_norm" inkscape:label="layer_s9_old_norm" style="display:inline">
+                    <use xlink:href="#circle" class="norm" x="496.020" y="272.22"></use>
+                </g>
+                <g id="layer_s9_old_tpm" inkscape:label="layer_s9_old_tpm" style="display:inline">
+                    <use xlink:href="#circle" class="tpm" x="496.02" y="272.22"></use>
+                </g>
+                <g id="layer_s9_old_ndp" inkscape:label="layer_s9_old_ndp" style="display:inline">
+                    <use xlink:href="#circle" class="ndp" x="496.02" y="272.22"></use>
+                </g>
+            </g>
+            
+            <g id="layer_s9_old_repair" inkscape:label="layer_s9_old_repair" style="display:inline">
+                <use xlink:href="#old_repair" x="496.02" y="205.98"></use>
+            </g>
+            
+            <g id="layer_s9_old_lock" inkscape:label="layer_s9_old_lock" style="display:inline">
+            <g id="layer_s9_old_lock_norm" inkscape:label="layer_s9_old_lock_norm" style="display:inline">
+                <use xlink:href="#old_lock_norm" x="513.52" y="205.98"></use>
+            </g>
+            <g id="layer_s9_old_lock_tpm" inkscape:label="layer_s9_old_lock_tpm" style="display:inline">
+                <use xlink:href="#old_lock_tpm" x="513.52" y="205.98"></use>
+            </g>
+            <g id="layer_s9_old_lock_ndp" inkscape:label="layer_s9_old_lock_ndp" style="display:inline">
+                <use xlink:href="#old_lock_ndp" x="513.52" y="205.98"></use>
+            </g>
+            </g>
+            
+            <g id="layer_s9_insert" inkscape:label="layer_s9_insert" style="display:inline">
+            <use xlink:href="#insert" x="504.77" y="239.10"></use>
+            </g>
+        </g>
+
+        <g id="layer_s10" inkscape:label="layer_s10" style="display:inline">
+            <g id="layer_s10_background" inkscape:label="layer_s10_background" style="display:inline">
+                <use id="Subject10" xlink:href="#layer_s10_frame" class="frame"></use>
+                <use xlink:href="#layer_s10_fill" class="bg_grad"></use>
+                <use xlink:href="#layer_s10_stroke_in" class="st_in st_w"></use>
+                <use xlink:href="#layer_s10_fill" class="st_out"></use>
+            </g>
+
+            <g id="layer_s10_sost" inkscape:label="layer_s10_sost" style="display:inline">
+                <g id="layer_s10_otlichno" inkscape:label="layer_s10_otlichno" style="display:inline">
+                    <use xlink:href="#layer_s10_fill" class="otlichno"></use>
+                    <use xlink:href="#layer_s10_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s10_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s10_norm" inkscape:label="layer_s10_norm" style="display:inline">
+                    <use xlink:href="#layer_s10_fill" class="norm"></use>
+                    <use xlink:href="#layer_s10_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s10_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s10_tpm" inkscape:label="layer_s10_tpm" style="display:inline">
+                    <use xlink:href="#layer_s10_fill" class="tpm"></use>
+                    <use xlink:href="#layer_s10_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s10_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s10_ndp" inkscape:label="layer_s10_ndp" style="display:inline">
+                    <use xlink:href="#layer_s10_fill" class="ndp"></use>
+                    <use xlink:href="#layer_s10_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s10_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s10_repair" inkscape:label="layer_s10_repair" style="display:inline">
+                    <use xlink:href="#layer_s10_fill" class="repair"></use>
+                    <use xlink:href="#layer_s10_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s10_fill" class="st_out"></use>
+                </g>
+            </g>
+        
+            <g id="layer_s10_fail" inkscape:label="layer_s10_fail" style="display:inline">
+                <use xlink:href="#fail" x="470.02" y="179.98"></use>
+            </g>
+            
+            <g id="layer_s10_old_sost" inkscape:label="layer_s10_old_sost" style="display:inline">
+                <g id="layer_s10_old_otlichno" inkscape:label="layer_s10_old_otlichno" style="display:inline">
+                    <use xlink:href="#circle" class="otlichno" x="452.52" y="179.98"></use>
+                </g>
+                <g id="layer_s10_old_norm" inkscape:label="layer_s10_old_norm" style="display:inline">
+                    <use xlink:href="#circle" class="norm" x="452.520" y="179.98"></use>
+                </g>
+                <g id="layer_s10_old_tpm" inkscape:label="layer_s10_old_tpm" style="display:inline">
+                    <use xlink:href="#circle" class="tpm" x="452.52" y="179.98"></use>
+                </g>
+                <g id="layer_s10_old_ndp" inkscape:label="layer_s10_old_ndp" style="display:inline">
+                    <use xlink:href="#circle" class="ndp" x="452.52" y="179.98"></use>
+                </g>
+            </g>
+            
+            <g id="layer_s10_old_repair" inkscape:label="layer_s10_old_repair" style="display:inline">
+                <use xlink:href="#old_repair" x="452.52" y="127.79"></use>
+            </g>
+            
+            <g id="layer_s10_old_lock" inkscape:label="layer_s10_old_lock" style="display:inline">
+            <g id="layer_s10_old_lock_norm" inkscape:label="layer_s10_old_lock_norm" style="display:inline">
+                <use xlink:href="#old_lock_norm" x="470.02" y="112.79"></use>
+            </g>
+            <g id="layer_s10_old_lock_tpm" inkscape:label="layer_s10_old_lock_tpm" style="display:inline">
+                <use xlink:href="#old_lock_tpm" x="470.02" y="112.79"></use>
+            </g>
+            <g id="layer_s10_old_lock_ndp" inkscape:label="layer_s10_old_lock_ndp" style="display:inline">
+                <use xlink:href="#old_lock_ndp" x="470.02" y="112.79"></use>
+            </g>
+            </g>
+            
+            <g id="layer_s10_insert" inkscape:label="layer_s10_insert" style="display:inline">
+            <use xlink:href="#insert" x="461.27" y="150.88"></use>
+            </g>
+        </g>
+
+        <g id="layer_s11" inkscape:label="layer_s11" style="display:inline">
+            <g id="layer_s11_background" inkscape:label="layer_s11_background" style="display:inline">
+                <use id="Subject11" xlink:href="#layer_s11_frame" class="frame"></use>
+                <use xlink:href="#layer_s11_fill" class="bg_grad"></use>
+                <use xlink:href="#layer_s11_stroke_in" class="st_in st_w"></use>
+                <use xlink:href="#layer_s11_fill" class="st_out"></use>
+            </g>
+
+            <g id="layer_s11_sost" inkscape:label="layer_s11_sost" style="display:inline">
+                <g id="layer_s11_otlichno" inkscape:label="layer_s11_otlichno" style="display:inline">
+                    <use xlink:href="#layer_s11_fill" class="otlichno"></use>
+                    <use xlink:href="#layer_s11_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s11_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s11_norm" inkscape:label="layer_s11_norm" style="display:inline">
+                    <use xlink:href="#layer_s11_fill" class="norm"></use>
+                    <use xlink:href="#layer_s11_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s11_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s11_tpm" inkscape:label="layer_s11_tpm" style="display:inline">
+                    <use xlink:href="#layer_s11_fill" class="tpm"></use>
+                    <use xlink:href="#layer_s11_stroke_in" class="st_in st_b"></use>
+                    <use xlink:href="#layer_s11_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s11_ndp" inkscape:label="layer_s11_ndp" style="display:inline">
+                    <use xlink:href="#layer_s11_fill" class="ndp"></use>
+                    <use xlink:href="#layer_s11_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s11_fill" class="st_out"></use>
+                </g>
+                <g id="layer_s11_repair" inkscape:label="layer_s11_repair" style="display:inline">
+                    <use xlink:href="#layer_s11_fill" class="repair"></use>
+                    <use xlink:href="#layer_s11_stroke_in" class="st_in st_w"></use>
+                    <use xlink:href="#layer_s11_fill" class="st_out"></use>
+                </g>
+            </g>
+        
+            <g id="layer_s11_fail" inkscape:label="layer_s11_fail" style="display:inline">
+                <use xlink:href="#fail" x="513.52" y="179.98"></use>
+            </g>
+            
+            <g id="layer_s11_old_sost" inkscape:label="layer_s11_old_sost" style="display:inline">
+                <g id="layer_s11_old_otlichno" inkscape:label="layer_s11_old_otlichno" style="display:inline">
+                    <use xlink:href="#circle" class="otlichno" x="496.02" y="179.98"></use>
+                </g>
+                <g id="layer_s11_old_norm" inkscape:label="layer_s11_old_norm" style="display:inline">
+                    <use xlink:href="#circle" class="norm" x="496.020" y="179.98"></use>
+                </g>
+                <g id="layer_s11_old_tpm" inkscape:label="layer_s11_old_tpm" style="display:inline">
+                    <use xlink:href="#circle" class="tpm" x="496.02" y="179.98"></use>
+                </g>
+                <g id="layer_s11_old_ndp" inkscape:label="layer_s11_old_ndp" style="display:inline">
+                    <use xlink:href="#circle" class="ndp" x="496.02" y="179.98"></use>
+                </g>
+            </g>
+            
+            <g id="layer_s11_old_repair" inkscape:label="layer_s11_old_repair" style="display:inline">
+                <use xlink:href="#old_repair" x="496.02" y="112.79"></use>
+            </g>
+            
+            <g id="layer_s11_old_lock" inkscape:label="layer_s11_old_lock" style="display:inline">
+            <g id="layer_s11_old_lock_norm" inkscape:label="layer_s11_old_lock_norm" style="display:inline">
+                <use xlink:href="#old_lock_norm" x="513.52" y="127.79"></use>
+            </g>
+            <g id="layer_s11_old_lock_tpm" inkscape:label="layer_s11_old_lock_tpm" style="display:inline">
+                <use xlink:href="#old_lock_tpm" x="513.52" y="127.79"></use>
+            </g>
+            <g id="layer_s11_old_lock_ndp" inkscape:label="layer_s11_old_lock_ndp" style="display:inline">
+                <use xlink:href="#old_lock_ndp" x="513.52" y="127.79"></use>
+            </g>
+            </g>
+            
+            <g id="layer_s11_insert" inkscape:label="layer_s11_insert" style="display:inline">
+            <use xlink:href="#insert" x="504.77" y="150.89"></use>
+            </g>
+        </g>
+    </g>
+
+</svg>
